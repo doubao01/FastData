@@ -58,7 +58,7 @@ namespace FastData.DevTools
                             }
                         }
 
-                        var result = FastData.Write.Write.Add<T>(entity, dbKey);
+                        var result = FastData.FastWrite.Add<T>(entity, null, dbKey);
                         if (result.IsSuccess)
                         {
                             successCount++;
@@ -85,13 +85,13 @@ namespace FastData.DevTools
         /// <summary>
         /// 导出数据到CSV文件
         /// </summary>
-        public static void ExportToCSV<T>(string filePath, System.Linq.Expressions.Expression<Func<T, bool>> expression = null, string dbKey = null)
+        public static void ExportToCSV<T>(string filePath, System.Linq.Expressions.Expression<Func<T, bool>> expression = null, string dbKey = null) where T : class, new()
         {
             try
             {
                 var list = expression == null 
-                    ? FastData.Read.Read.List<T>(dbKey)
-                    : FastData.Read.Read.Query<T>(dbKey).Where(expression).ToList();
+                    ? FastData.FastRead.Query<T>(e => true, null, dbKey).ToList()
+                    : FastData.FastRead.Query<T>(expression, null, dbKey).ToList();
 
                 if (list == null || list.Count == 0)
                 {
@@ -139,7 +139,7 @@ namespace FastData.DevTools
 
                 if (batch.Count >= batchSize)
                 {
-                    var result = FastData.Write.Write.AddRange(batch, dbKey);
+                    var result = FastData.FastWrite.AddList<T>(batch, dbKey);
                     successCount += result.IsSuccess ? batch.Count : 0;
                     failCount += result.IsSuccess ? 0 : batch.Count;
                     batch.Clear();
@@ -148,7 +148,7 @@ namespace FastData.DevTools
 
             if (batch.Count > 0)
             {
-                var result = FastData.Write.Write.AddRange(batch, dbKey);
+                var result = FastData.FastWrite.AddList<T>(batch, dbKey);
                 successCount += result.IsSuccess ? batch.Count : 0;
                 failCount += result.IsSuccess ? 0 : batch.Count;
             }
@@ -168,7 +168,7 @@ namespace FastData.DevTools
             int updated = 0;
             int failed = 0;
 
-            var existingData = FastData.Read.Read.List<T>(dbKey) ?? new List<T>();
+            var existingData = FastData.FastRead.Query<T>(e => true, null, dbKey).ToList() ?? new List<T>();
             var existingKeys = new HashSet<object>(existingData.Select(keySelector));
 
             foreach (var item in newData)
@@ -179,7 +179,7 @@ namespace FastData.DevTools
 
                     if (existingKeys.Contains(key))
                     {
-                        var result = FastData.Write.Write.Update<T>(item, dbKey);
+                        var result = FastData.FastWrite.Update<T>(item, null, null, dbKey);
                         if (result.IsSuccess)
                         {
                             updated++;
@@ -191,7 +191,7 @@ namespace FastData.DevTools
                     }
                     else
                     {
-                        var result = FastData.Write.Write.Add<T>(item, dbKey);
+                        var result = FastData.FastWrite.Add<T>(item, null, dbKey);
                         if (result.IsSuccess)
                         {
                             inserted++;
@@ -244,13 +244,13 @@ namespace FastData.DevTools
         /// <summary>
         /// 导出数据到JSON文件
         /// </summary>
-        public static void ExportToJson<T>(string filePath, System.Linq.Expressions.Expression<Func<T, bool>> expression = null, string dbKey = null)
+        public static void ExportToJson<T>(string filePath, System.Linq.Expressions.Expression<Func<T, bool>> expression = null, string dbKey = null) where T : class, new()
         {
             try
             {
                 var list = expression == null 
-                    ? FastData.Read.Read.List<T>(dbKey)
-                    : FastData.Read.Read.Query<T>(dbKey).Where(expression).ToList();
+                    ? FastData.FastRead.Query<T>(e => true, null, dbKey).ToList()
+                    : FastData.FastRead.Query<T>(expression, null, dbKey).ToList();
 
                 if (list == null || list.Count == 0)
                 {
@@ -280,13 +280,13 @@ namespace FastData.DevTools
         /// <summary>
         /// 导出数据到Excel（CSV格式）
         /// </summary>
-        public static void ExportToExcel<T>(string filePath, System.Linq.Expressions.Expression<Func<T, bool>> expression = null, string dbKey = null)
+        public static void ExportToExcel<T>(string filePath, System.Linq.Expressions.Expression<Func<T, bool>> expression = null, string dbKey = null) where T : class, new()
         {
             try
             {
                 var list = expression == null 
-                    ? FastData.Read.Read.List<T>(dbKey)
-                    : FastData.Read.Read.Query<T>(dbKey).Where(expression).ToList();
+                    ? FastData.FastRead.Query<T>(e => true, null, dbKey).ToList()
+                    : FastData.FastRead.Query<T>(expression, null, dbKey).ToList();
 
                 if (list == null || list.Count == 0)
                 {

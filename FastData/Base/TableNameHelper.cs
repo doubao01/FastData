@@ -15,7 +15,24 @@ namespace FastData.Base
 
         public static string GetTableName<T>(string dbKey = null)
         {
-            var type = typeof(T);
+            return GetTableName(typeof(T), dbKey);
+        }
+
+        public static string GetTableName<T>(ConfigModel config)
+        {
+            return GetTableName(typeof(T), config?.Key);
+        }
+
+        public static string GetTableName(Type type, ConfigModel config)
+        {
+            return GetTableName(type, config?.Key);
+        }
+
+        public static string GetTableName(Type type, string dbKey = null)
+        {
+            if (type == null)
+                throw new ArgumentNullException(nameof(type));
+
             var mappingKey = dbKey ?? FastDb.CurrentKey;
             var cacheKey = string.Format("{0}|{1}|{2}", type.FullName, dbKey ?? string.Empty, mappingKey ?? string.Empty);
 
@@ -23,28 +40,26 @@ namespace FastData.Base
                 return cachedTableName;
 
             var attr = type.GetCustomAttribute<Property.TableAttribute>();
-            if (attr == null)
-                return _tableNameCache.GetOrAdd(cacheKey, QuoteTableName(type.Name, dbKey));
-
-            if (!string.IsNullOrEmpty(attr.DbTableNames))
+            if (attr != null)
             {
-                if (!string.IsNullOrEmpty(mappingKey))
+                if (!string.IsNullOrEmpty(attr.DbTableNames) && !string.IsNullOrEmpty(mappingKey))
                 {
                     var tableName = GetTableNameFromMapping(attr.DbTableNames, mappingKey);
                     if (!string.IsNullOrEmpty(tableName))
                         return _tableNameCache.GetOrAdd(cacheKey, QuoteTableName(tableName, mappingKey));
                 }
+
+                if (!string.IsNullOrEmpty(attr.Name))
+                    return _tableNameCache.GetOrAdd(cacheKey, QuoteTableName(attr.Name, dbKey));
             }
 
-            if (!string.IsNullOrEmpty(attr.Name))
-                return _tableNameCache.GetOrAdd(cacheKey, QuoteTableName(attr.Name, dbKey));
+            var trackingAttr = type.GetCustomAttribute<ChangeTracking.TableNameAttribute>();
+            if (trackingAttr != null && !string.IsNullOrEmpty(trackingAttr.Name))
+            {
+                return _tableNameCache.GetOrAdd(cacheKey, QuoteTableName(trackingAttr.Name, dbKey));
+            }
 
             return _tableNameCache.GetOrAdd(cacheKey, QuoteTableName(type.Name, dbKey));
-        }
-
-        public static string GetTableName<T>(ConfigModel config)
-        {
-            return GetTableName<T>(config?.Key);
         }
 
         private static string QuoteTableName(string tableName, DataDbType dbType)

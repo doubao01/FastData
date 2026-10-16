@@ -143,10 +143,25 @@ namespace FastData.DevTools
     /// </summary>
     public class CacheStats
     {
+        /// <summary>
+        /// 缓存键总数
+        /// </summary>
         public int TotalKeys { get; set; }
+        /// <summary>
+        /// 缓存内存上限（字节）
+        /// </summary>
         public long MemoryLimit { get; set; }
+        /// <summary>
+        /// 物理内存上限（字节）
+        /// </summary>
         public long PhysicalMemoryLimit { get; set; }
+        /// <summary>
+        /// 缓存轮询检查间隔
+        /// </summary>
         public TimeSpan PollingInterval { get; set; }
+        /// <summary>
+        /// 当前所有缓存键
+        /// </summary>
         public List<string> Keys { get; set; } = new List<string>();
     }
 
@@ -172,7 +187,7 @@ namespace FastData.DevTools
                 return cached;
             }
 
-            var result = FastData.Read.Read.Query<T>(dbKey).Where(expression).ToList();
+            var result = FastData.FastRead.Query<T>(expression, null, dbKey).ToList();
             CacheManager.Set(key, result, cacheDuration);
             CacheManager.RegisterEntityCache<T>(key);
 
@@ -195,7 +210,7 @@ namespace FastData.DevTools
                 return cached;
             }
 
-            var result = FastData.Read.Read.List<T>(dbKey);
+            var result = FastData.FastRead.Query<T>(e => true, null, dbKey).ToList();
             CacheManager.Set(key, result, cacheDuration);
             CacheManager.RegisterEntityCache<T>(key);
 
@@ -219,7 +234,7 @@ namespace FastData.DevTools
                 return cached;
             }
 
-            var result = FastData.Read.Read.Query<T>(dbKey).FirstOrDefault(expression);
+            var result = FastData.FastRead.Query<T>(expression, null, dbKey).ToItem<T>();
             if (result != null)
             {
                 CacheManager.Set(key, result, cacheDuration);
@@ -247,9 +262,9 @@ namespace FastData.DevTools
         /// <summary>
         /// 拦截添加操作并使缓存失效
         /// </summary>
-        public static Result InterceptAdd<T>(T entity, string dbKey = null) where T : class, new()
+        public static WriteReturn InterceptAdd<T>(T entity, string dbKey = null) where T : class, new()
         {
-            var result = FastData.Write.Write.Add<T>(entity, dbKey);
+            var result = FastData.FastWrite.Add<T>(entity, null, dbKey);
             if (result.IsSuccess)
             {
                 CacheManager.ClearEntityCache<T>();
@@ -260,9 +275,9 @@ namespace FastData.DevTools
         /// <summary>
         /// 拦截更新操作并使缓存失效
         /// </summary>
-        public static Result InterceptUpdate<T>(T entity, string dbKey = null) where T : class, new()
+        public static WriteReturn InterceptUpdate<T>(T entity, string dbKey = null) where T : class, new()
         {
-            var result = FastData.Write.Write.Update<T>(entity, dbKey);
+            var result = FastData.FastWrite.Update<T>(entity, null, null, dbKey);
             if (result.IsSuccess)
             {
                 CacheManager.ClearEntityCache<T>();
@@ -273,9 +288,9 @@ namespace FastData.DevTools
         /// <summary>
         /// 拦截删除操作并使缓存失效
         /// </summary>
-        public static Result InterceptDelete<T>(System.Linq.Expressions.Expression<Func<T, bool>> expression, string dbKey = null) where T : class, new()
+        public static WriteReturn InterceptDelete<T>(System.Linq.Expressions.Expression<Func<T, bool>> expression, string dbKey = null) where T : class, new()
         {
-            var result = FastData.Write.Write.Delete<T>(expression, dbKey);
+            var result = FastData.FastWrite.Delete<T>(expression, null, dbKey);
             if (result.IsSuccess)
             {
                 CacheManager.ClearEntityCache<T>();
@@ -286,9 +301,9 @@ namespace FastData.DevTools
         /// <summary>
         /// 拦截批量添加操作并使缓存失效
         /// </summary>
-        public static Result InterceptAddRange<T>(IEnumerable<T> entities, string dbKey = null) where T : class, new()
+        public static WriteReturn InterceptAddRange<T>(IEnumerable<T> entities, string dbKey = null) where T : class, new()
         {
-            var result = FastData.Write.Write.AddRange(entities, dbKey);
+            var result = FastData.FastWrite.AddList<T>(entities.ToList(), dbKey);
             if (result.IsSuccess)
             {
                 CacheManager.ClearEntityCache<T>();

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using FastData.Config;
+using FastData.Model;
 using FastData.DbTypes;
 
 namespace FastData.DevTools
@@ -198,7 +199,7 @@ namespace FastData.DevTools
 
         #region 私有方法
 
-        private static BackupResult BackupMySql(string dbKey, DataConfig config, string backupPath, BackupOptions options)
+        private static BackupResult BackupMySql(string dbKey, ConfigModel config, string backupPath, BackupOptions options)
         {
             var result = new BackupResult { Success = false };
 
@@ -237,7 +238,7 @@ namespace FastData.DevTools
             return result;
         }
 
-        private static BackupResult BackupSqlServer(string dbKey, DataConfig config, string backupPath, BackupOptions options)
+        private static BackupResult BackupSqlServer(string dbKey, ConfigModel config, string backupPath, BackupOptions options)
         {
             var result = new BackupResult { Success = false };
 
@@ -273,7 +274,7 @@ namespace FastData.DevTools
             return result;
         }
 
-        private static BackupResult BackupPostgreSql(string dbKey, DataConfig config, string backupPath, BackupOptions options)
+        private static BackupResult BackupPostgreSql(string dbKey, ConfigModel config, string backupPath, BackupOptions options)
         {
             var result = new BackupResult { Success = false };
 
@@ -309,7 +310,7 @@ namespace FastData.DevTools
             return result;
         }
 
-        private static BackupResult BackupSQLite(string dbKey, DataConfig config, string backupPath, BackupOptions options)
+        private static BackupResult BackupSQLite(string dbKey, ConfigModel config, string backupPath, BackupOptions options)
         {
             var result = new BackupResult { Success = false };
 
@@ -335,7 +336,7 @@ namespace FastData.DevTools
             return result;
         }
 
-        private static RestoreResult RestoreMySql(string dbKey, DataConfig config, string backupPath, RestoreOptions options)
+        private static RestoreResult RestoreMySql(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
         {
             var result = new RestoreResult { Success = false };
 
@@ -383,7 +384,7 @@ namespace FastData.DevTools
             return result;
         }
 
-        private static RestoreResult RestoreSqlServer(string dbKey, DataConfig config, string backupPath, RestoreOptions options)
+        private static RestoreResult RestoreSqlServer(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
         {
             var result = new RestoreResult { Success = false };
 
@@ -431,7 +432,7 @@ namespace FastData.DevTools
             return result;
         }
 
-        private static RestoreResult RestorePostgreSql(string dbKey, DataConfig config, string backupPath, RestoreOptions options)
+        private static RestoreResult RestorePostgreSql(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
         {
             var result = new RestoreResult { Success = false };
 
@@ -479,7 +480,7 @@ namespace FastData.DevTools
             return result;
         }
 
-        private static RestoreResult RestoreSQLite(string dbKey, DataConfig config, string backupPath, RestoreOptions options)
+        private static RestoreResult RestoreSQLite(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
         {
             var result = new RestoreResult { Success = false };
 
@@ -680,12 +681,33 @@ namespace FastData.DevTools
     /// </summary>
     public class BackupResult
     {
+        /// <summary>
+        /// 是否成功
+        /// </summary>
         public bool Success { get; set; }
+        /// <summary>
+        /// 数据库名称
+        /// </summary>
         public string DatabaseName { get; set; }
+        /// <summary>
+        /// 备份文件路径
+        /// </summary>
         public string BackupPath { get; set; }
+        /// <summary>
+        /// 开始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
+        /// <summary>
+        /// 耗时
+        /// </summary>
         public TimeSpan Duration { get; set; }
+        /// <summary>
+        /// 错误信息
+        /// </summary>
         public string ErrorMessage { get; set; }
     }
 
@@ -694,11 +716,29 @@ namespace FastData.DevTools
     /// </summary>
     public class RestoreResult
     {
+        /// <summary>
+        /// 是否成功
+        /// </summary>
         public bool Success { get; set; }
+        /// <summary>
+        /// 备份文件路径
+        /// </summary>
         public string BackupPath { get; set; }
+        /// <summary>
+        /// 开始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
+        /// <summary>
+        /// 耗时
+        /// </summary>
         public TimeSpan Duration { get; set; }
+        /// <summary>
+        /// 错误信息
+        /// </summary>
         public string ErrorMessage { get; set; }
     }
 
@@ -707,9 +747,21 @@ namespace FastData.DevTools
     /// </summary>
     public class BackupOptions
     {
+        /// <summary>
+        /// 是否包含数据
+        /// </summary>
         public bool IncludeData { get; set; } = true;
+        /// <summary>
+        /// 是否包含表结构
+        /// </summary>
         public bool IncludeSchema { get; set; } = true;
+        /// <summary>
+        /// 每批处理的行数
+        /// </summary>
         public int BatchSize { get; set; } = 1000;
+        /// <summary>
+        /// 是否压缩备份
+        /// </summary>
         public bool Compress { get; set; } = false;
     }
 
@@ -718,7 +770,13 @@ namespace FastData.DevTools
     /// </summary>
     public class RestoreOptions
     {
+        /// <summary>
+        /// 是否先删除已存在的对象
+        /// </summary>
         public bool DropExisting { get; set; } = false;
+        /// <summary>
+        /// 是否忽略恢复过程中的错误
+        /// </summary>
         public bool IgnoreErrors { get; set; } = false;
     }
 
@@ -727,10 +785,25 @@ namespace FastData.DevTools
     /// </summary>
     public class BackupFileInfo
     {
+        /// <summary>
+        /// 文件名
+        /// </summary>
         public string FileName { get; set; }
+        /// <summary>
+        /// 文件完整路径
+        /// </summary>
         public string FilePath { get; set; }
+        /// <summary>
+        /// 文件大小（字节）
+        /// </summary>
         public long Size { get; set; }
+        /// <summary>
+        /// 创建时间
+        /// </summary>
         public DateTime CreatedAt { get; set; }
+        /// <summary>
+        /// 修改时间
+        /// </summary>
         public DateTime ModifiedAt { get; set; }
     }
 }

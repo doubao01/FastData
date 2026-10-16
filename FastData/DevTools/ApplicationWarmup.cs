@@ -228,14 +228,7 @@ namespace FastData.DevTools
 
         private static string GetTableName(Type entityType, ConfigModel config)
         {
-            var method = typeof(TableNameHelper)
-                .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .First(m => m.Name == "GetTableName"
-                    && m.IsGenericMethodDefinition
-                    && m.GetParameters().Length == 1
-                    && m.GetParameters()[0].ParameterType == typeof(ConfigModel));
-
-            return method.MakeGenericMethod(entityType).Invoke(null, new object[] { config }) as string;
+            return TableNameHelper.GetTableName(entityType, config);
         }
     }
 }

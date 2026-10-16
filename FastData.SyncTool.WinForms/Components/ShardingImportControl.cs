@@ -54,7 +54,6 @@ namespace FastData.SyncTool.WinForms.Components
         private ToolStripStatusLabel _statusLabel;
 
         // 导入任务
-        private BackgroundWorker _importWorker;
         private bool _isImporting;
 
         public ShardingImportControl()
@@ -97,7 +96,7 @@ namespace FastData.SyncTool.WinForms.Components
             };
 
             dbLayout.Controls.Add(new Label { Text = "连接字符串:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
-            _connectionStringBox.Text = "server=.;database=FastDataDemo;uid=sa;pwd=YourPassword123";
+            _connectionStringBox.Text = string.Empty;
             _connectionStringBox.Dock = DockStyle.Fill;
             dbLayout.Controls.Add(_connectionStringBox, 1, 0);
 

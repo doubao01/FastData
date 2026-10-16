@@ -67,9 +67,10 @@ var (items, total) = FastRead.Read.Query<User>()
 - ✅ AOP 拦截与日志
 - ✅ 多种分表策略
 
-### DevTools 工具集（22个）
+### DevTools 工具集（21 个独立工具 + 1 组使用示例）
 
-**基础工具（9个）**：
+**基础工具（10 个）**：
+- ApplicationWarmup - 应用启动预热工具
 - CodeGenerator - 代码生成器
 - DatabaseDiagnostic - 数据库诊断
 - DatabaseComparer - 数据库比较
@@ -80,22 +81,23 @@ var (items, total) = FastRead.Read.Query<User>()
 - PerformanceProfiler - 性能分析器
 - DatabaseBackupRestore - 备份恢复工具
 
-**高级工具（6个）**：
+**高级工具（5 个）**：
 - ConnectionPoolManager - 连接池管理器
 - DistributedTransactionManager - 分布式事务管理器
 - QueryOptimizer - 查询优化器
 - ResultCache - 结果缓存工具
-- ApiTester - API 测试工具
-- DatabaseMonitor - 数据库监控工具
+- ApiTester - API 测试与数据库监控工具（含 DatabaseMonitor）
 
-**企业级工具（7个）**：
+**企业级工具（6 个）**：
 - DistributedLockManager - 分布式锁管理器
 - ApiClient - API 客户端工具
 - LogAggregator - 日志聚合器
 - EventBus - 事件总线
 - ConfigurationManager - 配置管理器
 - TaskScheduler - 任务调度器
-- DevToolsExamples - 使用示例
+
+**示例集（1 组）**：
+- DevToolsExamples - 开发者工具完整使用示例集（Examples/DevToolsExamples.cs）
 
 ---
 

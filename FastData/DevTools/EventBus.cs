@@ -226,7 +226,13 @@ namespace FastData.DevTools
     /// </summary>
     public interface IEvent
     {
+        /// <summary>
+        /// 事件唯一标识
+        /// </summary>
         string EventId { get; set; }
+        /// <summary>
+        /// 事件发生时间
+        /// </summary>
         DateTime OccurredAt { get; set; }
     }
 
@@ -235,7 +241,13 @@ namespace FastData.DevTools
     /// </summary>
     public abstract class EventBase : IEvent
     {
+        /// <summary>
+        /// 事件唯一标识（默认自动生成）
+        /// </summary>
         public string EventId { get; set; } = Guid.NewGuid().ToString();
+        /// <summary>
+        /// 事件发生时间（默认当前时间）
+        /// </summary>
         public DateTime OccurredAt { get; set; } = DateTime.Now;
     }
 
@@ -266,11 +278,18 @@ namespace FastData.DevTools
     {
         private readonly Action _unsubscribe;
 
+        /// <summary>
+        /// 创建订阅对象
+        /// </summary>
+        /// <param name="unsubscribe">取消订阅的回调</param>
         public Subscription(Action unsubscribe)
         {
             _unsubscribe = unsubscribe;
         }
 
+        /// <summary>
+        /// 释放订阅并执行取消订阅回调
+        /// </summary>
         public void Dispose()
         {
             _unsubscribe?.Invoke();
@@ -478,8 +497,17 @@ namespace FastData.DevTools
         /// </summary>
         public class EntityCreatedEvent : EventBase
         {
+            /// <summary>
+            /// 实体类型名称
+            /// </summary>
             public string EntityType { get; set; }
+            /// <summary>
+            /// 实体标识
+            /// </summary>
             public string EntityId { get; set; }
+            /// <summary>
+            /// 实体数据
+            /// </summary>
             public object Data { get; set; }
         }
 
@@ -488,7 +516,13 @@ namespace FastData.DevTools
         /// </summary>
         public class EntityUpdatedEvent : EventBase
         {
+            /// <summary>
+            /// 实体类型名称
+            /// </summary>
             public string EntityType { get; set; }
+            /// <summary>
+            /// 实体标识
+            /// </summary>
             public string EntityId { get; set; }
             object OldData { get; set; }
             object NewData { get; set; }
@@ -499,7 +533,13 @@ namespace FastData.DevTools
         /// </summary>
         public class EntityDeletedEvent : EventBase
         {
+            /// <summary>
+            /// 实体类型名称
+            /// </summary>
             public string EntityType { get; set; }
+            /// <summary>
+            /// 实体标识
+            /// </summary>
             public string EntityId { get; set; }
         }
 
@@ -508,8 +548,17 @@ namespace FastData.DevTools
         /// </summary>
         public class ErrorEvent : EventBase
         {
+            /// <summary>
+            /// 错误消息
+            /// </summary>
             public string ErrorMessage { get; set; }
+            /// <summary>
+            /// 异常类型名称
+            /// </summary>
             public string ExceptionType { get; set; }
+            /// <summary>
+            /// 异常堆栈信息
+            /// </summary>
             public string StackTrace { get; set; }
         }
     }

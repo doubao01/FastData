@@ -308,6 +308,7 @@ namespace FastUntility.Base
         /// </summary>
         private static void InitializeWorkbook(HSSFWorkbook hssfworkbook)
         {
+#pragma warning disable CS0618
             //信息
             var dsi = PropertySetFactory.CreateDocumentSummaryInformation();
             dsi.Company = "";
@@ -317,6 +318,7 @@ namespace FastUntility.Base
             var si = PropertySetFactory.CreateSummaryInformation();
             si.Subject = "";
             hssfworkbook.SummaryInformation = si;
+#pragma warning restore CS0618
         }
         #endregion
 

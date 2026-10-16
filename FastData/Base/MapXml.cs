@@ -552,7 +552,9 @@ namespace FastData.Base
 
                 if (config.IsEncrypt)
                 {
-                    deContent = BaseSymmetric.DecodeGB2312(deContent);
+#pragma warning disable CS0618 // 兼容历史使用 DES 加密的 Map 文件，读取时保留旧算法
+                    deContent = BaseSymmetric.DecodeGB2312(enContent);
+#pragma warning restore CS0618
                     if (deContent == "")
                         deContent = enContent;
                 }
@@ -714,7 +716,9 @@ namespace FastData.Base
                 //载入xml
                 if (config.IsEncrypt)
                 {
+#pragma warning disable CS0618 // 兼容历史使用 DES 加密的 Map 文件，读取时保留旧算法
                     var temp = BaseSymmetric.DecodeGB2312(File.ReadAllText(path));
+#pragma warning restore CS0618
                     if (temp != "")
                         xmlDoc.LoadXml(temp);
                     else

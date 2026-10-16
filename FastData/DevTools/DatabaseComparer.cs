@@ -392,11 +392,29 @@ namespace FastData.DevTools
     /// </summary>
     public class DatabaseDiff
     {
+        /// <summary>
+        /// 是否存在差异
+        /// </summary>
         public bool HasDifferences { get; set; }
+        /// <summary>
+        /// 表差异列表
+        /// </summary>
         public List<TableDifference> TableDifferences { get; set; } = new List<TableDifference>();
+        /// <summary>
+        /// 列差异列表
+        /// </summary>
         public List<ColumnDifference> ColumnDifferences { get; set; } = new List<ColumnDifference>();
+        /// <summary>
+        /// 数据差异列表
+        /// </summary>
         public List<DataDifference> DataDifferences { get; set; } = new List<DataDifference>();
+        /// <summary>
+        /// 索引差异列表
+        /// </summary>
         public List<IndexDifference> IndexDifferences { get; set; } = new List<IndexDifference>();
+        /// <summary>
+        /// 比较过程中的错误信息
+        /// </summary>
         public string Error { get; set; }
     }
 
@@ -405,7 +423,13 @@ namespace FastData.DevTools
     /// </summary>
     public class TableDifference
     {
+        /// <summary>
+        /// 表名
+        /// </summary>
         public string TableName { get; set; }
+        /// <summary>
+        /// 差异操作
+        /// </summary>
         public DiffAction Action { get; set; }
     }
 
@@ -414,9 +438,21 @@ namespace FastData.DevTools
     /// </summary>
     public class ColumnDifference
     {
+        /// <summary>
+        /// 表名
+        /// </summary>
         public string TableName { get; set; }
+        /// <summary>
+        /// 列名
+        /// </summary>
         public string ColumnName { get; set; }
+        /// <summary>
+        /// 差异操作
+        /// </summary>
         public DiffAction Action { get; set; }
+        /// <summary>
+        /// 列数据类型
+        /// </summary>
         public string DataType { get; set; }
     }
 
@@ -425,9 +461,21 @@ namespace FastData.DevTools
     /// </summary>
     public class DataDifference
     {
+        /// <summary>
+        /// 表名
+        /// </summary>
         public string TableName { get; set; }
+        /// <summary>
+        /// 源表行数
+        /// </summary>
         public int SourceCount { get; set; }
+        /// <summary>
+        /// 目标表行数
+        /// </summary>
         public int TargetCount { get; set; }
+        /// <summary>
+        /// 行数差值（源 - 目标）
+        /// </summary>
         public int Difference { get; set; }
     }
 
@@ -436,7 +484,13 @@ namespace FastData.DevTools
     /// </summary>
     public class IndexDifference
     {
+        /// <summary>
+        /// 索引名
+        /// </summary>
         public string IndexName { get; set; }
+        /// <summary>
+        /// 差异操作
+        /// </summary>
         public DiffAction Action { get; set; }
     }
 
@@ -445,8 +499,13 @@ namespace FastData.DevTools
     /// </summary>
     public enum DiffAction
     {
+        /// <summary>创建</summary>
         Create,
+        /// <summary>删除</summary>
         Drop,
-        Modify
+        /// <summary>修改</summary>
+        Modify,
+        /// <summary>新增</summary>
+        Add
     }
 }

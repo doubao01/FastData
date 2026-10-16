@@ -20,34 +20,69 @@ namespace FastData.DevTools
         private int? _take;
         private readonly List<object> _parameters = new List<object>();
 
+        /// <summary>
+        /// 设置查询表
+        /// </summary>
+        /// <param name="tableName">表名</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder From(string tableName)
         {
             _from = tableName;
             return this;
         }
 
+        /// <summary>
+        /// 设置查询列
+        /// </summary>
+        /// <param name="columns">列表达式</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder Select(string columns)
         {
             _select = columns;
             return this;
         }
 
+        /// <summary>
+        /// 添加连接
+        /// </summary>
+        /// <param name="joinTable">连接的表</param>
+        /// <param name="onCondition">连接条件</param>
+        /// <param name="joinType">连接类型</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder Join(string joinTable, string onCondition, string joinType = "INNER")
         {
             _joins.Add(string.Format("{0} JOIN {1} ON {2}", joinType, joinTable, onCondition));
             return this;
         }
 
+        /// <summary>
+        /// 添加左连接
+        /// </summary>
+        /// <param name="joinTable">连接的表</param>
+        /// <param name="onCondition">连接条件</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder LeftJoin(string joinTable, string onCondition)
         {
             return Join(joinTable, onCondition, "LEFT");
         }
 
+        /// <summary>
+        /// 添加右连接
+        /// </summary>
+        /// <param name="joinTable">连接的表</param>
+        /// <param name="onCondition">连接条件</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder RightJoin(string joinTable, string onCondition)
         {
             return Join(joinTable, onCondition, "RIGHT");
         }
 
+        /// <summary>
+        /// 添加 WHERE 条件
+        /// </summary>
+        /// <param name="condition">条件表达式</param>
+        /// <param name="parameter">参数值</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder Where(string condition, object parameter = null)
         {
             _wheres.Add(condition);
@@ -58,6 +93,12 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 添加 IN 条件
+        /// </summary>
+        /// <param name="column">列名</param>
+        /// <param name="values">值集合</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder WhereIn(string column, IEnumerable<object> values)
         {
             var placeholders = string.Join(", ", values.Select((_, i) => string.Format("@param{0}", _parameters.Count + i)));
@@ -66,6 +107,13 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 添加 BETWEEN 条件
+        /// </summary>
+        /// <param name="column">列名</param>
+        /// <param name="start">起始值</param>
+        /// <param name="end">结束值</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder WhereBetween(string column, object start, object end)
         {
             _wheres.Add(string.Format("{0} BETWEEN @param{1} AND @param{2}", column, _parameters.Count, _parameters.Count + 1));
@@ -74,6 +122,12 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 添加 LIKE 条件
+        /// </summary>
+        /// <param name="column">列名</param>
+        /// <param name="pattern">匹配模式</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder WhereLike(string column, string pattern)
         {
             _wheres.Add(string.Format("{0} LIKE @param{1}", column, _parameters.Count));
@@ -81,41 +135,76 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 添加原始 SQL 条件
+        /// </summary>
+        /// <param name="rawSql">原始 SQL</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder WhereRaw(string rawSql)
         {
             _wheres.Add(string.Format("({0})", rawSql));
             return this;
         }
 
+        /// <summary>
+        /// 添加分组
+        /// </summary>
+        /// <param name="columns">分组列</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder GroupBy(string columns)
         {
             _groupBys.Add(columns);
             return this;
         }
 
+        /// <summary>
+        /// 添加排序
+        /// </summary>
+        /// <param name="column">排序列</param>
+        /// <param name="descending">是否降序</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder OrderBy(string column, bool descending = false)
         {
             _orderBys.Add(string.Format("{0} {1}", column, descending ? "DESC" : "ASC"));
             return this;
         }
 
+        /// <summary>
+        /// 添加降序排序
+        /// </summary>
+        /// <param name="column">排序列</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder OrderByDescending(string column)
         {
             return OrderBy(column, true);
         }
 
+        /// <summary>
+        /// 设置跳过的记录数
+        /// </summary>
+        /// <param name="count">跳过数量</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder Skip(int count)
         {
             _skip = count;
             return this;
         }
 
+        /// <summary>
+        /// 设置获取的记录数
+        /// </summary>
+        /// <param name="count">获取数量</param>
+        /// <returns>构建器本身</returns>
         public SqlQueryBuilder Take(int count)
         {
             _take = count;
             return this;
         }
 
+        /// <summary>
+        /// 构建 SQL 语句
+        /// </summary>
+        /// <returns>SQL 语句</returns>
         public string BuildSql()
         {
             if (string.IsNullOrEmpty(_from))
@@ -179,11 +268,19 @@ namespace FastData.DevTools
             return sql.ToString();
         }
 
+        /// <summary>
+        /// 获取参数列表
+        /// </summary>
+        /// <returns>参数列表</returns>
         public List<object> GetParameters()
         {
             return new List<object>(_parameters);
         }
 
+        /// <summary>
+        /// 构建 SQL 与参数
+        /// </summary>
+        /// <returns>SQL 语句与参数元组</returns>
         public (string sql, List<object> parameters) Build()
         {
             return (BuildSql(), GetParameters());
@@ -199,12 +296,23 @@ namespace FastData.DevTools
         private readonly Dictionary<string, object> _values = new Dictionary<string, object>();
         private readonly List<string> _columns = new List<string>();
 
+        /// <summary>
+        /// 设置插入表
+        /// </summary>
+        /// <param name="tableName">表名</param>
+        /// <returns>构建器本身</returns>
         public InsertQueryBuilder Into(string tableName)
         {
             _tableName = tableName;
             return this;
         }
 
+        /// <summary>
+        /// 设置单列值
+        /// </summary>
+        /// <param name="column">列名</param>
+        /// <param name="value">列值</param>
+        /// <returns>构建器本身</returns>
         public InsertQueryBuilder Value(string column, object value)
         {
             _columns.Add(column);
@@ -212,6 +320,11 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 设置多列值
+        /// </summary>
+        /// <param name="values">列值字典</param>
+        /// <returns>构建器本身</returns>
         public InsertQueryBuilder Values(Dictionary<string, object> values)
         {
             foreach (var kvp in values)
@@ -221,6 +334,10 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 构建 SQL 语句
+        /// </summary>
+        /// <returns>SQL 语句</returns>
         public string BuildSql()
         {
             if (string.IsNullOrEmpty(_tableName))
@@ -239,11 +356,19 @@ namespace FastData.DevTools
             return string.Format("INSERT INTO {0} ({1}) VALUES ({2})", _tableName, columns, placeholders);
         }
 
+        /// <summary>
+        /// 获取参数列表
+        /// </summary>
+        /// <returns>参数列表</returns>
         public List<object> GetParameters()
         {
             return _columns.Select(c => _values[c]).ToList();
         }
 
+        /// <summary>
+        /// 构建 SQL 与参数
+        /// </summary>
+        /// <returns>SQL 语句与参数元组</returns>
         public (string sql, List<object> parameters) Build()
         {
             return (BuildSql(), GetParameters());
@@ -260,18 +385,34 @@ namespace FastData.DevTools
         private readonly List<string> _wheres = new List<string>();
         private readonly List<object> _parameters = new List<object>();
 
+        /// <summary>
+        /// 设置更新表
+        /// </summary>
+        /// <param name="tableName">表名</param>
+        /// <returns>构建器本身</returns>
         public UpdateQueryBuilder Table(string tableName)
         {
             _tableName = tableName;
             return this;
         }
 
+        /// <summary>
+        /// 设置单列更新值
+        /// </summary>
+        /// <param name="column">列名</param>
+        /// <param name="value">列值</param>
+        /// <returns>构建器本身</returns>
         public UpdateQueryBuilder Set(string column, object value)
         {
             _setValues.Add(column, value);
             return this;
         }
 
+        /// <summary>
+        /// 设置多列更新值
+        /// </summary>
+        /// <param name="values">列值字典</param>
+        /// <returns>构建器本身</returns>
         public UpdateQueryBuilder SetValues(Dictionary<string, object> values)
         {
             foreach (var kvp in values)
@@ -281,6 +422,12 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 添加 WHERE 条件
+        /// </summary>
+        /// <param name="condition">条件表达式</param>
+        /// <param name="parameter">参数值</param>
+        /// <returns>构建器本身</returns>
         public UpdateQueryBuilder Where(string condition, object parameter = null)
         {
             _wheres.Add(condition);
@@ -291,6 +438,10 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 构建 SQL 语句
+        /// </summary>
+        /// <returns>SQL 语句</returns>
         public string BuildSql()
         {
             if (string.IsNullOrEmpty(_tableName))
@@ -339,11 +490,19 @@ namespace FastData.DevTools
             return sql.ToString();
         }
 
+        /// <summary>
+        /// 获取参数列表
+        /// </summary>
+        /// <returns>参数列表</returns>
         public List<object> GetParameters()
         {
             return new List<object>(_parameters);
         }
 
+        /// <summary>
+        /// 构建 SQL 与参数
+        /// </summary>
+        /// <returns>SQL 语句与参数元组</returns>
         public (string sql, List<object> parameters) Build()
         {
             return (BuildSql(), GetParameters());
@@ -359,12 +518,23 @@ namespace FastData.DevTools
         private readonly List<string> _wheres = new List<string>();
         private readonly List<object> _parameters = new List<object>();
 
+        /// <summary>
+        /// 设置删除表
+        /// </summary>
+        /// <param name="tableName">表名</param>
+        /// <returns>构建器本身</returns>
         public DeleteQueryBuilder From(string tableName)
         {
             _tableName = tableName;
             return this;
         }
 
+        /// <summary>
+        /// 添加 WHERE 条件
+        /// </summary>
+        /// <param name="condition">条件表达式</param>
+        /// <param name="parameter">参数值</param>
+        /// <returns>构建器本身</returns>
         public DeleteQueryBuilder Where(string condition, object parameter = null)
         {
             _wheres.Add(condition);
@@ -375,6 +545,10 @@ namespace FastData.DevTools
             return this;
         }
 
+        /// <summary>
+        /// 构建 SQL 语句
+        /// </summary>
+        /// <returns>SQL 语句</returns>
         public string BuildSql()
         {
             if (string.IsNullOrEmpty(_tableName))
@@ -394,11 +568,19 @@ namespace FastData.DevTools
             return sql.ToString();
         }
 
+        /// <summary>
+        /// 获取参数列表
+        /// </summary>
+        /// <returns>参数列表</returns>
         public List<object> GetParameters()
         {
             return new List<object>(_parameters);
         }
 
+        /// <summary>
+        /// 构建 SQL 与参数
+        /// </summary>
+        /// <returns>SQL 语句与参数元组</returns>
         public (string sql, List<object> parameters) Build()
         {
             return (BuildSql(), GetParameters());
@@ -410,21 +592,37 @@ namespace FastData.DevTools
     /// </summary>
     public static class SqlBuilder
     {
+        /// <summary>
+        /// 创建查询构建器
+        /// </summary>
+        /// <returns>查询构建器</returns>
         public static SqlQueryBuilder Select()
         {
             return new SqlQueryBuilder();
         }
 
+        /// <summary>
+        /// 创建插入构建器
+        /// </summary>
+        /// <returns>插入构建器</returns>
         public static InsertQueryBuilder Insert()
         {
             return new InsertQueryBuilder();
         }
 
+        /// <summary>
+        /// 创建更新构建器
+        /// </summary>
+        /// <returns>更新构建器</returns>
         public static UpdateQueryBuilder Update()
         {
             return new UpdateQueryBuilder();
         }
 
+        /// <summary>
+        /// 创建删除构建器
+        /// </summary>
+        /// <returns>删除构建器</returns>
         public static DeleteQueryBuilder Delete()
         {
             return new DeleteQueryBuilder();

@@ -152,6 +152,10 @@ namespace FastData.DevTools
             _options = options;
         }
 
+        /// <summary>
+        /// 同步获取一个连接
+        /// </summary>
+        /// <returns>池化连接</returns>
         public PooledConnection GetConnection()
         {
             if (_disposed)
@@ -184,6 +188,10 @@ namespace FastData.DevTools
             throw new TimeoutException(string.Format("连接池已满，无法获取连接 (MaxPoolSize: {0})", _options.MaxPoolSize));
         }
 
+        /// <summary>
+        /// 异步获取一个连接
+        /// </summary>
+        /// <returns>池化连接</returns>
         public async Task<PooledConnection> GetConnectionAsync()
         {
             return await Task.Run(() => GetConnection());
@@ -212,6 +220,10 @@ namespace FastData.DevTools
             }
         }
 
+        /// <summary>
+        /// 获取连接池统计信息
+        /// </summary>
+        /// <returns>连接池统计</returns>
         public ConnectionPoolStats GetStats()
         {
             return new ConnectionPoolStats
@@ -225,6 +237,9 @@ namespace FastData.DevTools
             };
         }
 
+        /// <summary>
+        /// 清理空闲连接
+        /// </summary>
         public void Cleanup()
         {
             while (_idleConnections.TryTake(out var connection))
@@ -234,6 +249,9 @@ namespace FastData.DevTools
             }
         }
 
+        /// <summary>
+        /// 释放连接池及其所有连接
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;
@@ -259,6 +277,11 @@ namespace FastData.DevTools
         private readonly ConnectionPool _pool;
         private bool _disposed;
 
+        /// <summary>
+        /// 初始化池化连接
+        /// </summary>
+        /// <param name="context">数据上下文</param>
+        /// <param name="pool">所属连接池</param>
         public PooledConnection(DataContext context, ConnectionPool pool)
         {
             _context = context;
@@ -266,11 +289,27 @@ namespace FastData.DevTools
             CreatedAt = DateTime.Now;
         }
 
+        /// <summary>
+        /// 连接创建时间
+        /// </summary>
         public DateTime CreatedAt { get; }
+        /// <summary>
+        /// 数据上下文
+        /// </summary>
         public DataContext Context => _context;
+        /// <summary>
+        /// 底层数据库连接
+        /// </summary>
         public IDbConnection Connection => _context.conn;
+        /// <summary>
+        /// 数据库命令
+        /// </summary>
         public IDbCommand Command => _context.cmd;
 
+        /// <summary>
+        /// 判断连接是否健康可用
+        /// </summary>
+        /// <returns>是否健康</returns>
         public bool IsHealthy()
         {
             try
@@ -286,6 +325,9 @@ namespace FastData.DevTools
             }
         }
 
+        /// <summary>
+        /// 归还连接到连接池
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;
@@ -308,12 +350,30 @@ namespace FastData.DevTools
     /// </summary>
     public class ConnectionPoolOptions
     {
+        /// <summary>
+        /// 最小连接数
+        /// </summary>
         public int MinPoolSize { get; set; } = 5;
+        /// <summary>
+        /// 最大连接数
+        /// </summary>
         public int MaxPoolSize { get; set; } = 100;
+        /// <summary>
+        /// 连接超时时间
+        /// </summary>
         public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
+        /// <summary>
+        /// 连接生命周期
+        /// </summary>
         public TimeSpan ConnectionLifetime { get; set; } = TimeSpan.FromMinutes(30);
+        /// <summary>
+        /// 是否启用统计
+        /// </summary>
         public bool EnableStatistics { get; set; } = true;
 
+        /// <summary>
+        /// 默认选项
+        /// </summary>
         public static ConnectionPoolOptions Default => new ConnectionPoolOptions();
     }
 
@@ -322,15 +382,40 @@ namespace FastData.DevTools
     /// </summary>
     public class ConnectionPoolStats
     {
+        /// <summary>
+        /// 数据库标识
+        /// </summary>
         public string DbKey { get; set; }
+        /// <summary>
+        /// 连接总数
+        /// </summary>
         public int TotalConnections { get; set; }
+        /// <summary>
+        /// 活动连接数
+        /// </summary>
         public int ActiveConnections { get; set; }
+        /// <summary>
+        /// 空闲连接数
+        /// </summary>
         public int IdleConnections { get; set; }
+        /// <summary>
+        /// 最大连接数
+        /// </summary>
         public int MaxPoolSize { get; set; }
+        /// <summary>
+        /// 最小连接数
+        /// </summary>
         public int MinPoolSize { get; set; }
 
+        /// <summary>
+        /// 连接使用率百分比
+        /// </summary>
         public double UsagePercentage => MaxPoolSize > 0 ? (double)TotalConnections / MaxPoolSize * 100 : 0;
 
+        /// <summary>
+        /// 返回连接池统计的字符串表示
+        /// </summary>
+        /// <returns>字符串表示</returns>
         public override string ToString()
         {
             return string.Format("DbKey: {0}, Active: {1}, Idle: {2}, Total: {3}/{4} ({5:F1}%)", DbKey, ActiveConnections, IdleConnections, TotalConnections, MaxPoolSize, UsagePercentage);

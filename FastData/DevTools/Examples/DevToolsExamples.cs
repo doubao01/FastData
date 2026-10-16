@@ -11,6 +11,9 @@ namespace FastData.DevTools.Examples
     /// </summary>
     public class DevToolsExamples
     {
+        /// <summary>
+        /// 依次运行全部 DevTools 示例
+        /// </summary>
         public static void RunAllExamples()
         {
             Console.WriteLine("=== FastData DevTools 示例 ===\n");
@@ -33,25 +36,20 @@ namespace FastData.DevTools.Examples
         {
             Console.WriteLine("1. 代码生成器示例:");
 
-            // 生成 Model
-            var modelCode = CodeGenerator.GenerateModel<User>();
-            Console.WriteLine("生成的 Model 代码:");
+            // 生成实体类
+            var modelCode = CodeGenerator.GenerateEntityFromTable("User");
+            Console.WriteLine("生成的实体类代码:");
             Console.WriteLine(modelCode.Substring(0, Math.Min(200, modelCode.Length)) + "...\n");
 
-            // 生成 Repository
-            var repoCode = CodeGenerator.GenerateRepository<User>();
-            Console.WriteLine("生成的 Repository 代码:");
+            // 生成仓储类
+            var repoCode = CodeGenerator.GenerateRepositoryCode("User");
+            Console.WriteLine("生成的仓储类代码:");
             Console.WriteLine(repoCode.Substring(0, Math.Min(200, repoCode.Length)) + "...\n");
 
-            // 生成 Service
-            var serviceCode = CodeGenerator.GenerateService<User>();
-            Console.WriteLine("生成的 Service 代码:");
+            // 生成服务类
+            var serviceCode = CodeGenerator.GenerateServiceCode("User");
+            Console.WriteLine("生成的服务类代码:");
             Console.WriteLine(serviceCode.Substring(0, Math.Min(200, serviceCode.Length)) + "...\n");
-
-            // 生成 Controller
-            var controllerCode = CodeGenerator.GenerateController<User>();
-            Console.WriteLine("生成的 Controller 代码:");
-            Console.WriteLine(controllerCode.Substring(0, Math.Min(200, controllerCode.Length)) + "...\n");
         }
 
         /// <summary>
@@ -63,31 +61,18 @@ namespace FastData.DevTools.Examples
 
             try
             {
-                // 测试连接
-                var (connected, message) = DatabaseDiagnostic.TestConnection("DefaultDb");
-                Console.WriteLine(string.Format("连接测试: {0}", (connected ? "成功" : "失败")));
-                Console.WriteLine(string.Format("消息: {0}\n", message));
-
-                // 分析性能
-                var slowQueries = DatabaseDiagnostic.AnalyzeSlowQueries("DefaultDb", TimeSpan.FromSeconds(1));
-                Console.WriteLine(string.Format("慢查询数量: {0}\n", slowQueries.Count));
-
-                // 检查表结构
-                var issues = DatabaseDiagnostic.CheckTableStructure("DefaultDb", "User");
-                Console.WriteLine(string.Format("表结构问题: {0}", issues.Count));
-                foreach (var issue in issues)
+                // 执行完整诊断
+                var report = DatabaseDiagnostic.Diagnose("DefaultDb");
+                Console.WriteLine(string.Format("健康状态: {0}", report.IsHealthy ? "健康" : "有问题"));
+                Console.WriteLine(string.Format("问题数量: {0}", report.Issues.Count));
+                foreach (var issue in report.Issues)
                 {
-                    Console.WriteLine(string.Format("  - {0}", issue));
+                    Console.WriteLine(string.Format("  - [{0}] {1}", issue.Severity, issue.Message));
                 }
-                Console.WriteLine();
 
-                // 获取诊断报告
-                var report = DatabaseDiagnostic.GetDiagnosticReport("DefaultDb");
-                Console.WriteLine("诊断报告:");
-                Console.WriteLine(string.Format("  数据库大小: {0} MB", report.DatabaseSizeMB));
-                Console.WriteLine(string.Format("  表数量: {0}", report.TableCount));
-                Console.WriteLine(string.Format("  慢查询数: {0}", report.SlowQueryCount));
-                Console.WriteLine(string.Format("  健康评分: {0}", report.HealthScore));
+                // 生成诊断报告
+                Console.WriteLine("\n诊断报告:");
+                Console.WriteLine(DatabaseDiagnostic.GenerateDiagnosticReport(report));
             }
             catch (Exception ex)
             {
@@ -359,9 +344,9 @@ namespace FastData.DevTools.Examples
                 Console.WriteLine(string.Format("参数: {0}\n", string.Join(", ", deleteParams)));
 
                 // 复杂查询构建
-                (string complexSql, DbParameter[] complexParams) = SqlBuilder.Select()
+                var (complexSql, complexParams) = SqlBuilder.Select()
                     .From("User u")
-                    .InnerJoin("Order o", "u.Id = o.UserId")
+                    .Join("Order o", "u.Id = o.UserId")
                     .Select("u.Name, COUNT(o.Id) as OrderCount")
                     .Where("u.IsActive = @param0", true)
                     .WhereBetween("u.CreateTime", DateTime.Now.AddDays(-30), DateTime.Now)
@@ -387,10 +372,25 @@ namespace FastData.DevTools.Examples
     /// </summary>
     public class User
     {
+        /// <summary>
+        /// 主键
+        /// </summary>
         public int Id { get; set; }
+        /// <summary>
+        /// 姓名
+        /// </summary>
         public string Name { get; set; }
+        /// <summary>
+        /// 邮箱
+        /// </summary>
         public string Email { get; set; }
+        /// <summary>
+        /// 是否启用
+        /// </summary>
         public bool IsActive { get; set; }
+        /// <summary>
+        /// 创建时间
+        /// </summary>
         public DateTime CreateTime { get; set; }
     }
 }

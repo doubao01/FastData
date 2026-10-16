@@ -205,16 +205,30 @@ namespace FastData.DevTools
     /// </summary>
     public class LockHandle : IDisposable
     {
+        /// <summary>
+        /// 锁键
+        /// </summary>
         public string LockKey { get; set; }
+        /// <summary>
+        /// 锁持有值（用于校验持有者）
+        /// </summary>
         public string LockValue { get; set; }
         private bool _disposed;
 
+        /// <summary>
+        /// 创建锁句柄
+        /// </summary>
+        /// <param name="lockKey">锁键</param>
+        /// <param name="lockValue">锁持有值</param>
         public LockHandle(string lockKey, string lockValue)
         {
             LockKey = lockKey;
             LockValue = lockValue;
         }
 
+        /// <summary>
+        /// 释放锁
+        /// </summary>
         public void Dispose()
         {
             if (!_disposed)
@@ -230,9 +244,21 @@ namespace FastData.DevTools
     /// </summary>
     public class LockInfo
     {
+        /// <summary>
+        /// 锁键
+        /// </summary>
         public string LockKey { get; set; }
+        /// <summary>
+        /// 锁持有值
+        /// </summary>
         public string LockValue { get; set; }
+        /// <summary>
+        /// 获取锁的时间
+        /// </summary>
         public DateTime AcquiredAt { get; set; }
+        /// <summary>
+        /// 锁的过期时间
+        /// </summary>
         public DateTime ExpiresAt { get; set; }
     }
 
@@ -241,9 +267,21 @@ namespace FastData.DevTools
     /// </summary>
     public class LockStatistics
     {
+        /// <summary>
+        /// 锁总数
+        /// </summary>
         public int TotalLocks { get; set; }
+        /// <summary>
+        /// 活动锁数量
+        /// </summary>
         public int ActiveLocks { get; set; }
+        /// <summary>
+        /// 已过期锁数量
+        /// </summary>
         public int ExpiredLocks { get; set; }
+        /// <summary>
+        /// 平均锁持有时间（分钟）
+        /// </summary>
         public double AverageLockDuration { get; set; }
     }
 
@@ -254,11 +292,18 @@ namespace FastData.DevTools
     {
         private readonly LockHandle _lockHandle;
 
+        /// <summary>
+        /// 创建锁作用域
+        /// </summary>
+        /// <param name="lockHandle">锁句柄</param>
         public LockScope(LockHandle lockHandle)
         {
             _lockHandle = lockHandle;
         }
 
+        /// <summary>
+        /// 释放作用域并释放其中的锁
+        /// </summary>
         public void Dispose()
         {
             _lockHandle?.Dispose();
@@ -351,6 +396,11 @@ namespace FastData.DevTools
             private static readonly ConcurrentDictionary<string, object> _readLocks = new ConcurrentDictionary<string, object>();
             private static readonly ConcurrentDictionary<string, object> _writeLocks = new ConcurrentDictionary<string, object>();
 
+            /// <summary>
+            /// 获取指定资源的读锁
+            /// </summary>
+            /// <param name="resourceKey">资源键</param>
+            /// <returns>释放读锁的作用域</returns>
             public static IDisposable AcquireReadLock(string resourceKey)
             {
                 var readLock = _readLocks.GetOrAdd(resourceKey, new object());
@@ -358,6 +408,11 @@ namespace FastData.DevTools
                 return new ReadWriteLockScope(readLock, isReadLock: true);
             }
 
+            /// <summary>
+            /// 获取指定资源的写锁
+            /// </summary>
+            /// <param name="resourceKey">资源键</param>
+            /// <returns>释放写锁的作用域</returns>
             public static IDisposable AcquireWriteLock(string resourceKey)
             {
                 var writeLock = _writeLocks.GetOrAdd(resourceKey, new object());

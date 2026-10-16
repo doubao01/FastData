@@ -19,7 +19,6 @@ namespace FastUntility.Monitor
         private readonly RemoteCommandManager _commandManager;
         private readonly List<ExceptionInfo> _exceptionHistory = new List<ExceptionInfo>();
         private readonly int _maxHistorySize = 1000;
-        private bool _isDisposed;
 
         private ExceptionManager(QQBotConfig botConfig, ExceptionNotifyConfig notifyConfig, IMessageSender sender = null, IConnectionPoolInfoProvider poolInfoProvider = null)
         {

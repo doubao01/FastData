@@ -478,7 +478,15 @@ namespace FastData.DevTools
     /// </summary>
     public interface IHealthCheck
     {
+        /// <summary>
+        /// 同步执行健康检查
+        /// </summary>
+        /// <returns>健康检查状态</returns>
         HealthCheckStatus CheckHealth();
+        /// <summary>
+        /// 异步执行健康检查
+        /// </summary>
+        /// <returns>健康检查状态</returns>
         Task<HealthCheckStatus> CheckHealthAsync();
     }
 
@@ -487,9 +495,21 @@ namespace FastData.DevTools
     /// </summary>
     public class HealthCheckStatus
     {
+        /// <summary>
+        /// 是否健康
+        /// </summary>
         public bool IsHealthy { get; set; }
+        /// <summary>
+        /// 状态文本
+        /// </summary>
         public string Status { get; set; }
+        /// <summary>
+        /// 状态说明信息
+        /// </summary>
         public string Message { get; set; }
+        /// <summary>
+        /// 附加数据
+        /// </summary>
         public Dictionary<string, object> Data { get; set; } = new Dictionary<string, object>();
     }
 
@@ -498,9 +518,21 @@ namespace FastData.DevTools
     /// </summary>
     public class HealthCheckResult
     {
+        /// <summary>
+        /// 整体是否健康
+        /// </summary>
         public bool IsHealthy { get; set; }
+        /// <summary>
+        /// 整体状态文本
+        /// </summary>
         public string Status { get; set; }
+        /// <summary>
+        /// 检查时间
+        /// </summary>
         public DateTime Timestamp { get; set; }
+        /// <summary>
+        /// 各检查项的状态
+        /// </summary>
         public Dictionary<string, HealthCheckStatus> Checks { get; set; } = new Dictionary<string, HealthCheckStatus>();
     }
 
@@ -516,11 +548,19 @@ namespace FastData.DevTools
         {
             private readonly Func<bool> _checkFunc;
 
+            /// <summary>
+            /// 创建数据库健康检查
+            /// </summary>
+            /// <param name="checkFunc">返回数据库是否可用的委托</param>
             public DatabaseHealthCheck(Func<bool> checkFunc)
             {
                 _checkFunc = checkFunc;
             }
 
+            /// <summary>
+            /// 同步执行数据库健康检查
+            /// </summary>
+            /// <returns>健康检查状态</returns>
             public HealthCheckStatus CheckHealth()
             {
                 try
@@ -544,6 +584,10 @@ namespace FastData.DevTools
                 }
             }
 
+            /// <summary>
+            /// 异步执行数据库健康检查
+            /// </summary>
+            /// <returns>健康检查状态</returns>
             public Task<HealthCheckStatus> CheckHealthAsync()
             {
                 return Task.FromResult(CheckHealth());
@@ -558,12 +602,21 @@ namespace FastData.DevTools
             private readonly string _url;
             private readonly TimeSpan _timeout;
 
+            /// <summary>
+            /// 创建 HTTP 健康检查
+            /// </summary>
+            /// <param name="url">健康检查地址</param>
+            /// <param name="timeout">请求超时时间</param>
             public HttpHealthCheck(string url, TimeSpan timeout)
             {
                 _url = url;
                 _timeout = timeout;
             }
 
+            /// <summary>
+            /// 同步执行 HTTP 健康检查
+            /// </summary>
+            /// <returns>健康检查状态</returns>
             public HealthCheckStatus CheckHealth()
             {
                 try
@@ -594,6 +647,10 @@ namespace FastData.DevTools
                 }
             }
 
+            /// <summary>
+            /// 异步执行 HTTP 健康检查
+            /// </summary>
+            /// <returns>健康检查状态</returns>
             public async Task<HealthCheckStatus> CheckHealthAsync()
             {
                 try
@@ -631,11 +688,19 @@ namespace FastData.DevTools
         {
             private readonly Func<HealthCheckStatus> _checkFunc;
 
+            /// <summary>
+            /// 创建自定义健康检查
+            /// </summary>
+            /// <param name="checkFunc">返回健康检查状态的委托</param>
             public CustomHealthCheck(Func<HealthCheckStatus> checkFunc)
             {
                 _checkFunc = checkFunc;
             }
 
+            /// <summary>
+            /// 同步执行自定义健康检查
+            /// </summary>
+            /// <returns>健康检查状态</returns>
             public HealthCheckStatus CheckHealth()
             {
                 try
@@ -653,6 +718,10 @@ namespace FastData.DevTools
                 }
             }
 
+            /// <summary>
+            /// 异步执行自定义健康检查
+            /// </summary>
+            /// <returns>健康检查状态</returns>
             public Task<HealthCheckStatus> CheckHealthAsync()
             {
                 return Task.FromResult(CheckHealth());

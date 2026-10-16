@@ -39,9 +39,7 @@ namespace FastData.SyncTool.WinForms.Components
         private Button _batchPreviewButton;
 
         // 数据导出
-        private ComboBox _exportFormatCombo;
         private Button _exportAllButton;
-        private Button _exportSelectedButton;
 
         // 状态
         private StatusStrip _statusStrip;
@@ -74,7 +72,7 @@ namespace FastData.SyncTool.WinForms.Components
             // 连接配置
             var connPanel = new Panel { Dock = DockStyle.Fill };
             connPanel.Controls.Add(new Label { Text = "连接字符串:", Location = new Point(0, 5), AutoSize = true });
-            _connectionStringBox.Text = "server=.;database=FastDataDemo;uid=sa;pwd=YourPassword123";
+            _connectionStringBox.Text = string.Empty;
             _connectionStringBox.Location = new Point(100, 2);
             _connectionStringBox.Width = 400;
             connPanel.Controls.Add(_connectionStringBox);

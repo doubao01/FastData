@@ -14,7 +14,7 @@ namespace FastData.DevTools
     /// </summary>
     public static class DistributedTransactionManager
     {
-        private static readonly Dictionary<string, TransactionContext> _activeTransactions = new Dictionary<string, TransactionContext>();
+        private static readonly Dictionary<string, DistributedTransaction> _activeTransactions = new Dictionary<string, DistributedTransaction>();
         private static readonly object _lock = new object();
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace FastData.DevTools
             {
                 if (!_activeTransactions.TryGetValue(transactionId, out distributedTx))
                 {
-                    return Result.Error("事务不存在");
+                    return Result.Fail("事务不存在");
                 }
             }
 
@@ -98,7 +98,7 @@ namespace FastData.DevTools
                     {
                         // 准备阶段失败，执行回滚
                         RollbackTransaction(transactionId);
-                        return Result.Error(string.Format("事务提交失败: {0}", ex.Message));
+                        return Result.Fail(string.Format("事务提交失败: {0}", ex.Message));
                     }
                 }
 
@@ -111,12 +111,12 @@ namespace FastData.DevTools
 
                 Cleanup(distributedTx);
 
-                return Result.Success();
+                return Result.Ok();
             }
             catch (Exception ex)
             {
                 RollbackTransaction(transactionId);
-                return Result.Error(string.Format("事务提交异常: {0}", ex.Message));
+                return Result.Fail(string.Format("事务提交异常: {0}", ex.Message));
             }
         }
 
@@ -131,7 +131,7 @@ namespace FastData.DevTools
             {
                 if (!_activeTransactions.TryGetValue(transactionId, out distributedTx))
                 {
-                    return Result.Error("事务不存在");
+                    return Result.Fail("事务不存在");
                 }
             }
 
@@ -161,11 +161,11 @@ namespace FastData.DevTools
 
                 Cleanup(distributedTx);
 
-                return Result.Success();
+                return Result.Ok();
             }
             catch (Exception ex)
             {
-                return Result.Error(string.Format("事务回滚异常: {0}", ex.Message));
+                return Result.Fail(string.Format("事务回滚异常: {0}", ex.Message));
             }
         }
 
@@ -246,9 +246,21 @@ namespace FastData.DevTools
     /// </summary>
     public class DistributedTransaction
     {
+        /// <summary>
+        /// 事务 ID
+        /// </summary>
         public string TransactionId { get; set; }
+        /// <summary>
+        /// 参与事务的上下文列表
+        /// </summary>
         public List<TransactionContext> Contexts { get; set; }
+        /// <summary>
+        /// 事务状态
+        /// </summary>
         public TransactionStatus Status { get; set; }
+        /// <summary>
+        /// 事务创建时间
+        /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         /// <summary>
@@ -292,11 +304,11 @@ namespace FastData.DevTools
             try
             {
                 action(command);
-                return Result.Success();
+                return Result.Ok();
             }
             catch (Exception ex)
             {
-                return Result.Error(ex.Message);
+                return Result.Fail(ex.Message);
             }
         }
 
@@ -315,9 +327,18 @@ namespace FastData.DevTools
     /// </summary>
     public class TransactionContext
     {
+        /// <summary>
+        /// 数据库标识
+        /// </summary>
         public string DbKey { get; set; }
         internal object Config { get; set; }
+        /// <summary>
+        /// 数据库连接
+        /// </summary>
         public IDbConnection Connection { get; set; }
+        /// <summary>
+        /// 数据库事务
+        /// </summary>
         public IDbTransaction Transaction { get; set; }
     }
 
@@ -326,9 +347,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum TransactionStatus
     {
+        /// <summary>
+        /// 活动
+        /// </summary>
         Active,
+        /// <summary>
+        /// 已提交
+        /// </summary>
         Committed,
+        /// <summary>
+        /// 已回滚
+        /// </summary>
         RolledBack,
+        /// <summary>
+        /// 失败
+        /// </summary>
         Failed
     }
 
@@ -342,24 +375,40 @@ namespace FastData.DevTools
         private bool _committed;
         private bool _disposed;
 
+        /// <summary>
+        /// 初始化事务作用域（自动提交）
+        /// </summary>
+        /// <param name="dbKeys">参与的数据库标识</param>
         public TransactionScope(params string[] dbKeys)
             : this(dbKeys, true)
         {
         }
 
+        /// <summary>
+        /// 初始化事务作用域
+        /// </summary>
+        /// <param name="dbKeys">参与的数据库标识</param>
+        /// <param name="autoCommit">是否自动提交</param>
         public TransactionScope(string[] dbKeys, bool autoCommit)
         {
             _autoCommit = autoCommit;
             _transaction = DistributedTransactionManager.BeginTransaction(dbKeys);
         }
 
+        /// <summary>
+        /// 关联的分布式事务
+        /// </summary>
         public DistributedTransaction Transaction => _transaction;
 
+        /// <summary>
+        /// 提交事务
+        /// </summary>
+        /// <returns>提交结果</returns>
         public Result Commit()
         {
             if (_committed)
             {
-                return Result.Error("事务已提交");
+                return Result.Fail("事务已提交");
             }
 
             var result = _transaction.Commit();
@@ -367,6 +416,9 @@ namespace FastData.DevTools
             return result;
         }
 
+        /// <summary>
+        /// 标记事务完成（自动提交模式下会提交）
+        /// </summary>
         public void Complete()
         {
             if (!_committed && _autoCommit)
@@ -375,6 +427,9 @@ namespace FastData.DevTools
             }
         }
 
+        /// <summary>
+        /// 释放事务作用域，未提交时回滚
+        /// </summary>
         public void Dispose()
         {
             if (_disposed) return;
@@ -409,12 +464,12 @@ namespace FastData.DevTools
                     return transaction.Commit();
                 }
 
-                return Result.Error("事务状态异常");
+                return Result.Fail("事务状态异常");
             }
             catch (Exception ex)
             {
                 transaction.Rollback();
-                return Result.Error(ex.Message);
+                return Result.Fail(ex.Message);
             }
         }
 
@@ -429,11 +484,11 @@ namespace FastData.DevTools
                 {
                     action(scope.Transaction);
                     scope.Complete();
-                    return Result.Success();
+                    return Result.Ok();
                 }
                 catch (Exception ex)
                 {
-                    return Result.Error(ex.Message);
+                    return Result.Fail(ex.Message);
                 }
             }
         }
@@ -451,7 +506,7 @@ namespace FastData.DevTools
                 {
                     var result = action(transaction).Result;
 
-                    if (result.IsSuccess && transaction.Status == TransactionStatus.Active)
+                    if (result.Success && transaction.Status == TransactionStatus.Active)
                     {
                         return transaction.Commit();
                     }
@@ -462,7 +517,7 @@ namespace FastData.DevTools
                 catch (Exception ex)
                 {
                     transaction.Rollback();
-                    return Result.Error(ex.Message);
+                    return Result.Fail(ex.Message);
                 }
             });
         }

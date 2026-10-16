@@ -63,8 +63,11 @@
     <ProjectReference Include="..\FastData.Untility\FastData.Untility.csproj" />
   </ItemGroup>
 
-  <!-- 排除 DevTools 目录（临时，排除有编译错误的文件），保留 PerformanceProfiler -->
-  <ItemGroup>
+  <!--
+    DevTools 工具集：net8.0/net10.0 全量编译；
+    net452 因缺少 System.Text.Json 等现代 API，仅保留不依赖它们的文件。
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
     <Compile Remove="DevTools\**" />
     <Compile Include="DevTools\PerformanceProfiler.cs" />
     <Compile Include="DevTools\ApplicationWarmup.cs" />

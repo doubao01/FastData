@@ -334,16 +334,49 @@ namespace FastData.DevTools
     /// </summary>
     public class ApiResponse<T>
     {
+        /// <summary>
+        /// 请求地址
+        /// </summary>
         public string Url { get; set; }
+        /// <summary>
+        /// HTTP 方法
+        /// </summary>
         public string Method { get; set; }
+        /// <summary>
+        /// 请求开始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 请求结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
+        /// <summary>
+        /// 请求耗时
+        /// </summary>
         public TimeSpan Duration { get; set; }
+        /// <summary>
+        /// HTTP 状态码
+        /// </summary>
         public int StatusCode { get; set; }
+        /// <summary>
+        /// 是否成功
+        /// </summary>
         public bool IsSuccess { get; set; }
+        /// <summary>
+        /// 反序列化后的响应数据
+        /// </summary>
         public T Data { get; set; }
+        /// <summary>
+        /// 原始响应内容
+        /// </summary>
         public string Content { get; set; }
+        /// <summary>
+        /// 错误信息
+        /// </summary>
         public string Error { get; set; }
+        /// <summary>
+        /// 响应头
+        /// </summary>
         public Dictionary<string, string> Headers { get; set; }
     }
 
@@ -352,9 +385,21 @@ namespace FastData.DevTools
     /// </summary>
     public class ApiRequest
     {
+        /// <summary>
+        /// HTTP 方法
+        /// </summary>
         public string Method { get; set; }
+        /// <summary>
+        /// 请求地址
+        /// </summary>
         public string Url { get; set; }
+        /// <summary>
+        /// 请求数据
+        /// </summary>
         public object Data { get; set; }
+        /// <summary>
+        /// 请求头
+        /// </summary>
         public Dictionary<string, string> Headers { get; set; }
     }
 
@@ -454,10 +499,22 @@ namespace FastData.DevTools
     /// </summary>
     public class CircuitBreakerOptions
     {
+        /// <summary>
+        /// 熔断器名称
+        /// </summary>
         public string Name { get; set; } = "default";
+        /// <summary>
+        /// 触发熔断的失败阈值
+        /// </summary>
         public int FailureThreshold { get; set; } = 5;
+        /// <summary>
+        /// 熔断后进入半开状态的等待时间
+        /// </summary>
         public TimeSpan ResetTimeout { get; set; } = TimeSpan.FromMinutes(1);
 
+        /// <summary>
+        /// 默认选项
+        /// </summary>
         public static CircuitBreakerOptions Default => new CircuitBreakerOptions();
     }
 
@@ -469,12 +526,20 @@ namespace FastData.DevTools
         private readonly string _baseUrl;
         private readonly Dictionary<string, string> _defaultHeaders;
 
+        /// <summary>
+        /// 初始化 RESTful 客户端
+        /// </summary>
+        /// <param name="baseUrl">基础地址</param>
+        /// <param name="defaultHeaders">默认请求头</param>
         public RestClient(string baseUrl, Dictionary<string, string> defaultHeaders = null)
         {
             _baseUrl = baseUrl.TrimEnd('/');
             _defaultHeaders = defaultHeaders ?? new Dictionary<string, string>();
         }
 
+        /// <summary>
+        /// 发送 GET 请求
+        /// </summary>
         public async Task<ApiResponse<T>> GetAsync<T>(string path, Dictionary<string, string> headers = null)
         {
             var url = string.Format("{0}/{1}", _baseUrl, path.TrimStart('/'));
@@ -482,6 +547,9 @@ namespace FastData.DevTools
             return await ApiClient.GetAsync<T>(url, mergedHeaders);
         }
 
+        /// <summary>
+        /// 发送 POST 请求
+        /// </summary>
         public async Task<ApiResponse<T>> PostAsync<T>(string path, object data, Dictionary<string, string> headers = null)
         {
             var url = string.Format("{0}/{1}", _baseUrl, path.TrimStart('/'));
@@ -489,6 +557,9 @@ namespace FastData.DevTools
             return await ApiClient.PostAsync<T>(url, data, mergedHeaders);
         }
 
+        /// <summary>
+        /// 发送 PUT 请求
+        /// </summary>
         public async Task<ApiResponse<T>> PutAsync<T>(string path, object data, Dictionary<string, string> headers = null)
         {
             var url = string.Format("{0}/{1}", _baseUrl, path.TrimStart('/'));
@@ -496,6 +567,9 @@ namespace FastData.DevTools
             return await ApiClient.PutAsync<T>(url, data, mergedHeaders);
         }
 
+        /// <summary>
+        /// 发送 DELETE 请求
+        /// </summary>
         public async Task<ApiResponse<T>> DeleteAsync<T>(string path, Dictionary<string, string> headers = null)
         {
             var url = string.Format("{0}/{1}", _baseUrl, path.TrimStart('/'));
@@ -503,6 +577,9 @@ namespace FastData.DevTools
             return await ApiClient.DeleteAsync<T>(url, mergedHeaders);
         }
 
+        /// <summary>
+        /// 发送 PATCH 请求
+        /// </summary>
         public async Task<ApiResponse<T>> PatchAsync<T>(string path, object data, Dictionary<string, string> headers = null)
         {
             var url = string.Format("{0}/{1}", _baseUrl, path.TrimStart('/'));

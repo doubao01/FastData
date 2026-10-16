@@ -223,11 +223,11 @@
 
 ---
 
-### 4.4 性能基准测试项目
+### 4.4 性能基准测试设计（规划中）
 
-**新增文件**: `FastData.Benchmarks/`
+**状态**: 规划设计阶段（遵循极简项目原则，当前未在仓库中创建独立的 Benchmarks 项目）。
 
-**包含基准测试**:
+**设计基准测试用例**:
 | 测试名称 | 说明 |
 |----------|------|
 | ConnectionCreate | 连接创建与释放开销 |
@@ -239,8 +239,6 @@
 | OrmInsert | ORM 单条插入完整链路 |
 | OrmQuery | ORM 单条查询完整链路 |
 | OrmBulkInsert | ORM 批量插入(1000条)性能 |
-
-**运行方式**: `dotnet run -c Release --project FastData.Benchmarks`
 
 ---
 
@@ -263,12 +261,12 @@
 
 ---
 
-### 4.7 解决方案扩展
+### 4.7 解决方案规范
 
 **修改文件**: `FastData.sln`
 
 **改进内容**:
-- 添加 `FastData.Benchmarks` 项目到解决方案
+- 维持解决方案结构严谨，包含 7 个核心与配套项目（FastData, FastData.Untility, FastData.Tests, FastData.Demo, FastData.Example, FastData.ModelGenerator.WinForms, FastData.SyncTool.WinForms）
 
 ---
 
@@ -289,7 +287,7 @@
 
 ## 六、变更文件清单
 
-### 新增文件（8 个）
+### 新增文件（7 个）
 ```
 .github/workflows/build.yml              CI/CD 构建流水线
 .github/workflows/release.yml            CI/CD 发布流水线
@@ -298,7 +296,6 @@ build.ps1                                统一构建脚本
 FastData.Demo/Dockerfile                 应用容器化
 FastData/Base/ICacheProvider.cs          缓存提供者接口
 FastData/Base/CacheProviders.cs          缓存提供者实现与工厂
-FastData.Benchmarks/                     性能基准测试项目
 ```
 
 ### 修改文件（10 个）

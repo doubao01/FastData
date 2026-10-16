@@ -20,10 +20,23 @@ namespace FastData.DevTools
         /// </summary>
         public class DiagnosticResult
         {
+            /// <summary>
+            /// 数据库是否健康
+            /// </summary>
             public bool IsHealthy { get; set; }
+            /// <summary>
+            /// 诊断发现的问题列表
+            /// </summary>
             public List<DiagnosticIssue> Issues { get; set; } = new List<DiagnosticIssue>();
+            /// <summary>
+            /// 诊断指标集合
+            /// </summary>
             public Dictionary<string, object> Metrics { get; set; } = new Dictionary<string, object>();
 
+            /// <summary>
+            /// 返回诊断结果的可读描述
+            /// </summary>
+            /// <returns>健康状态或问题列表文本</returns>
             public override string ToString()
             {
                 if (IsHealthy)
@@ -39,9 +52,21 @@ namespace FastData.DevTools
         /// </summary>
         public class DiagnosticIssue
         {
+            /// <summary>
+            /// 严重程度
+            /// </summary>
             public DiagnosticSeverity Severity { get; set; }
+            /// <summary>
+            /// 问题描述
+            /// </summary>
             public string Message { get; set; }
+            /// <summary>
+            /// 问题分类
+            /// </summary>
             public string Category { get; set; }
+            /// <summary>
+            /// 问题详细信息
+            /// </summary>
             public object Details { get; set; }
         }
 
@@ -50,9 +75,13 @@ namespace FastData.DevTools
         /// </summary>
         public enum DiagnosticSeverity
         {
+            /// <summary>提示信息</summary>
             Info,
+            /// <summary>警告</summary>
             Warning,
+            /// <summary>错误</summary>
             Error,
+            /// <summary>严重错误</summary>
             Critical
         }
 
@@ -158,7 +187,7 @@ namespace FastData.DevTools
             }
 
             // 检查连接字符串
-            if (string.IsNullOrWhiteSpace(config.Connection))
+            if (string.IsNullOrWhiteSpace(config.ConnStr))
             {
                 result.Issues.Add(new DiagnosticIssue
                 {

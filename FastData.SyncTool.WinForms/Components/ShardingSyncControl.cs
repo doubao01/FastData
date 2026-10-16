@@ -137,7 +137,7 @@ namespace FastData.SyncTool.WinForms.Components
             sourceLayout.Controls.Add(sourceProviderBox, 1, 0);
 
             sourceLayout.Controls.Add(new Label { Text = "连接字符串:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);
-            sourceConnectionStringBox.Text = "server=.;database=FastDataDemo;uid=sa;pwd=YourPassword123";
+            sourceConnectionStringBox.Text = string.Empty;
             sourceLayout.Controls.Add(sourceConnectionStringBox, 1, 1);
 
             sourceLayout.Controls.Add(new Label { Text = "源表名:", TextAlign = ContentAlignment.MiddleRight }, 0, 2);

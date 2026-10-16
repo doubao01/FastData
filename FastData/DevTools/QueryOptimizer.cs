@@ -497,9 +497,21 @@ namespace FastData.DevTools
     /// </summary>
     public class QueryOptimizationResult
     {
+        /// <summary>
+        /// 原始 SQL
+        /// </summary>
         public string OriginalSql { get; set; }
+        /// <summary>
+        /// 优化后的 SQL
+        /// </summary>
         public string OptimizedSql { get; set; }
+        /// <summary>
+        /// 优化建议列表
+        /// </summary>
         public List<OptimizationSuggestion> Optimizations { get; set; }
+        /// <summary>
+        /// 预估改进幅度
+        /// </summary>
         public double EstimatedImprovement { get; set; }
     }
 
@@ -508,9 +520,21 @@ namespace FastData.DevTools
     /// </summary>
     public class OptimizationSuggestion
     {
+        /// <summary>
+        /// 优化类型
+        /// </summary>
         public OptimizationType Type { get; set; }
+        /// <summary>
+        /// 优化优先级
+        /// </summary>
         public OptimizationPriority Priority { get; set; }
+        /// <summary>
+        /// 建议描述
+        /// </summary>
         public string Description { get; set; }
+        /// <summary>
+        /// 预估改进幅度
+        /// </summary>
         public string EstimatedImprovement { get; set; }
     }
 
@@ -519,12 +543,33 @@ namespace FastData.DevTools
     /// </summary>
     public enum OptimizationType
     {
+        /// <summary>
+        /// 列选择
+        /// </summary>
         ColumnSelection,
+        /// <summary>
+        /// 过滤条件
+        /// </summary>
         Filtering,
+        /// <summary>
+        /// 连接
+        /// </summary>
         Join,
+        /// <summary>
+        /// 子查询
+        /// </summary>
         Subquery,
+        /// <summary>
+        /// 排序
+        /// </summary>
         Sorting,
+        /// <summary>
+        /// 部分匹配
+        /// </summary>
         PartialMatch,
+        /// <summary>
+        /// 去重
+        /// </summary>
         Deduplication
     }
 
@@ -533,9 +578,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum OptimizationPriority
     {
+        /// <summary>
+        /// 低
+        /// </summary>
         Low,
+        /// <summary>
+        /// 中
+        /// </summary>
         Medium,
+        /// <summary>
+        /// 高
+        /// </summary>
         High,
+        /// <summary>
+        /// 严重
+        /// </summary>
         Critical
     }
 
@@ -544,11 +601,29 @@ namespace FastData.DevTools
     /// </summary>
     public class QueryPerformanceAnalysis
     {
+        /// <summary>
+        /// SQL 语句
+        /// </summary>
         public string Sql { get; set; }
+        /// <summary>
+        /// 执行时间（毫秒）
+        /// </summary>
         public double ExecutionTimeMs { get; set; }
+        /// <summary>
+        /// 返回行数
+        /// </summary>
         public int RowsReturned { get; set; }
+        /// <summary>
+        /// 性能等级
+        /// </summary>
         public PerformanceLevel PerformanceLevel { get; set; }
+        /// <summary>
+        /// 评级描述
+        /// </summary>
         public string Rating { get; set; }
+        /// <summary>
+        /// 性能建议列表
+        /// </summary>
         public List<PerformanceRecommendation> Recommendations { get; set; } = new List<PerformanceRecommendation>();
     }
 
@@ -557,10 +632,25 @@ namespace FastData.DevTools
     /// </summary>
     public enum PerformanceLevel
     {
+        /// <summary>
+        /// 优秀
+        /// </summary>
         Excellent,
+        /// <summary>
+        /// 良好
+        /// </summary>
         Good,
+        /// <summary>
+        /// 一般
+        /// </summary>
         Fair,
+        /// <summary>
+        /// 较差
+        /// </summary>
         Poor,
+        /// <summary>
+        /// 严重
+        /// </summary>
         Critical
     }
 
@@ -569,9 +659,21 @@ namespace FastData.DevTools
     /// </summary>
     public class PerformanceRecommendation
     {
+        /// <summary>
+        /// 建议类型
+        /// </summary>
         public RecommendationType Type { get; set; }
+        /// <summary>
+        /// 建议优先级
+        /// </summary>
         public RecommendationPriority Priority { get; set; }
+        /// <summary>
+        /// 建议描述
+        /// </summary>
         public string Description { get; set; }
+        /// <summary>
+        /// 建议操作
+        /// </summary>
         public string[] Actions { get; set; }
     }
 
@@ -580,9 +682,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum RecommendationType
     {
+        /// <summary>
+        /// 优化
+        /// </summary>
         Optimization,
+        /// <summary>
+        /// 分页
+        /// </summary>
         Pagination,
+        /// <summary>
+        /// 索引
+        /// </summary>
         Indexing,
+        /// <summary>
+        /// 缓存
+        /// </summary>
         Caching
     }
 
@@ -591,8 +705,17 @@ namespace FastData.DevTools
     /// </summary>
     public enum RecommendationPriority
     {
+        /// <summary>
+        /// 低
+        /// </summary>
         Low,
+        /// <summary>
+        /// 中
+        /// </summary>
         Medium,
+        /// <summary>
+        /// 高
+        /// </summary>
         High
     }
 
@@ -601,9 +724,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum IndexPriority
     {
+        /// <summary>
+        /// 低
+        /// </summary>
         Low,
+        /// <summary>
+        /// 中
+        /// </summary>
         Medium,
+        /// <summary>
+        /// 高
+        /// </summary>
         High,
+        /// <summary>
+        /// 严重
+        /// </summary>
         Critical
     }
 
@@ -612,12 +747,32 @@ namespace FastData.DevTools
     /// </summary>
     public class IndexSuggestion
     {
+        /// <summary>
+        /// 表名
+        /// </summary>
         public string TableName { get; set; }
+        /// <summary>
+        /// 列名
+        /// </summary>
         public string ColumnName { get; set; }
+        /// <summary>
+        /// 索引类型
+        /// </summary>
         public IndexType Type { get; set; }
+        /// <summary>
+        /// 索引优先级
+        /// </summary>
         public IndexPriority Priority { get; set; }
+        /// <summary>
+        /// 建议原因
+        /// </summary>
         public string Reason { get; set; }
 
+        /// <summary>
+        /// 判断两个索引建议是否相等（按表名和列名）
+        /// </summary>
+        /// <param name="obj">比较对象</param>
+        /// <returns>是否相等</returns>
         public override bool Equals(object obj)
         {
             return obj is IndexSuggestion other &&
@@ -625,6 +780,10 @@ namespace FastData.DevTools
                    ColumnName == other.ColumnName;
         }
 
+        /// <summary>
+        /// 获取哈希码
+        /// </summary>
+        /// <returns>哈希码</returns>
         public override int GetHashCode()
         {
             return HashCode.Combine(TableName, ColumnName);
@@ -636,9 +795,21 @@ namespace FastData.DevTools
     /// </summary>
     public class QueryIssue
     {
+        /// <summary>
+        /// 问题类型
+        /// </summary>
         public IssueType Type { get; set; }
+        /// <summary>
+        /// 严重程度
+        /// </summary>
         public IssueSeverity Severity { get; set; }
+        /// <summary>
+        /// 问题描述
+        /// </summary>
         public string Description { get; set; }
+        /// <summary>
+        /// 修复建议
+        /// </summary>
         public string Recommendation { get; set; }
     }
 
@@ -647,9 +818,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum IssueType
     {
+        /// <summary>
+        /// N+1 查询
+        /// </summary>
         NPlusOne,
+        /// <summary>
+        /// 全表扫描
+        /// </summary>
         FullTableScan,
+        /// <summary>
+        /// 大结果集
+        /// </summary>
         LargeResultset,
+        /// <summary>
+        /// 低效子查询
+        /// </summary>
         InefficientSubquery
     }
 
@@ -658,9 +841,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum IssueSeverity
     {
+        /// <summary>
+        /// 低
+        /// </summary>
         Low,
+        /// <summary>
+        /// 中
+        /// </summary>
         Medium,
+        /// <summary>
+        /// 高
+        /// </summary>
         High,
+        /// <summary>
+        /// 严重
+        /// </summary>
         Critical
     }
 
@@ -669,11 +864,29 @@ namespace FastData.DevTools
     /// </summary>
     public class ExecutionPlanSuggestions
     {
+        /// <summary>
+        /// 查询复杂度
+        /// </summary>
         public QueryComplexity Complexity { get; set; }
+        /// <summary>
+        /// 是否建议并行执行
+        /// </summary>
         public bool SuggestedParallelism { get; set; }
+        /// <summary>
+        /// 建议的并行度
+        /// </summary>
         public int RecommendedParallelismLevel { get; set; }
+        /// <summary>
+        /// 建议的缓存策略
+        /// </summary>
         public CacheStrategy SuggestedCacheStrategy { get; set; }
+        /// <summary>
+        /// 是否建议分批处理
+        /// </summary>
         public bool SuggestedBatchProcessing { get; set; }
+        /// <summary>
+        /// 建议的批处理大小
+        /// </summary>
         public int RecommendedBatchSize { get; set; }
     }
 
@@ -682,9 +895,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum QueryComplexity
     {
+        /// <summary>
+        /// 低
+        /// </summary>
         Low,
+        /// <summary>
+        /// 中
+        /// </summary>
         Medium,
+        /// <summary>
+        /// 高
+        /// </summary>
         High,
+        /// <summary>
+        /// 极高
+        /// </summary>
         VeryHigh
     }
 
@@ -693,9 +918,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum CacheStrategy
     {
+        /// <summary>
+        /// 不使用缓存
+        /// </summary>
         None,
+        /// <summary>
+        /// 读缓存
+        /// </summary>
         ReadCache,
+        /// <summary>
+        /// 写缓存
+        /// </summary>
         WriteCache,
+        /// <summary>
+        /// 读写缓存
+        /// </summary>
         ReadWriteCache
     }
 
@@ -704,11 +941,26 @@ namespace FastData.DevTools
     /// </summary>
     public class OptimizationOptions
     {
+        /// <summary>
+        /// 是否优化列选择
+        /// </summary>
         public bool OptimizeColumns { get; set; } = true;
+        /// <summary>
+        /// 是否优化连接
+        /// </summary>
         public bool OptimizeJoins { get; set; } = true;
+        /// <summary>
+        /// 是否优化子查询
+        /// </summary>
         public bool OptimizeSubqueries { get; set; } = true;
+        /// <summary>
+        /// 是否优化排序
+        /// </summary>
         public bool OptimizeSorting { get; set; } = true;
 
+        /// <summary>
+        /// 默认选项
+        /// </summary>
         public static OptimizationOptions Default => new OptimizationOptions();
     }
 

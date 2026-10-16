@@ -258,12 +258,30 @@ namespace FastData.DevTools
     /// </summary>
     public class CacheStatistics
     {
+        /// <summary>
+        /// 缓存键
+        /// </summary>
         public string Key { get; set; }
+        /// <summary>
+        /// 命中次数
+        /// </summary>
         public long Hits { get; set; }
+        /// <summary>
+        /// 未命中次数
+        /// </summary>
         public long Misses { get; set; }
+        /// <summary>
+        /// 最后访问时间
+        /// </summary>
         public DateTime? LastAccessed { get; set; }
+        /// <summary>
+        /// 最后更新时间
+        /// </summary>
         public DateTime? LastUpdated { get; set; }
 
+        /// <summary>
+        /// 命中率（0-1）
+        /// </summary>
         public double HitRate => Hits + Misses > 0 ? (double)Hits / (Hits + Misses) : 0;
     }
 
@@ -272,12 +290,33 @@ namespace FastData.DevTools
     /// </summary>
     public class CacheReport
     {
+        /// <summary>
+        /// 缓存键总数
+        /// </summary>
         public int TotalKeys { get; set; }
+        /// <summary>
+        /// 累计命中次数
+        /// </summary>
         public long TotalHits { get; set; }
+        /// <summary>
+        /// 累计未命中次数
+        /// </summary>
         public long TotalMisses { get; set; }
+        /// <summary>
+        /// 整体命中率
+        /// </summary>
         public double HitRate { get; set; }
+        /// <summary>
+        /// 命中次数最多的键
+        /// </summary>
         public string MostHitKey { get; set; }
+        /// <summary>
+        /// 命中次数最少的键
+        /// </summary>
         public string LeastHitKey { get; set; }
+        /// <summary>
+        /// 报告生成时间
+        /// </summary>
         public DateTime GeneratedAt { get; set; }
     }
 

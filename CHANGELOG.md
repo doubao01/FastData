@@ -2,6 +2,34 @@
 
 本文档记录 FastData 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## [2.7.0] - 2026-10-16
+
+### Fixed
+
+- **DevTools 编译与架构修复**
+  - 修复 `FastData.csproj` 对 DevTools 的排除策略，仅在 net452 下排除，net8.0/net10.0 全量编译
+  - 修复 8 个 DevTools 历史编译错误文件（AuditLogger、CacheManager、DatabaseComparer、DatabaseDiagnostic、DataImporter、DatabaseBackupRestore、DistributedTransactionManager、DevToolsExamples）
+  - 修复 `TaskScheduler.cs` 未等待异步调用的 CS4014 警告
+  - 修复 `MapXml.cs` 中 DES 解密调用过时 API 的 CS0618 警告，并修正输入参数为空串的真实缺陷
+  - 修复 `SmartConnectionPool.cs` 成功/失败统计遗漏路径与半开限流计数未递增问题
+  - 加固 `SqlServerDialect.cs` 的 `ApplyTake` 实现，支持大小写、多余空白、`SELECT DISTINCT` 及已存在 `TOP` 的幂等保护
+
+- **表名帮助类去重与整合**
+  - 将 `FastData.ChangeTracking.TableNameHelper` 统一转发至 `FastData.Base.TableNameHelper`
+  - `FastData.Base.TableNameHelper` 支持 `TableNameAttribute` 特性映射与 `Type` 实例入参重载
+  - `ApplicationWarmup.cs` 移除脆弱的动态反射查找，直接调用强类型重载
+
+### Added
+
+- **DevTools 完整 XML 文档注释**
+  - 为 DevTools 模块内全部 18 个包含公共成员的文件补齐规范 XML 文档注释（涵盖 519 个公共成员），使 CS1591 警告清零
+
+### Changed
+
+- **文档与规范对齐**
+  - 对齐 `README.md` 中的 DevTools 工具清单：准确描述为 21 个核心独立工具 + 1 组完整使用示例集
+  - 对齐 `ARCHITECTURE_OPTIMIZATION_REPORT.md`，明确基准测试项目处于规划设计阶段，保持解决方案 7 个核心与配套项目的一致性
+
 ## [2.6.0] - 2026-06-13
 
 ### Added

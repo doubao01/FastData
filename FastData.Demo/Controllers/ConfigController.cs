@@ -106,8 +106,6 @@ namespace FastData.Demo.Controllers
         }
 
         /// <summary>
-        /// 数据库诊断：检查连接、性能、索引等
-/// <summary>
         /// 数据库诊断（暂时不可用）
         /// </summary>
         [HttpGet("diagnose")]
@@ -179,44 +177,6 @@ namespace FastData.Demo.Controllers
             // catch (Exception ex)
             // {
             //     return StatusCode(500, new { error = ex.Message });
-            // }
-
-            return Ok(new { note = "Cache management not available" });
-        }
-
-        /// <summary>
-        /// 缓存管理：清空指定缓存（暂时不可用）
-        /// </summary>
-        [HttpDelete("cache/{key}")]
-        public ActionResult ClearCache(string key)
-        {
-            // try
-            // {
-            //     CacheManager.Remove(key);
-            //     return Ok(new { success = true, key });
-            // }
-            // catch (Exception ex)
-            // {
-            //     return BadRequest(new { success = false, error = ex.Message });
-            // }
-
-            return Ok(new { note = "Cache management not available", key });
-        }
-
-        /// <summary>
-        /// 缓存管理：清空所有缓存（暂时不可用）
-        /// </summary>
-        [HttpDelete("cache")]
-        public ActionResult ClearAllCache()
-        {
-            // try
-            // {
-            //     CacheManager.Clear();
-            //     return Ok(new { success = true });
-            // }
-            // catch (Exception ex)
-            // {
-            //     return BadRequest(new { success = false, error = ex.Message });
             // }
 
             return Ok(new { note = "Cache management not available" });

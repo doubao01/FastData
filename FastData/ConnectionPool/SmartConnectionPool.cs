@@ -499,6 +499,7 @@ namespace FastData.ConnectionPool
                 if (!await _semaphore.WaitAsync(TimeSpan.FromSeconds(_config.ConnectionTimeout), cancellationToken))
                 {
                     Interlocked.Increment(ref _failedRequests);
+                    RecordFailure();
                     // 抛出连接池耗尽异常，用于触发降级到消息队列
                     throw new ConnectionPoolExhaustedException(_name, _config.ConnectionTimeout);
                 }
@@ -535,6 +536,7 @@ namespace FastData.ConnectionPool
                 {
                     _semaphore.Release();
                     Interlocked.Increment(ref _failedRequests);
+                    RecordFailure();
                     throw new ConnectionPoolExhaustedException(_name,
                         string.Format("连接池 '{0}' 无法创建新连接，数据库可能不可达或认证失败", _name));
                 }
@@ -543,6 +545,7 @@ namespace FastData.ConnectionPool
                 _inUseConnections.TryAdd(connection.Id, connection);
                 Interlocked.Increment(ref _activeCount);
                 Interlocked.Increment(ref _successfulRequests);
+                RecordSuccess();
 
                 return connection;
             }
@@ -553,6 +556,7 @@ namespace FastData.ConnectionPool
             catch
             {
                 Interlocked.Increment(ref _failedRequests);
+                RecordFailure();
                 throw;
             }
         }
@@ -615,6 +619,7 @@ namespace FastData.ConnectionPool
                 {
                     _semaphore.Release();
                     Interlocked.Increment(ref _failedRequests);
+                    RecordFailure();
                     throw new ConnectionPoolExhaustedException(_name,
                         string.Format("连接池 '{0}' 无法创建新连接，数据库可能不可达或认证失败", _name));
                 }
@@ -623,6 +628,7 @@ namespace FastData.ConnectionPool
                 _inUseConnections.TryAdd(connection.Id, connection);
                 Interlocked.Increment(ref _activeCount);
                 Interlocked.Increment(ref _successfulRequests);
+                RecordSuccess();
 
                 return connection;
             }
@@ -633,6 +639,7 @@ namespace FastData.ConnectionPool
             catch
             {
                 Interlocked.Increment(ref _failedRequests);
+                RecordFailure();
                 throw;
             }
         }
@@ -1172,13 +1179,22 @@ namespace FastData.ConnectionPool
                         if (DateTime.UtcNow >= _circuitOpenedAt.AddSeconds(_config.CircuitBreaker.CircuitOpenDurationSec))
                         {
                             TryTransitionToHalfOpen();
-                            return true;
+                            if (_halfOpenRequests < _config.CircuitBreaker.HalfOpenMaxRequests)
+                            {
+                                _halfOpenRequests++;
+                                return true;
+                            }
                         }
                         return false;
 
                     case CircuitState.HalfOpen:
                         // 半开状态下只允许少量测试请求
-                        return _halfOpenRequests < _config.CircuitBreaker.HalfOpenMaxRequests;
+                        if (_halfOpenRequests < _config.CircuitBreaker.HalfOpenMaxRequests)
+                        {
+                            _halfOpenRequests++;
+                            return true;
+                        }
+                        return false;
 
                     default:
                         return true;

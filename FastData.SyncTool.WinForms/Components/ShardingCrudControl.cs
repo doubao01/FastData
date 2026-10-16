@@ -19,8 +19,8 @@ namespace FastData.SyncTool.WinForms.Components
         private readonly DatabaseService _dbService;
         private readonly LogService _logService;
 
-        // 连接字符串
-        private string _connectionString = "server=.;database=FastDataDemo;uid=sa;pwd=YourPassword123";
+        // 连接字符串（运行时由用户在界面填写，禁止在源码中硬编码凭据）
+        private string _connectionString = string.Empty;
 
         // 配置区域
         private GroupBox _configGroup;

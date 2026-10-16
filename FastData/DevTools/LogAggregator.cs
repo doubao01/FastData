@@ -243,6 +243,11 @@ namespace FastData.DevTools
     /// </summary>
     public interface ILogProvider
     {
+        /// <summary>
+        /// 异步写入日志
+        /// </summary>
+        /// <param name="entry">日志条目</param>
+        /// <returns>异步任务</returns>
         Task WriteLogAsync(LogEntry entry);
     }
 
@@ -251,6 +256,11 @@ namespace FastData.DevTools
     /// </summary>
     public class ConsoleLogProvider : ILogProvider
     {
+        /// <summary>
+        /// 异步写入日志到控制台
+        /// </summary>
+        /// <param name="entry">日志条目</param>
+        /// <returns>异步任务</returns>
         public Task WriteLogAsync(LogEntry entry)
         {
             var color = Console.ForegroundColor;
@@ -280,6 +290,11 @@ namespace FastData.DevTools
         private readonly string _logDirectory;
         private readonly string _filePattern;
 
+        /// <summary>
+        /// 初始化文件日志提供者
+        /// </summary>
+        /// <param name="logDirectory">日志目录</param>
+        /// <param name="filePattern">文件名日期格式</param>
         public FileLogProvider(string logDirectory = "./logs", string filePattern = "yyyy-MM-dd")
         {
             _logDirectory = logDirectory;
@@ -291,6 +306,11 @@ namespace FastData.DevTools
             }
         }
 
+        /// <summary>
+        /// 异步写入日志到文件
+        /// </summary>
+        /// <param name="entry">日志条目</param>
+        /// <returns>异步任务</returns>
         public async Task WriteLogAsync(LogEntry entry)
         {
             var fileName = DateTime.Now.ToString(_filePattern) + ".log";
@@ -329,11 +349,20 @@ namespace FastData.DevTools
         private readonly ConcurrentQueue<LogEntry> _logs = new ConcurrentQueue<LogEntry>();
         private readonly int _maxLogs;
 
+        /// <summary>
+        /// 初始化内存日志提供者
+        /// </summary>
+        /// <param name="maxLogs">最大日志条数</param>
         public MemoryLogProvider(int maxLogs = 10000)
         {
             _maxLogs = maxLogs;
         }
 
+        /// <summary>
+        /// 异步写入日志到内存
+        /// </summary>
+        /// <param name="entry">日志条目</param>
+        /// <returns>异步任务</returns>
         public Task WriteLogAsync(LogEntry entry)
         {
             _logs.Enqueue(entry);
@@ -344,11 +373,20 @@ namespace FastData.DevTools
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// 获取所有日志
+        /// </summary>
+        /// <returns>日志列表</returns>
         public List<LogEntry> GetLogs()
         {
             return _logs.ToList();
         }
 
+        /// <summary>
+        /// 清理超过指定时间范围的日志
+        /// </summary>
+        /// <param name="olderThan">保留的时间范围</param>
+        /// <returns>清理的日志条数</returns>
         public int Cleanup(TimeSpan olderThan)
         {
             var cutoff = DateTime.Now - olderThan;
@@ -370,10 +408,25 @@ namespace FastData.DevTools
     /// </summary>
     public class LogEntry
     {
+        /// <summary>
+        /// 时间戳
+        /// </summary>
         public DateTime Timestamp { get; set; }
+        /// <summary>
+        /// 日志级别
+        /// </summary>
         public LogLevel Level { get; set; }
+        /// <summary>
+        /// 日志消息
+        /// </summary>
         public string Message { get; set; }
+        /// <summary>
+        /// 日志分类
+        /// </summary>
         public string Category { get; set; }
+        /// <summary>
+        /// 附加属性
+        /// </summary>
         public Dictionary<string, object> Properties { get; set; }
     }
 
@@ -382,8 +435,17 @@ namespace FastData.DevTools
     /// </summary>
     public enum LogLevel
     {
+        /// <summary>
+        /// 信息
+        /// </summary>
         Info,
+        /// <summary>
+        /// 警告
+        /// </summary>
         Warning,
+        /// <summary>
+        /// 错误
+        /// </summary>
         Error
     }
 
@@ -392,10 +454,25 @@ namespace FastData.DevTools
     /// </summary>
     public class LogQuery
     {
+        /// <summary>
+        /// 起始时间
+        /// </summary>
         public DateTime? StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime? EndTime { get; set; }
+        /// <summary>
+        /// 日志级别
+        /// </summary>
         public LogLevel? Level { get; set; }
+        /// <summary>
+        /// 日志分类
+        /// </summary>
         public string Category { get; set; }
+        /// <summary>
+        /// 消息关键字
+        /// </summary>
         public string Message { get; set; }
     }
 
@@ -404,11 +481,29 @@ namespace FastData.DevTools
     /// </summary>
     public class LogStatistics
     {
+        /// <summary>
+        /// 日志总数
+        /// </summary>
         public int TotalLogs { get; set; }
+        /// <summary>
+        /// 信息日志数
+        /// </summary>
         public int InfoCount { get; set; }
+        /// <summary>
+        /// 警告日志数
+        /// </summary>
         public int WarningCount { get; set; }
+        /// <summary>
+        /// 错误日志数
+        /// </summary>
         public int ErrorCount { get; set; }
+        /// <summary>
+        /// 各分类日志数量
+        /// </summary>
         public Dictionary<string, int> Categories { get; set; }
+        /// <summary>
+        /// 时间范围
+        /// </summary>
         public DateTimeRange TimeRange { get; set; }
     }
 
@@ -417,7 +512,13 @@ namespace FastData.DevTools
     /// </summary>
     public class DateTimeRange
     {
+        /// <summary>
+        /// 起始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
     }
 
@@ -429,30 +530,47 @@ namespace FastData.DevTools
         private readonly string _category;
         private readonly Dictionary<string, object> _properties;
 
+        /// <summary>
+        /// 初始化日志作用域
+        /// </summary>
+        /// <param name="category">日志分类</param>
+        /// <param name="properties">附加属性</param>
         public LogScope(string category, Dictionary<string, object> properties = null)
         {
             _category = category;
             _properties = properties;
         }
 
+        /// <summary>
+        /// 记录信息日志
+        /// </summary>
         public void Info(string message, Dictionary<string, object> additionalProperties = null)
         {
             var mergedProperties = MergeProperties(_properties, additionalProperties);
             LogAggregator.Info(message, _category, mergedProperties);
         }
 
+        /// <summary>
+        /// 记录警告日志
+        /// </summary>
         public void Warning(string message, Dictionary<string, object> additionalProperties = null)
         {
             var mergedProperties = MergeProperties(_properties, additionalProperties);
             LogAggregator.Warning(message, _category, mergedProperties);
         }
 
+        /// <summary>
+        /// 记录错误日志
+        /// </summary>
         public void Error(string message, Dictionary<string, object> additionalProperties = null)
         {
             var mergedProperties = MergeProperties(_properties, additionalProperties);
             LogAggregator.Error(message, _category, mergedProperties);
         }
 
+        /// <summary>
+        /// 记录异常日志
+        /// </summary>
         public void Exception(Exception ex, string message = null, Dictionary<string, object> additionalProperties = null)
         {
             var mergedProperties = MergeProperties(_properties, additionalProperties);
@@ -472,6 +590,9 @@ namespace FastData.DevTools
             return merged;
         }
 
+        /// <summary>
+        /// 释放日志作用域
+        /// </summary>
         public void Dispose()
         {
             // 可以在这里添加清理逻辑
@@ -483,6 +604,12 @@ namespace FastData.DevTools
     /// </summary>
     public static class LoggerFactory
     {
+        /// <summary>
+        /// 创建日志作用域
+        /// </summary>
+        /// <param name="category">日志分类</param>
+        /// <param name="properties">附加属性</param>
+        /// <returns>日志作用域</returns>
         public static LogScope CreateScope(string category, Dictionary<string, object> properties = null)
         {
             return new LogScope(category, properties);

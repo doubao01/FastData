@@ -1,3 +1,6 @@
+using System;
+using System.Text.RegularExpressions;
+
 namespace FastData.Adapter
 {
     /// <summary>
@@ -7,6 +10,12 @@ namespace FastData.Adapter
     /// </summary>
     internal class SqlServerDialect : ISqlDialect
     {
+        private static readonly Regex DistinctPattern =
+            new Regex(@"^\s+distinct\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        private static readonly Regex TopPattern =
+            new Regex(@"^\s+top\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
         /// <summary>
         /// 应用 TOP 子句
         /// </summary>
@@ -15,14 +24,33 @@ namespace FastData.Adapter
         /// <returns>添加了 TOP 的 SQL 语句</returns>
         public string ApplyTake(string sql, int take)
         {
-            if (take <= 0)
+            if (take <= 0 || string.IsNullOrEmpty(sql))
                 return sql;
 
-            var value = sql ?? string.Empty;
-            if (value.ToLower().StartsWith("select "))
-                return "select top " + take + " " + value.Substring(7);
+            var trimmed = sql.TrimStart();
+            if (!trimmed.StartsWith("select", StringComparison.OrdinalIgnoreCase))
+                return sql;
 
-            return value;
+            var afterSelect = trimmed.Substring(6);
+            if (afterSelect.Length == 0 || !char.IsWhiteSpace(afterSelect[0]))
+                return sql;
+
+            var prefix = sql.Substring(0, sql.Length - trimmed.Length) + "select";
+
+            var body = afterSelect;
+            var distinctPart = string.Empty;
+            var distinctMatch = DistinctPattern.Match(body);
+            if (distinctMatch.Success)
+            {
+                // SELECT DISTINCT 时 TOP 必须位于 DISTINCT 之后
+                distinctPart = distinctMatch.Value;
+                body = body.Substring(distinctMatch.Length);
+            }
+
+            if (TopPattern.IsMatch(body))
+                return sql;
+
+            return prefix + " top " + take + distinctPart + body;
         }
 
         /// <summary>

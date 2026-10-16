@@ -48,7 +48,7 @@ namespace FastData.DevTools
 
             _scheduledTasks[taskId] = task;
 
-            RunTask(task, cts.Token);
+            _ = RunTask(task, cts.Token);
 
             return taskId;
         }
@@ -182,7 +182,7 @@ namespace FastData.DevTools
 
                     if (task.Repeat && !cancellationToken.IsCancellationRequested)
                     {
-                        RunTask(task, cancellationToken);
+                        _ = RunTask(task, cancellationToken);
                     }
                 }
                 catch (OperationCanceledException)
@@ -254,15 +254,45 @@ namespace FastData.DevTools
     /// </summary>
     public class ScheduledTask
     {
+        /// <summary>
+        /// 任务 ID
+        /// </summary>
         public string TaskId { get; set; }
+        /// <summary>
+        /// 任务名称
+        /// </summary>
         public string Name { get; set; }
+        /// <summary>
+        /// 任务动作
+        /// </summary>
         public Func<Task> Action { get; set; }
+        /// <summary>
+        /// 调度延迟
+        /// </summary>
         public TimeSpan Delay { get; set; }
+        /// <summary>
+        /// 是否重复执行
+        /// </summary>
         public bool Repeat { get; set; }
+        /// <summary>
+        /// 创建时间
+        /// </summary>
         public DateTime CreatedAt { get; set; }
+        /// <summary>
+        /// 上次运行时间
+        /// </summary>
         public DateTime? LastRunAt { get; set; }
+        /// <summary>
+        /// 运行次数
+        /// </summary>
         public int RunCount { get; set; }
+        /// <summary>
+        /// 任务状态
+        /// </summary>
         public TaskStatus Status { get; set; }
+        /// <summary>
+        /// 最后一次错误信息
+        /// </summary>
         public string LastError { get; set; }
     }
 
@@ -271,10 +301,25 @@ namespace FastData.DevTools
     /// </summary>
     public enum TaskStatus
     {
+        /// <summary>
+        /// 已调度
+        /// </summary>
         Scheduled,
+        /// <summary>
+        /// 运行中
+        /// </summary>
         Running,
+        /// <summary>
+        /// 已完成
+        /// </summary>
         Completed,
+        /// <summary>
+        /// 已失败
+        /// </summary>
         Failed,
+        /// <summary>
+        /// 已取消
+        /// </summary>
         Cancelled
     }
 
@@ -415,13 +460,37 @@ namespace FastData.DevTools
     /// </summary>
     public class RunningTask
     {
+        /// <summary>
+        /// 任务 ID
+        /// </summary>
         public string TaskId { get; set; }
+        /// <summary>
+        /// 任务名称
+        /// </summary>
         public string Name { get; set; }
+        /// <summary>
+        /// 任务动作
+        /// </summary>
         public Func<Task> Action { get; set; }
+        /// <summary>
+        /// 创建时间
+        /// </summary>
         public DateTime CreatedAt { get; set; }
+        /// <summary>
+        /// 启动时间
+        /// </summary>
         public DateTime? StartedAt { get; set; }
+        /// <summary>
+        /// 完成时间
+        /// </summary>
         public DateTime? CompletedAt { get; set; }
+        /// <summary>
+        /// 任务状态
+        /// </summary>
         public TaskState Status { get; set; }
+        /// <summary>
+        /// 错误信息
+        /// </summary>
         public string Error { get; set; }
     }
 
@@ -430,10 +499,25 @@ namespace FastData.DevTools
     /// </summary>
     public enum TaskState
     {
+        /// <summary>
+        /// 待处理
+        /// </summary>
         Pending,
+        /// <summary>
+        /// 运行中
+        /// </summary>
         Running,
+        /// <summary>
+        /// 已完成
+        /// </summary>
         Completed,
+        /// <summary>
+        /// 已失败
+        /// </summary>
         Failed,
+        /// <summary>
+        /// 已取消
+        /// </summary>
         Cancelled
     }
 
@@ -442,12 +526,33 @@ namespace FastData.DevTools
     /// </summary>
     public class TaskStatistics
     {
+        /// <summary>
+        /// 任务总数
+        /// </summary>
         public int TotalTasks { get; set; }
+        /// <summary>
+        /// 待处理任务数
+        /// </summary>
         public int PendingTasks { get; set; }
+        /// <summary>
+        /// 运行中任务数
+        /// </summary>
         public int RunningTasks { get; set; }
+        /// <summary>
+        /// 已完成任务数
+        /// </summary>
         public int CompletedTasks { get; set; }
+        /// <summary>
+        /// 失败任务数
+        /// </summary>
         public int FailedTasks { get; set; }
+        /// <summary>
+        /// 已取消任务数
+        /// </summary>
         public int CancelledTasks { get; set; }
+        /// <summary>
+        /// 平均耗时（毫秒）
+        /// </summary>
         public double AverageDuration { get; set; }
     }
 
@@ -563,9 +668,21 @@ namespace FastData.DevTools
     /// </summary>
     public class BatchTaskResult
     {
+        /// <summary>
+        /// 任务对应的数据项
+        /// </summary>
         public object Item { get; set; }
+        /// <summary>
+        /// 是否成功
+        /// </summary>
         public bool Success { get; set; }
+        /// <summary>
+        /// 错误信息
+        /// </summary>
         public string Error { get; set; }
+        /// <summary>
+        /// 耗时
+        /// </summary>
         public TimeSpan Duration { get; set; }
     }
 
@@ -574,6 +691,13 @@ namespace FastData.DevTools
     /// </summary>
     public static class BatchExtensions
     {
+        /// <summary>
+        /// 将序列按指定大小分批
+        /// </summary>
+        /// <typeparam name="T">元素类型</typeparam>
+        /// <param name="source">源序列</param>
+        /// <param name="batchSize">每批大小</param>
+        /// <returns>分批后的序列</returns>
         public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> source, int batchSize)
         {
             var batch = new List<T>(batchSize);

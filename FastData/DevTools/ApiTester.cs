@@ -394,15 +394,45 @@ namespace FastData.DevTools
     /// </summary>
     public class ApiTestResult
     {
+        /// <summary>
+        /// 请求地址
+        /// </summary>
         public string Url { get; set; }
+        /// <summary>
+        /// HTTP 方法
+        /// </summary>
         public string Method { get; set; }
+        /// <summary>
+        /// 开始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
+        /// <summary>
+        /// 耗时
+        /// </summary>
         public TimeSpan Duration { get; set; }
+        /// <summary>
+        /// HTTP 状态码
+        /// </summary>
         public int StatusCode { get; set; }
+        /// <summary>
+        /// 是否成功
+        /// </summary>
         public bool IsSuccess { get; set; }
+        /// <summary>
+        /// 响应内容
+        /// </summary>
         public string Content { get; set; }
+        /// <summary>
+        /// 错误信息
+        /// </summary>
         public string Error { get; set; }
+        /// <summary>
+        /// 响应头
+        /// </summary>
         public Dictionary<string, string> Headers { get; set; }
     }
 
@@ -411,10 +441,25 @@ namespace FastData.DevTools
     /// </summary>
     public class ApiTestCase
     {
+        /// <summary>
+        /// 请求地址
+        /// </summary>
         public string Url { get; set; }
+        /// <summary>
+        /// HTTP 方法
+        /// </summary>
         public HttpMethod Method { get; set; }
+        /// <summary>
+        /// 请求体
+        /// </summary>
         public string Body { get; set; }
+        /// <summary>
+        /// 请求头
+        /// </summary>
         public Dictionary<string, string> Headers { get; set; }
+        /// <summary>
+        /// 期望的状态码
+        /// </summary>
         public string ExpectedStatusCode { get; set; }
     }
 
@@ -423,17 +468,53 @@ namespace FastData.DevTools
     /// </summary>
     public class LoadTestResult
     {
+        /// <summary>
+        /// 请求地址
+        /// </summary>
         public string Url { get; set; }
+        /// <summary>
+        /// 请求总数
+        /// </summary>
         public int RequestCount { get; set; }
+        /// <summary>
+        /// 并发数
+        /// </summary>
         public int Concurrency { get; set; }
+        /// <summary>
+        /// 开始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
+        /// <summary>
+        /// 总耗时
+        /// </summary>
         public TimeSpan Duration { get; set; }
+        /// <summary>
+        /// 成功次数
+        /// </summary>
         public int SuccessCount { get; set; }
+        /// <summary>
+        /// 失败次数
+        /// </summary>
         public int FailureCount { get; set; }
+        /// <summary>
+        /// 平均响应时间（毫秒）
+        /// </summary>
         public double AverageResponseTime { get; set; }
+        /// <summary>
+        /// 最小响应时间（毫秒）
+        /// </summary>
         public double MinResponseTime { get; set; }
+        /// <summary>
+        /// 最大响应时间（毫秒）
+        /// </summary>
         public double MaxResponseTime { get; set; }
+        /// <summary>
+        /// 每秒请求数
+        /// </summary>
         public double RequestsPerSecond { get; set; }
     }
 
@@ -442,14 +523,41 @@ namespace FastData.DevTools
     /// </summary>
     public class ApiTestReport
     {
+        /// <summary>
+        /// 测试总数
+        /// </summary>
         public int TotalTests { get; set; }
+        /// <summary>
+        /// 成功次数
+        /// </summary>
         public int SuccessCount { get; set; }
+        /// <summary>
+        /// 失败次数
+        /// </summary>
         public int FailureCount { get; set; }
+        /// <summary>
+        /// 平均响应时间（毫秒）
+        /// </summary>
         public double AverageResponseTime { get; set; }
+        /// <summary>
+        /// 最小响应时间（毫秒）
+        /// </summary>
         public double MinResponseTime { get; set; }
+        /// <summary>
+        /// 最大响应时间（毫秒）
+        /// </summary>
         public double MaxResponseTime { get; set; }
+        /// <summary>
+        /// 成功率
+        /// </summary>
         public double SuccessRate { get; set; }
+        /// <summary>
+        /// 状态码分布
+        /// </summary>
         public Dictionary<int, int> StatusCodeDistribution { get; set; }
+        /// <summary>
+        /// 报告生成时间
+        /// </summary>
         public DateTime GeneratedAt { get; set; }
     }
 
@@ -458,15 +566,45 @@ namespace FastData.DevTools
     /// </summary>
     public class ApiTestComparison
     {
+        /// <summary>
+        /// 第一组标签
+        /// </summary>
         public string Label1 { get; set; }
+        /// <summary>
+        /// 第二组标签
+        /// </summary>
         public string Label2 { get; set; }
+        /// <summary>
+        /// 第一组成功次数
+        /// </summary>
         public int SuccessCount1 { get; set; }
+        /// <summary>
+        /// 第二组成功次数
+        /// </summary>
         public int SuccessCount2 { get; set; }
+        /// <summary>
+        /// 第一组平均响应时间
+        /// </summary>
         public double AverageResponseTime1 { get; set; }
+        /// <summary>
+        /// 第二组平均响应时间
+        /// </summary>
         public double AverageResponseTime2 { get; set; }
+        /// <summary>
+        /// 第一组成功率
+        /// </summary>
         public double SuccessRate1 { get; set; }
+        /// <summary>
+        /// 第二组成功率
+        /// </summary>
         public double SuccessRate2 { get; set; }
+        /// <summary>
+        /// 性能提升值
+        /// </summary>
         public double PerformanceImprovement { get; set; }
+        /// <summary>
+        /// 性能提升百分比
+        /// </summary>
         public double PerformanceImprovementPercentage { get; set; }
     }
 
@@ -475,16 +613,49 @@ namespace FastData.DevTools
     /// </summary>
     public class MonitoringSession
     {
+        /// <summary>
+        /// 会话 ID
+        /// </summary>
         public string Id { get; set; }
+        /// <summary>
+        /// 数据库标识
+        /// </summary>
         public string DbKey { get; set; }
+        /// <summary>
+        /// 开始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
+        /// <summary>
+        /// 监控选项
+        /// </summary>
         public MonitoringOptions Options { get; set; }
+        /// <summary>
+        /// 已记录的查询列表
+        /// </summary>
         public List<QueryMetrics> Queries { get; set; }
+        /// <summary>
+        /// 查询总数
+        /// </summary>
         public int TotalQueries { get; set; }
+        /// <summary>
+        /// 累计耗时（毫秒）
+        /// </summary>
         public long TotalDuration { get; set; }
+        /// <summary>
+        /// 最小查询耗时
+        /// </summary>
         public double MinQueryDuration { get; set; }
+        /// <summary>
+        /// 最大查询耗时
+        /// </summary>
         public long MaxQueryDuration { get; set; }
+        /// <summary>
+        /// 最慢的查询语句
+        /// </summary>
         public string SlowestQuery { get; set; }
     }
 
@@ -493,10 +664,22 @@ namespace FastData.DevTools
     /// </summary>
     public class MonitoringOptions
     {
+        /// <summary>
+        /// 慢查询阈值（毫秒）
+        /// </summary>
         public int SlowQueryThresholdMs { get; set; } = 1000;
+        /// <summary>
+        /// 是否记录失败的查询
+        /// </summary>
         public bool RecordFailedQueries { get; set; } = true;
+        /// <summary>
+        /// 最多记录的查询数量
+        /// </summary>
         public int MaxQueriesToRecord { get; set; } = 10000;
 
+        /// <summary>
+        /// 默认选项
+        /// </summary>
         public static MonitoringOptions Default => new MonitoringOptions();
     }
 
@@ -505,9 +688,21 @@ namespace FastData.DevTools
     /// </summary>
     public class QueryMetrics
     {
+        /// <summary>
+        /// SQL 语句
+        /// </summary>
         public string Sql { get; set; }
+        /// <summary>
+        /// 耗时（毫秒）
+        /// </summary>
         public long DurationMs { get; set; }
+        /// <summary>
+        /// 受影响的行数
+        /// </summary>
         public int RowsAffected { get; set; }
+        /// <summary>
+        /// 记录时间
+        /// </summary>
         public DateTime Timestamp { get; set; }
     }
 
@@ -516,19 +711,61 @@ namespace FastData.DevTools
     /// </summary>
     public class MonitoringReport
     {
+        /// <summary>
+        /// 会话 ID
+        /// </summary>
         public string SessionId { get; set; }
+        /// <summary>
+        /// 数据库标识
+        /// </summary>
         public string DbKey { get; set; }
+        /// <summary>
+        /// 开始时间
+        /// </summary>
         public DateTime StartTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
         public DateTime EndTime { get; set; }
+        /// <summary>
+        /// 总耗时
+        /// </summary>
         public TimeSpan Duration { get; set; }
+        /// <summary>
+        /// 查询总数
+        /// </summary>
         public int TotalQueries { get; set; }
+        /// <summary>
+        /// 累计耗时（毫秒）
+        /// </summary>
         public long TotalDuration { get; set; }
+        /// <summary>
+        /// 平均查询耗时
+        /// </summary>
         public double AverageQueryDuration { get; set; }
+        /// <summary>
+        /// 最小查询耗时
+        /// </summary>
         public double MinQueryDuration { get; set; }
+        /// <summary>
+        /// 最大查询耗时
+        /// </summary>
         public long MaxQueryDuration { get; set; }
+        /// <summary>
+        /// 最慢的查询语句
+        /// </summary>
         public string SlowestQuery { get; set; }
+        /// <summary>
+        /// 慢查询列表
+        /// </summary>
         public List<QueryMetrics> SlowQueries { get; set; }
+        /// <summary>
+        /// 每秒查询数
+        /// </summary>
         public double QueriesPerSecond { get; set; }
+        /// <summary>
+        /// 错误查询列表
+        /// </summary>
         public List<QueryMetrics> ErrorQueries { get; set; }
     }
 
@@ -537,9 +774,21 @@ namespace FastData.DevTools
     /// </summary>
     public class PerformanceAnomaly
     {
+        /// <summary>
+        /// 异常类型
+        /// </summary>
         public AnomalyType Type { get; set; }
+        /// <summary>
+        /// 严重程度
+        /// </summary>
         public AnomalySeverity Severity { get; set; }
+        /// <summary>
+        /// 描述
+        /// </summary>
         public string Description { get; set; }
+        /// <summary>
+        /// 详细信息
+        /// </summary>
         public List<string> Details { get; set; }
     }
 
@@ -548,10 +797,25 @@ namespace FastData.DevTools
     /// </summary>
     public enum AnomalyType
     {
+        /// <summary>
+        /// 慢查询
+        /// </summary>
         SlowQuery,
+        /// <summary>
+        /// 高延迟
+        /// </summary>
         HighLatency,
+        /// <summary>
+        /// 高频率
+        /// </summary>
         HighFrequency,
+        /// <summary>
+        /// 查询错误
+        /// </summary>
         QueryError,
+        /// <summary>
+        /// 连接泄漏
+        /// </summary>
         ConnectionLeak
     }
 
@@ -560,9 +824,21 @@ namespace FastData.DevTools
     /// </summary>
     public enum AnomalySeverity
     {
+        /// <summary>
+        /// 低
+        /// </summary>
         Low,
+        /// <summary>
+        /// 中
+        /// </summary>
         Medium,
+        /// <summary>
+        /// 高
+        /// </summary>
         High,
+        /// <summary>
+        /// 严重
+        /// </summary>
         Critical
     }
 

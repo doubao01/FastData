@@ -10,6 +10,7 @@
     <BuildPlatform Condition="'$(BuildPlatform)' == ''">cross</BuildPlatform>
     <!-- NPOI 2.8+ 需要接受 OSMF EULA 许可 -->
     <AcceptNPOIOSMFLicense>true</AcceptNPOIOSMFLicense>
+    <NoWarn>$(NoWarn);NETSDK1188</NoWarn>
   </PropertyGroup>
   
   <!-- ===== NuGet 打包统一配置 ===== -->
