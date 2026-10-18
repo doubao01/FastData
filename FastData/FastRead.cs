@@ -826,8 +826,7 @@ namespace FastData
                 (ctx, q) => ctx.GetDataTable(q),
                 () => item.Predicate.Exists(a => a.IsSuccess == false),
                 r => r.Table,
-                r => r.Sql,
-                () => item.Take = 1);
+                r => r.Sql);
         }
 
         /// <summary>返回 DataTable（异步）</summary>
@@ -839,8 +838,7 @@ namespace FastData
                 () => item.Predicate.Exists(a => a.IsSuccess == false),
                 r => r.Table,
                 r => r.Sql,
-                () => item.Take = 1,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>返回 DataTable（延迟加载）</summary>

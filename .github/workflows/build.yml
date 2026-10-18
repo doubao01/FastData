@@ -34,10 +34,10 @@ jobs:
         run: dotnet restore FastData.sln -p:BuildPlatform=cross
 
       - name: Build
-        run: dotnet build FastData.sln -p:BuildPlatform=cross -c Release --no-restore
+        run: dotnet build FastData.sln -p:BuildPlatform=cross -c Release -f ${{ matrix.framework }} --no-restore
 
       - name: Run Tests (non-integration)
-        run: dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build --filter "FullyQualifiedName!~Integration" -v minimal
+        run: dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build --framework ${{ matrix.framework }} --filter "FullyQualifiedName!~Integration" -v minimal
 
   build-windows-full:
     name: Build (Windows Full - includes .NET Framework 4.5.2)

@@ -93,5 +93,10 @@ namespace FastData.Model
         /// 切换数据库
         /// </summary>
         public bool IsChangeDb { get; set; }
+
+        /// <summary>
+        /// ADO.NET 命令超时秒数，0 表示使用驱动默认值
+        /// </summary>
+        public int CommandTimeout { get; set; } = 30;
     }
 }

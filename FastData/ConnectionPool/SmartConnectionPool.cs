@@ -491,6 +491,7 @@ namespace FastData.ConnectionPool
             }
 
             var stopwatch = Stopwatch.StartNew();
+            var permitAcquired = false;
             Interlocked.Increment(ref _totalRequests);
 
             try
@@ -504,6 +505,7 @@ namespace FastData.ConnectionPool
                     throw new ConnectionPoolExhaustedException(_name, _config.ConnectionTimeout);
                 }
 
+                permitAcquired = true;
                 stopwatch.Stop();
                 Interlocked.Add(ref _totalWaitTimeMs, stopwatch.ElapsedMilliseconds);
 
@@ -535,6 +537,7 @@ namespace FastData.ConnectionPool
                 if (connection == null)
                 {
                     _semaphore.Release();
+                    permitAcquired = false;
                     Interlocked.Increment(ref _failedRequests);
                     RecordFailure();
                     throw new ConnectionPoolExhaustedException(_name,
@@ -547,14 +550,21 @@ namespace FastData.ConnectionPool
                 Interlocked.Increment(ref _successfulRequests);
                 RecordSuccess();
 
+                permitAcquired = false;
                 return connection;
             }
             catch (ConnectionPoolExhaustedException)
             {
+                if (permitAcquired)
+                    _semaphore.Release();
+
                 throw;
             }
             catch
             {
+                if (permitAcquired)
+                    _semaphore.Release();
+
                 Interlocked.Increment(ref _failedRequests);
                 RecordFailure();
                 throw;
@@ -574,6 +584,7 @@ namespace FastData.ConnectionPool
             }
 
             var stopwatch = Stopwatch.StartNew();
+            var permitAcquired = false;
             Interlocked.Increment(ref _totalRequests);
 
             try
@@ -587,6 +598,7 @@ namespace FastData.ConnectionPool
                     throw new ConnectionPoolExhaustedException(_name, _config.ConnectionTimeout);
                 }
 
+                permitAcquired = true;
                 stopwatch.Stop();
                 Interlocked.Add(ref _totalWaitTimeMs, stopwatch.ElapsedMilliseconds);
 
@@ -618,6 +630,7 @@ namespace FastData.ConnectionPool
                 if (connection == null)
                 {
                     _semaphore.Release();
+                    permitAcquired = false;
                     Interlocked.Increment(ref _failedRequests);
                     RecordFailure();
                     throw new ConnectionPoolExhaustedException(_name,
@@ -630,14 +643,21 @@ namespace FastData.ConnectionPool
                 Interlocked.Increment(ref _successfulRequests);
                 RecordSuccess();
 
+                permitAcquired = false;
                 return connection;
             }
             catch (ConnectionPoolExhaustedException)
             {
+                if (permitAcquired)
+                    _semaphore.Release();
+
                 throw;
             }
             catch
             {
+                if (permitAcquired)
+                    _semaphore.Release();
+
                 Interlocked.Increment(ref _failedRequests);
                 RecordFailure();
                 throw;

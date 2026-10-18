@@ -51,10 +51,20 @@ namespace FastData.Base
                 return IsStableConstant(constant.Value);
 
             if (expression is MemberExpression member)
+            {
+                // 静态成员（DateTime.Now、Guid.Empty 等）的值可能在运行时变化，禁止缓存
+                if (member.Expression == null)
+                    return false;
+
                 return CanCacheEvaluation(member.Expression);
+            }
 
             if (expression is MethodCallExpression methodCall)
             {
+                // 静态方法（Guid.NewGuid()、DateTime.UtcNow 等）每次调用都可能返回新值，禁止缓存
+                if (methodCall.Object == null)
+                    return false;
+
                 if (!CanCacheEvaluation(methodCall.Object))
                     return false;
 
@@ -127,6 +137,14 @@ namespace FastData.Base
                 var whereClause = ParseExpression(config, expression.Body, ref leftList, ref rightList, ref typeList, ref sqlBuilder, ref parameterIndex);
                 whereClause = TrimTrailingOperators(whereClause);
 
+                // 表达式无法解析时不能当作“无条件”处理，否则 Delete/Update 会失去 WHERE 保护
+                if (string.IsNullOrEmpty(whereClause))
+                {
+                    LogException(config, new NotSupportedException("不支持的 Lambda 表达式，无法生成 WHERE 条件"), "LambdaWhere<T>");
+                    result.IsSuccess = false;
+                    return result;
+                }
+
                 result.Where = whereClause;
 
                 // 构建参数列表
@@ -179,6 +197,14 @@ namespace FastData.Base
                 var whereClause = ParseExpression(config, expression.Body, ref leftList, ref rightList, ref typeList, ref sqlBuilder, ref parameterIndex);
 
                 whereClause = TrimTrailingOperators(whereClause);
+
+                if (string.IsNullOrEmpty(whereClause))
+                {
+                    LogException(config, new NotSupportedException("不支持的 Lambda 表达式，无法生成 WHERE 条件"), "LambdaWhere<T1,T2>");
+                    result.IsSuccess = false;
+                    return result;
+                }
+
                 result.Where = whereClause;
 
                 // 构建参数列表
@@ -234,7 +260,20 @@ namespace FastData.Base
                 return ParseConstantExpression(constant, typeList);
 
             if (expression is UnaryExpression unary)
+            {
+                // !x.IsActive 必须生成 =0/false，直接展开操作数会得到相反语义
+                if (unary.NodeType == ExpressionType.Not
+                    && unary.Operand is MemberExpression notMember
+                    && notMember.Type == typeof(bool)
+                    && notMember.Expression is ParameterExpression notParameter)
+                {
+                    return config.DbType == DataDbType.PostgreSql
+                        ? string.Format("{0}.{1}=false", notParameter.Name, notMember.Member.Name)
+                        : string.Format("{0}.{1}=0", notParameter.Name, notMember.Member.Name);
+                }
+
                 return ParseExpression(config, unary.Operand, ref leftList, ref rightList, ref typeList, ref sqlBuilder, ref parameterIndex, isRightOperand);
+            }
 
             return TryEvaluateExpression(expression, typeList);
         }
@@ -258,9 +297,30 @@ namespace FastData.Base
                 return sqlBuilder.ToString();
             }
 
-            var leftSql = ParseExpression(config, left, ref leftList, ref rightList, ref typeList, ref sqlBuilder, ref parameterIndex, isRightOperand: false);
             var operatorSymbol = GetOperatorSymbol(operatorType);
             var needsParameter = "=,>,<,>=,<=,<>".Contains(operatorSymbol);
+
+            // 字符串函数作为左操作数（如 x.Name.ToUpper() == "A"）需要单独生成 SQL 片段
+            if (needsParameter && TryBuildStringFunctionSql(config, left, out var functionSql, out var functionMember))
+            {
+                var functionValue = ParseExpression(config, right, ref leftList, ref rightList, ref typeList, ref sqlBuilder, ref parameterIndex, isRightOperand: true);
+
+                if (string.Equals(functionValue, "NULL", StringComparison.OrdinalIgnoreCase))
+                {
+                    sqlBuilder.AppendFormat(" {0} {1} ", functionSql, operatorSymbol == "=" ? "IS NULL" : "IS NOT NULL");
+                }
+                else
+                {
+                    sqlBuilder.AppendFormat(" {0}{1}{2}{3} ", functionSql, operatorSymbol, config.Flag, parameterIndex);
+                    rightList.Add(functionValue);
+                    leftList.Add(functionMember);
+                    parameterIndex++;
+                }
+
+                return sqlBuilder.ToString();
+            }
+
+            var leftSql = ParseExpression(config, left, ref leftList, ref rightList, ref typeList, ref sqlBuilder, ref parameterIndex, isRightOperand: false);
 
             if (!needsParameter)
             {
@@ -276,7 +336,7 @@ namespace FastData.Base
                 if (left is MemberExpression memberLeft)
                 {
                     var paramName = GetParameterName(memberLeft.Expression as ParameterExpression);
-                    sqlBuilder.Append(string.Format("{0}.{1} {2} ", paramName, leftSql, nullSql));
+                    sqlBuilder.Append(string.Format("{0}.{1} {2} ", paramName, ExtractFieldSql(leftSql), nullSql));
                 }
             }
             else if (needsParameter)
@@ -286,14 +346,15 @@ namespace FastData.Base
                 {
                     var leftParam = GetParameterName(leftField.Expression as ParameterExpression);
                     var rightParam = GetParameterName(rightField.Expression as ParameterExpression);
-                    sqlBuilder.Append(string.Format("{0}.{1}{2}{3}.{4} ", leftParam, leftSql, operatorSymbol, rightParam, rightSql));
+                    sqlBuilder.Append(string.Format("{0}.{1}{2}{3}.{4} ", leftParam, ExtractFieldSql(leftSql), operatorSymbol, rightParam, ExtractFieldSql(rightSql)));
                 }
                 else if (left is MemberExpression valueLeft)
                 {
                     var paramName = GetParameterName(valueLeft.Expression as ParameterExpression);
-                    sqlBuilder.Append(string.Format("{0}.{1}{2}{3}{1}{4} ", paramName, leftSql, operatorSymbol, config.Flag, parameterIndex));
+                    var fieldSql = ExtractFieldSql(leftSql);
+                    sqlBuilder.Append(string.Format("{0}.{1}{2}{3}{1}{4} ", paramName, fieldSql, operatorSymbol, config.Flag, parameterIndex));
                     rightList.Add(rightSql);
-                    leftList.Add(leftSql);
+                    leftList.Add(fieldSql);
                     parameterIndex++;
                 }
             }
@@ -312,13 +373,14 @@ namespace FastData.Base
             if (memberExp.Expression is ParameterExpression)
             {
                 var memberName = memberExp.Member.Name;
+                var parameterName = (memberExp.Expression as ParameterExpression).Name;
 
-                // 布尔属性作为条件时直接返回值
+                // 布尔属性作为条件时直接返回值，必须携带表别名避免 Join 场景字段歧义
                 if (memberExp.Type == typeof(bool))
                 {
                     return config.DbType == DataDbType.PostgreSql
-                        ? string.Format("{0}=true", memberName)
-                        : string.Format("{0}=1", memberName);
+                        ? string.Format("{0}.{1}=true", parameterName, memberName)
+                        : string.Format("{0}.{1}=1", parameterName, memberName);
                 }
 
                 return memberName;
@@ -485,6 +547,81 @@ namespace FastData.Base
         }
         #endregion
 
+        #region 解析字符串函数（ToUpper/ToLower/Substring）
+        /// <summary>
+        /// 尝试将字符串方法调用转换为 SQL 函数片段（用于二元比较的左操作数）
+        /// </summary>
+        private static bool TryBuildStringFunctionSql(ConfigModel config, Expression expression, out string sql, out string memberName)
+        {
+            sql = null;
+            memberName = null;
+
+            var methodCall = expression as MethodCallExpression;
+            if (methodCall == null)
+                return false;
+
+            if (!(methodCall.Object is MemberExpression member) || !(member.Expression is ParameterExpression))
+                return false;
+
+            var methodName = methodCall.Method.Name.ToLowerInvariant();
+            var aliasPrefix = GetTableAlias(methodCall.Object);
+            memberName = member.Member.Name;
+
+            if (methodName == "toupper")
+            {
+                sql = string.Format("UPPER({0}{1})", aliasPrefix, memberName);
+                return true;
+            }
+
+            if (methodName == "tolower")
+            {
+                sql = string.Format("LOWER({0}{1})", aliasPrefix, memberName);
+                return true;
+            }
+
+            if (methodName == "substring")
+            {
+                if (methodCall.Arguments.Count == 0)
+                    return false;
+
+                if (!TryEvaluateInt(methodCall.Arguments[0], out var startIndex))
+                    return false;
+
+                var functionName = config.DbType == DataDbType.SqlServer ? "SUBSTRING" : "SUBSTR";
+
+                if (methodCall.Arguments.Count > 1)
+                {
+                    if (!TryEvaluateInt(methodCall.Arguments[1], out var length))
+                        return false;
+
+                    sql = string.Format("{0}({1}{2},{3},{4})", functionName, aliasPrefix, memberName, startIndex + 1, length);
+                }
+                else
+                {
+                    sql = string.Format("{0}({1}{2},{3})", functionName, aliasPrefix, memberName, startIndex + 1);
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryEvaluateInt(Expression expression, out int value)
+        {
+            value = 0;
+            try
+            {
+                var result = EvaluateExpressionCached(expression);
+                return result != null && int.TryParse(result.ToString(), out value);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        #endregion
+
         #region 解析数组表达式
         /// <summary>
         /// 解析数组初始化表达式
@@ -625,6 +762,19 @@ namespace FastData.Base
         private static string GetParameterName(ParameterExpression parameter)
         {
             return parameter != null ? parameter.Name : string.Empty;
+        }
+
+        /// <summary>
+        /// 去掉布尔成员解析产生的等值片段，仅保留字段名
+        /// 例如 t1.Active=1 转为 t1.Active，避免调用方重复拼接表别名
+        /// </summary>
+        private static string ExtractFieldSql(string sql)
+        {
+            if (string.IsNullOrEmpty(sql))
+                return sql;
+
+            var index = sql.IndexOf('=');
+            return index > 0 ? sql.Substring(0, index) : sql;
         }
         #endregion
 

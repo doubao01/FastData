@@ -280,5 +280,23 @@ namespace FastData.Config
             }
         }
         #endregion
+
+        #region 命令超时
+        /// <summary>
+        /// ADO.NET 命令超时秒数，默认 30
+        /// </summary>
+        [ConfigurationProperty("CommandTimeout", IsRequired = false, DefaultValue = 30)]
+        public int CommandTimeout
+        {
+            get
+            {
+                return (int)base["CommandTimeout"];
+            }
+            set
+            {
+                base["CommandTimeout"] = value;
+            }
+        }
+        #endregion
     }
 }

@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>CS1570;CS1572;CS1573;CS1711;CS1712</NoWarn>
     <!-- NuGet 打包配置 -->
-    <PackageId>FastData</PackageId>
+    <PackageId>Fast.Data</PackageId>
     <Description>轻量级高性能 ORM 框架，支持多数据库（SQL Server/MySQL/PostgreSQL/Oracle/SQLite/DB2），提供连接池、分片、缓存、消息队列等企业级特性</Description>
     <PackageTags>ORM;Database;SQL;MySQL;PostgreSQL;SQLite;SqlServer;DotNet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -38,13 +38,7 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <!-- 覆盖传递依赖的包版本，确保 net452 兼容 -->
-    <PackageReference Include="RestSharp">
-      <VersionOverride>106.15.0</VersionOverride>
-    </PackageReference>
-    <PackageReference Include="NPOI">
-      <VersionOverride>2.5.6</VersionOverride>
-    </PackageReference>
+    <!-- 元组语法支持（net452 缺失） -->
     <PackageReference Include="System.ValueTuple" />
   </ItemGroup>
 

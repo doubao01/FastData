@@ -273,18 +273,28 @@ namespace FastData.Queue
                     result.QueuedCount += queuedCount;
                     result.FallbackOccurred = true;
 
-                    foreach (var op in failedOps)
+                    for (var i = 0; i < failedOps.Count; i++)
                     {
+                        var op = failedOps[i];
+                        var queued = i < queuedCount;
+
+                        if (!queued)
+                            result.FailedCount++;
+
                         result.Details.Add(new WriteOperationResult
                         {
                             OperationType = op.OperationType,
                             TableName = op.TableName,
-                            Success = true,
-                            UsedQueue = true
+                            Success = queued,
+                            UsedQueue = queued,
+                            ErrorMessage = queued ? null : "写入队列失败，操作未持久化"
                         });
                     }
 
-                    XTrace.WriteLine($"[WriteBehind] 已将 {queuedCount} 条操作降级到队列: {topic}");
+                    if (queuedCount < failedOps.Count)
+                        result.Success = false;
+
+                    XTrace.WriteLine($"[WriteBehind] 已将 {queuedCount}/{failedOps.Count} 条操作降级到队列: {topic}");
                 }
                 catch (Exception ex)
                 {

@@ -198,6 +198,23 @@ namespace FastData.Config
 
         #region 获取配置节点
         /// <summary>
+        /// 构造配置缓存键，避免不同项目、配置文件或环境下共享同一份缓存
+        /// </summary>
+        private static string BuildCacheKey(string prefix, string projectName, string dbFile)
+        {
+            var key = string.Format("{0}:{1}", prefix, string.IsNullOrEmpty(dbFile) ? "db.config" : dbFile);
+
+            if (!string.IsNullOrEmpty(projectName))
+                key = string.Format("{0}:{1}", key, projectName);
+
+            var active = Environment.GetEnvironmentVariable("FASTDATA_ACTIVE");
+            if (!string.IsNullOrEmpty(active))
+                key = string.Format("{0}:{1}", key, active);
+
+            return key;
+        }
+
+        /// <summary>
         /// 获取配置节点
         /// </summary>
         /// <param name="key">配置键</param>
@@ -209,7 +226,7 @@ namespace FastData.Config
             // 自动扫描并注册数据库提供程序（.NET Core/.NET 5+ 需要）
             Infrastructure.DbProviderAutoRegistrar.Register();
             
-            var cacheKey = "FastData.db.config";
+            var cacheKey = BuildCacheKey("FastData.db.config", projectName, dbFile);
             var result = new ConfigModel();
             var list = new List<ConfigModel>();
             var config = new DataConfig();
@@ -508,6 +525,7 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
             item.SqlErrorType = element.SqlErrorType;
             item.CacheType = element.CacheType;
             item.IsUpdateCache = element.IsUpdateCache;
+            item.CommandTimeout = element.CommandTimeout;
             return item;
         }
 
@@ -529,6 +547,7 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
             item.SqlErrorType = GetAttr(db, "SqlErrorType");
             item.CacheType = GetAttr(db, "CacheType");
             item.IsUpdateCache = GetBool(db, "IsUpdateCache", false);
+            item.CommandTimeout = GetInt(db, "CommandTimeout", 30);
             item.DesignModel = item.DesignModel == null ? "DbFirst" : item.DesignModel;
             item.CacheType = item.CacheType == null ? "web" : item.CacheType;
             item.SqlErrorType = item.SqlErrorType == null ? "db" : item.SqlErrorType;
@@ -548,6 +567,15 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
                 return defaultValue;
 
             return string.Equals(value.ToStr(), "true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int GetInt(XmlNode node, string name, int defaultValue)
+        {
+            var value = GetAttr(node, name);
+            if (value == null)
+                return defaultValue;
+
+            return int.TryParse(value, out var result) ? result : defaultValue;
         }
 
         private static bool IsTrue(string value)
@@ -712,7 +740,7 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
         /// <returns>Redis config, or null if not configured</returns>
         public static RedisConfig GetRedisConfig(string dbFile = "db.config")
         {
-            var cacheKey = "FastData.redis.config";
+            var cacheKey = BuildCacheKey("FastData.redis.config", null, dbFile);
             
             if (DbCache.Exists(CacheType.Web, cacheKey))
                 return DbCache.Get<RedisConfig>(CacheType.Web, cacheKey);
@@ -764,7 +792,7 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
 
         public static bool DataType(string key = null, string projectName = null, string dbFile = "db.config")
         {
-            var cacheKey = "FastData.db.config";
+            var cacheKey = BuildCacheKey("FastData.db.config", projectName, dbFile);
 
             if (!DbCache.Exists(CacheType.Web, cacheKey))
                 DataConfig.GetConfig(key, projectName, dbFile);
@@ -999,7 +1027,7 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
         public static List<Dictionary<string, string>> GetConnectionSummaries()
         {
             var result = new List<Dictionary<string, string>>();
-            var cacheKey = "FastData.db.config";
+            var cacheKey = BuildCacheKey("FastData.db.config", null, "db.config");
             var cacheType = "web";
             
             // Trigger config loading if cache is empty

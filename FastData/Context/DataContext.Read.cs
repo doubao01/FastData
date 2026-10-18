@@ -100,7 +100,7 @@ namespace FastData.Context
                 cmd.Parameters.Clear();
                 if (conn.State == ConnectionState.Closed)
                     conn.Open();
-                pModel.TotalRecord = BaseExecute.ToPageCount(item, cmd, ref sql);
+                pModel.TotalRecord = PaginationSqlBuilder.Count(item, cmd, ref sql);
 
                 if (pModel.TotalRecord > 0)
                 {
@@ -112,11 +112,15 @@ namespace FastData.Context
                     if (pModel.PageId > pModel.TotalPage)
                         pModel.PageId = pModel.TotalPage;
 
+                    // 页码被夹取后必须重算边界，否则仍会按越界页码取数
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
+
                     AopBefore(item.Table, sql.ToString(), param, config, true,AopType.Query_Page_Lambda_Model);
 
                     // 清理参数而非 dispose 命令对象
                     cmd.Parameters.Clear();
-                    using (var dr = BaseExecute.ToPageDataReader(item, cmd, pModel, ref sql))
+                    using (var dr = PaginationSqlBuilder.Read(item, cmd, pModel, ref sql))
                     {
                         if (dr != null)
                         {
@@ -167,7 +171,7 @@ namespace FastData.Context
                 cmd.Parameters.Clear();
                 if (conn.State == ConnectionState.Closed)
                     conn.Open();
-                pModel.TotalRecord = BaseExecute.ToPageCount(item, cmd, ref sql);
+                pModel.TotalRecord = PaginationSqlBuilder.Count(item, cmd, ref sql);
 
                 if (pModel.TotalRecord > 0)
                 {
@@ -179,11 +183,15 @@ namespace FastData.Context
                     if (pModel.PageId > pModel.TotalPage)
                         pModel.PageId = pModel.TotalPage;
 
+                    // 页码被夹取后必须重算边界，否则仍会按越界页码取数
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
+
                     AopBefore(item.Table, sql.ToString(), param, config, true,AopType.Query_Page_Lambda_Dic);
 
                     // 清理参数而非 dispose 命令对象
                     cmd.Parameters.Clear();
-                    using (var dr = BaseExecute.ToPageDataReader(item, cmd, pModel, ref sql))
+                    using (var dr = PaginationSqlBuilder.Read(item, cmd, pModel, ref sql))
                     {
                         if (dr != null)
                         {
@@ -247,6 +255,10 @@ namespace FastData.Context
 
                     if (pModel.PageId > pModel.TotalPage)
                         pModel.PageId = pModel.TotalPage;
+
+                    // 页码被夹取后必须重算边界，否则仍会按越界页码取数
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
 
                     if (isAop)
                         AopBefore(null, sql.ToString(), param?.ToList(), config, true,AopType.Query_Page_Lambda_Dic);
@@ -318,6 +330,10 @@ namespace FastData.Context
 
                     if (pModel.PageId > pModel.TotalPage)
                         pModel.PageId = pModel.TotalPage;
+
+                    // 页码被夹取后必须重算边界，否则仍会按越界页码取数
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
 
                     if (isAop)
                         AopBefore(null, sql.ToString(), param?.ToList(), config, true,AopType.Query_Page_Lambda_Model);
@@ -1185,7 +1201,7 @@ namespace FastData.Context
                 pModel.EndId = pModel.PageId * pModel.PageSize;
                 cmd.Parameters.Clear();
                 await EnsureConnectionOpenReadAsync(cancellationToken).ConfigureAwait(false);
-                var (count, countSql) = await ToPageCountAsync(item, cmd, sql, cancellationToken).ConfigureAwait(false);
+                var (count, countSql) = await PaginationSqlBuilder.CountAsync(item, cmd, cancellationToken).ConfigureAwait(false);
                 pModel.TotalRecord = count;
                 sql = countSql;
 
@@ -1199,10 +1215,14 @@ namespace FastData.Context
                     if (pModel.PageId > pModel.TotalPage)
                         pModel.PageId = pModel.TotalPage;
 
+                    // 页码被夹取后必须重算边界，否则仍会按越界页码取数
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
+
                     AopBefore(item.Table, sql.ToString(), param, config, true, AopType.Query_Page_Lambda_Model);
 
                     cmd.Parameters.Clear();
-                    var (dr, pageSql) = await ToPageDataReaderAsync(item, cmd, pModel, sql, cancellationToken).ConfigureAwait(false);
+                    var (dr, pageSql) = await PaginationSqlBuilder.ReadAsync(item, cmd, pModel, cancellationToken).ConfigureAwait(false);
                     using (dr)
                     {
                         if (dr != null)
@@ -1248,7 +1268,7 @@ namespace FastData.Context
                 pModel.EndId = pModel.PageId * pModel.PageSize;
                 cmd.Parameters.Clear();
                 await EnsureConnectionOpenReadAsync(cancellationToken).ConfigureAwait(false);
-                var (count, countSql) = await ToPageCountAsync(item, cmd, sql, cancellationToken).ConfigureAwait(false);
+                var (count, countSql) = await PaginationSqlBuilder.CountAsync(item, cmd, cancellationToken).ConfigureAwait(false);
                 pModel.TotalRecord = count;
                 sql = countSql;
 
@@ -1262,10 +1282,14 @@ namespace FastData.Context
                     if (pModel.PageId > pModel.TotalPage)
                         pModel.PageId = pModel.TotalPage;
 
+                    // 页码被夹取后必须重算边界，否则仍会按越界页码取数
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
+
                     AopBefore(item.Table, sql.ToString(), param, config, true, AopType.Query_Page_Lambda_Dic);
 
                     cmd.Parameters.Clear();
-                    var (dr, pageSql) = await ToPageDataReaderAsync(item, cmd, pModel, sql, cancellationToken).ConfigureAwait(false);
+                    var (dr, pageSql) = await PaginationSqlBuilder.ReadAsync(item, cmd, pModel, cancellationToken).ConfigureAwait(false);
                     using (dr)
                     {
                         if (dr != null)
@@ -1303,32 +1327,10 @@ namespace FastData.Context
         /// <param name="sql">原始 SQL 语句</param>
         /// <param name="cancellationToken">取消令牌</param>
         /// <returns>总记录数和生成的 COUNT SQL</returns>
-        private async Task<(int count, string sql)> ToPageCountAsync(DataQuery item, DbCommand cmd, string sql, CancellationToken cancellationToken = default)
+        private Task<(int count, string sql)> ToPageCountAsync(DataQuery item, DbCommand cmd, string sql, CancellationToken cancellationToken = default)
         {
-            var param = new List<DbParameter>();
-            var countSql = string.Format("select count(0) from {0}", item.Table[0]);
-
-            for (var i = 1; i < item.Predicate.Count; i++)
-            {
-                sql = string.Format("{2} {0} on {1}", item.Table[i], item.Predicate[i].Where, sql);
-
-                if (item.Predicate[i].Param.Count != 0)
-                    param.AddRange(item.Predicate[i].Param);
-            }
-
-            if (!string.IsNullOrEmpty(item.Predicate[0].Where))
-                sql = string.Format("{1} where {0}", item.Predicate[0].Where, sql);
-
-            if (item.Predicate[0].Param.Count != 0)
-                param.AddRange(item.Predicate[0].Param);
-
-            if (param.Count != 0)
-                cmd.Parameters.AddRange(param.ToArray());
-
-            var dt = await BaseExecute.ToDataTableAsync(cmd, sql.ToString()).ConfigureAwait(false);
-
-            var count = int.Parse(dt.Rows[0][0].ToString());
-            return (count, sql);
+            // 统一委托给 PaginationSqlBuilder，避免同步/异步两套分页逻辑产生偏差
+            return PaginationSqlBuilder.CountAsync(item, cmd, cancellationToken);
         }
 
         /// <summary>

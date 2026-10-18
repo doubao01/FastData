@@ -65,6 +65,19 @@ namespace FastData.Context
         public DbConnection conn => _connection;
 
         /// <summary>
+        /// 创建并应用连接级命令设置（命令超时等）
+        /// </summary>
+        private DbCommand CreateCommand()
+        {
+            var command = _connection.CreateCommand();
+            var timeout = _config?.CommandTimeout ?? 0;
+            if (timeout > 0)
+                command.CommandTimeout = timeout;
+
+            return command;
+        }
+
+        /// <summary>
         /// Disposes a command and clears its parameters.
         /// </summary>
         /// <param name="command">Command to dispose.</param>
@@ -171,6 +184,19 @@ namespace FastData.Context
 
             if (disposing)
             {
+                // 归还连接前必须清理未提交事务，否则事务状态会残留在池化连接上
+                if (_transaction != null)
+                {
+                    try { _transaction.Rollback(); } catch { }
+                    try { _transaction.Dispose(); } catch { }
+                    _transaction = null;
+                }
+
+                if (_command != null)
+                {
+                    try { _command.Transaction = null; } catch { }
+                }
+
                 DisposeCommand(_command);
 
                 if (_usePool && _pooledConnection != null)
@@ -252,7 +278,7 @@ namespace FastData.Context
                 {
 #if !NETFRAMEWORK
                     _connection = new Microsoft.Data.Sqlite.SqliteConnection(connStr);
-                    _command = _connection.CreateCommand();
+                    _command = CreateCommand();
 #else
                     throw new NotSupportedException("SQLite 在 .NET Framework 4.5.2 中不受支持");
 #endif
@@ -279,13 +305,13 @@ namespace FastData.Context
 
                         _pooledConnection = pool.GetConnection();
                         _connection = _pooledConnection.Connection;
-                        _command = _connection.CreateCommand();
+                        _command = CreateCommand();
                     }
                     else
                     {
                         _connection = factory.CreateConnection();
                         _connection.ConnectionString = connStr;
-                        _command = _connection.CreateCommand();
+                        _command = CreateCommand();
                     }
                 }
             }
@@ -307,15 +333,29 @@ namespace FastData.Context
         /// </summary>
         public void BeginTransaction()
         {
+            BeginTransaction(IsolationLevel.Unspecified);
+        }
+
+        /// <summary>
+        /// 以指定隔离级别开始事务；当前已有未完成事务时直接报错，避免静默覆盖。
+        /// </summary>
+        public void BeginTransaction(IsolationLevel isolationLevel)
+        {
             EnsureConnectionOpen();
 
+            if (_transaction != null)
+                throw new InvalidOperationException("当前 DataContext 已存在未完成事务，请先 Commit 或 Rollback");
+
             if (_command == null)
-                _command = _connection.CreateCommand();
+                _command = CreateCommand();
 
             if (_command.Connection == null)
                 _command.Connection = _connection;
 
-            _transaction = _connection.BeginTransaction();
+            _transaction = isolationLevel == IsolationLevel.Unspecified
+                ? _connection.BeginTransaction()
+                : _connection.BeginTransaction(isolationLevel);
+
             if (_transaction != null)
                 _command.Transaction = _transaction;
         }
@@ -325,7 +365,17 @@ namespace FastData.Context
         /// </summary>
         public void CommitTransaction()
         {
-            _transaction?.Commit();
+            if (_transaction == null)
+                return;
+
+            try
+            {
+                _transaction.Commit();
+            }
+            finally
+            {
+                ClearTransaction();
+            }
         }
 
         /// <summary>
@@ -333,7 +383,28 @@ namespace FastData.Context
         /// </summary>
         public void RollbackTransaction()
         {
-            _transaction?.Rollback();
+            if (_transaction == null)
+                return;
+
+            try
+            {
+                _transaction.Rollback();
+            }
+            finally
+            {
+                ClearTransaction();
+            }
+        }
+
+        private void ClearTransaction()
+        {
+            try { _transaction?.Dispose(); } catch { }
+            _transaction = null;
+
+            if (_command != null)
+            {
+                try { _command.Transaction = null; } catch { }
+            }
         }
 
         /// <summary>

@@ -548,9 +548,11 @@ namespace FastData.Model
         /// </summary>
         private Expression<Func<T, bool>> BuildPredicate()
         {
-            // 如果有条件，需要组合所有条件
-            // 这里简化处理，返回一个始终为 true 的条件
-            // 实际应该根据 ChainedConditions 构建表达式
+            // 分片查询当前只支持按分片参数路由，无法把链式条件转换为表达式。
+            // 存在条件时直接失败，避免把全部分片数据当作查询结果返回。
+            if (ChainedConditions != null && ChainedConditions.Count > 0)
+                throw new NotSupportedException("分片查询暂不支持链式 Where/Like 条件，请改用分片参数或关闭分片后查询。");
+
             return t => true;
         }
 

@@ -521,7 +521,6 @@ namespace FastData.Repository
                 return result.Table;
 
             stopwatch.Start();
-            this.Data.Take = 1;
 
             if (db == null)
             {

@@ -297,6 +297,14 @@ namespace FastData
                     Expression.Convert(Expression.Property(parameter, property), typeof(object)), parameter);
 
                 var example = new T();
+                var deletedValue = Config.FastDataOptions.SoftDelete.DeletedValue;
+                if (deletedValue != null && !property.PropertyType.IsInstanceOfType(deletedValue))
+                {
+                    var targetType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+                    deletedValue = Convert.ChangeType(deletedValue, targetType);
+                }
+                property.SetValue(example, deletedValue, null);
+
                 return ExecuteWriteTemplate<T>(key, db, isOutSql, ctx => ctx.Update(example, predicate, updateField));
             }
             catch (Exception ex)
@@ -344,6 +352,14 @@ namespace FastData
                     Expression.Convert(Expression.Property(parameter, property), typeof(object)), parameter);
 
                 var example = new T();
+                var deletedValue = Config.FastDataOptions.SoftDelete.DeletedValue;
+                if (deletedValue != null && !property.PropertyType.IsInstanceOfType(deletedValue))
+                {
+                    var targetType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+                    deletedValue = Convert.ChangeType(deletedValue, targetType);
+                }
+                property.SetValue(example, deletedValue, null);
+
                 return await db.UpdateAsync<T>(example, predicate, updateField, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)

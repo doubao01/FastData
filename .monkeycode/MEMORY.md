@@ -63,11 +63,13 @@
   - FastData.Tests/Example/Demo: 测试/示例/演示项目
 
 **当前环境信息**
-- Date: 2026-05-29
+- Date: 2026-10-18
 - Instructions:
-  - 仅安装 .NET 10.0 SDK（`/root/.dotnet/dotnet`）
-  - 构建/测试需指定 `--framework net10.0`
+  - 仅安装 .NET 10.0 SDK（`/root/.dotnet/dotnet`），构建/测试需指定 `--framework net10.0`；若 SDK 报 ICU 错误，先 `apt-get install -y libicu-dev`
   - RestSharp 版本：net45 用 106.15.0，net6.0+ 用 108.0.0
+  - 测试项目目标框架为 `net8.0;net10.0`
+  - 本地验证命令：`dotnet build FastData/FastData.csproj -f net10.0 -c Debug` 和 `dotnet test FastData.Tests/FastData.Tests.csproj -f net10.0 -c Debug --no-build --filter "FullyQualifiedName!~Integration"`
+  - 环境未安装 .NET 8 运行时，运行 net8.0 测试需加 `DOTNET_ROLL_FORWARD=LatestMajor`（构建 net8.0 不受影响）
 
 **配置管理规范**
 - Date: 2026-06-02

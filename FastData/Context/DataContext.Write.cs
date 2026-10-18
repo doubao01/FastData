@@ -92,6 +92,14 @@ namespace FastData.Context
 
                 visitModel = VisitExpression.LambdaWhere<T>(predicate, config);
 
+                if (predicate == null || string.IsNullOrEmpty(visitModel.Where))
+                {
+                    result.WriteReturn.IsSuccess = false;
+                    result.WriteReturn.Message = "删除条件不能为空，已阻止无条件删除";
+                    FinishWriteTransaction(isTrans, false);
+                    return result;
+                }
+
                 var entityTableName = TableNameHelper.GetTableName<T>(config);
                 var whereClause = BuildLambdaWhereClause(predicate, visitModel);
                 sql.AppendFormat("delete from {0} {1}", entityTableName, whereClause);
@@ -223,6 +231,14 @@ namespace FastData.Context
                 if (update.IsSuccess)
                 {
                     visitModel = VisitExpression.LambdaWhere<T>(predicate, config);
+
+                    if (predicate == null || string.IsNullOrEmpty(visitModel.Where))
+                    {
+                        result.WriteReturn.IsSuccess = false;
+                        result.WriteReturn.Message = "更新条件不能为空，已阻止无条件更新";
+                        FinishWriteTransaction(isTrans, false);
+                        return result;
+                    }
 
                     sql = string.Format("{0} {1}", update.Sql, string.IsNullOrEmpty(visitModel.Where) ? "" : string.Format("where {0}", visitModel.Where.Replace(string.Format("{0}.", predicate.Parameters[0].Name), "")));
 
@@ -894,7 +910,7 @@ namespace FastData.Context
                     _command.Parameters.Clear();
                     _command.Dispose();
                 }
-                _command = _connection.CreateCommand();
+                _command = CreateCommand();
                 if (_transaction != null)
                     _command.Transaction = _transaction;
 
@@ -975,12 +991,12 @@ namespace FastData.Context
                 var paramNames = string.Join(", ", properties.Select(p => string.Format("@{0}", p.Name)));
 
                 var visitModel = VisitExpression.LambdaWhere<T>(predicate, config);
-                if (!visitModel.IsSuccess)
+                if (!visitModel.IsSuccess || predicate == null || string.IsNullOrEmpty(visitModel.Where))
                 {
-                    throw new InvalidOperationException("更新条件解析失败");
+                    throw new InvalidOperationException("更新条件解析失败或为空，已阻止无条件批量更新");
                 }
 
-                var whereClause = visitModel.Where;
+                var whereClause = visitModel.Where.Replace(string.Format("{0}.", predicate.Parameters[0].Name), string.Empty);
                 var paramList = visitModel.Param;
 
                 foreach (var item in list)
@@ -994,6 +1010,9 @@ namespace FastData.Context
                         param.Value = value ?? DBNull.Value;
                         cmd.Parameters.Add(param);
                     }
+
+                    foreach (var param in paramList)
+                        cmd.Parameters.Add(param);
 
                     if (conn.State == ConnectionState.Closed)
                         conn.Open();
@@ -1048,12 +1067,12 @@ namespace FastData.Context
 
                 var tableName = TableNameHelper.GetTableName<T>();
                 var visitModel = VisitExpression.LambdaWhere<T>(predicate, config);
-                if (!visitModel.IsSuccess)
+                if (!visitModel.IsSuccess || predicate == null || string.IsNullOrEmpty(visitModel.Where))
                 {
-                    throw new InvalidOperationException("删除条件解析失败");
+                    throw new InvalidOperationException("删除条件解析失败或为空，已阻止无条件批量删除");
                 }
 
-                var whereClause = visitModel.Where;
+                var whereClause = visitModel.Where.Replace(string.Format("{0}.", predicate.Parameters[0].Name), string.Empty);
                 var paramList = visitModel.Param;
 
                 if (conn.State == ConnectionState.Closed)
@@ -1062,6 +1081,7 @@ namespace FastData.Context
                 var deleteSql = string.Format("DELETE FROM {0} WHERE {1}", tableName, whereClause);
                 cmd.CommandText = deleteSql;
 
+                cmd.Parameters.Clear();
                 foreach (var param in paramList)
                 {
                     cmd.Parameters.Add(param);
@@ -1131,6 +1151,14 @@ namespace FastData.Context
                     BeginTrans();
 
                 visitModel = VisitExpression.LambdaWhere<T>(predicate, config);
+
+                if (predicate == null || string.IsNullOrEmpty(visitModel.Where))
+                {
+                    result.WriteReturn.IsSuccess = false;
+                    result.WriteReturn.Message = "删除条件不能为空，已阻止无条件删除";
+                    FinishWriteTransaction(isTrans, false);
+                    return result;
+                }
 
                 var entityTableName = TableNameHelper.GetTableName<T>(config);
                 var whereClause = BuildLambdaWhereClause(predicate, visitModel);
@@ -1247,6 +1275,14 @@ namespace FastData.Context
                 if (update.IsSuccess)
                 {
                     visitModel = VisitExpression.LambdaWhere<T>(predicate, config);
+
+                    if (predicate == null || string.IsNullOrEmpty(visitModel.Where))
+                    {
+                        result.WriteReturn.IsSuccess = false;
+                        result.WriteReturn.Message = "更新条件不能为空，已阻止无条件更新";
+                        FinishWriteTransaction(isTrans, false);
+                        return result;
+                    }
 
                     sql = string.Format("{0} {1}", update.Sql, string.IsNullOrEmpty(visitModel.Where) ? "" : string.Format("where {0}", visitModel.Where.Replace(string.Format("{0}.", predicate.Parameters[0].Name), "")));
 
@@ -1772,7 +1808,7 @@ namespace FastData.Context
                     _command.Parameters.Clear();
                     _command.Dispose();
                 }
-                _command = _connection.CreateCommand();
+                _command = CreateCommand();
                 if (_transaction != null)
                     _command.Transaction = _transaction;
 

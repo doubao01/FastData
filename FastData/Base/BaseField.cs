@@ -55,6 +55,16 @@ namespace FastData.Base
                 else
                 {
                     #region 有返回列
+                    // 单字段选择（如 u => u.Name）此前会进入 NewExpression 空引用分支并退化为 u.*
+                    var singleBody = field.Body is UnaryExpression singleUnary ? singleUnary.Operand : field.Body;
+                    if (singleBody is MemberExpression singleMember && singleMember.Expression is ParameterExpression singleParameter)
+                    {
+                        queryFields.Add(string.Format("{0}.{1}", singleParameter.Name, singleMember.Member.Name));
+                        result.AsName.Add(singleMember.Member.Name);
+                        result.Field = string.Join(",", queryFields);
+                        return result;
+                    }
+
                     foreach (var a in (field.Body as NewExpression).Arguments)
                     {
                         if (a is MethodCallExpression)
@@ -160,6 +170,16 @@ namespace FastData.Base
                     return result;
                 }
 
+                // 单字段投影（如 t1 => t1.Name）使用字段自身所属的参数别名
+                var singleJoinBody = field.Body is UnaryExpression singleJoinUnary ? singleJoinUnary.Operand : field.Body;
+                if (singleJoinBody is MemberExpression singleJoinMember && singleJoinMember.Expression is ParameterExpression singleJoinParameter)
+                {
+                    queryFields.Add(string.Format("{0}.{1}", singleJoinParameter.Name, singleJoinMember.Member.Name));
+                    result.AsName.Add(singleJoinMember.Member.Name);
+                    result.Field = string.Join(",", queryFields);
+                    return result;
+                }
+
                 var i = 0;
                 foreach (var a in (field.Body as NewExpression).Arguments)
                 {
@@ -236,14 +256,7 @@ namespace FastData.Base
         {
             try
             {
-                var result = new List<string>();
-                foreach (var a in (field.Body as NewExpression).Arguments)
-                {
-                    var asName = ((a as MemberExpression).Expression as ParameterExpression).Name;
-                    result.Add(string.Format("{0}.{1}", asName, (a as MemberExpression).Member.Name));
-                }
-
-                return result;
+                return GetQualifiedFields(field.Body).ToList();
             }
             catch (Exception ex)
             {
@@ -271,14 +284,8 @@ namespace FastData.Base
         {
             try
             {
-                var result = new List<string>();
-                foreach (var a in (field.Body as NewExpression).Arguments)
-                {
-                    var asName = ((a as MemberExpression).Expression as ParameterExpression).Name;
-                    result.Add(string.Format("{0}.{1} {2}", asName, (a as MemberExpression).Member.Name, isDesc ? "desc" : "asc"));
-                }
-
-                return result;
+                var direction = isDesc ? "desc" : "asc";
+                return GetQualifiedFields(field.Body).Select(x => string.Format("{0} {1}", x, direction)).ToList();
             }
             catch (Exception ex)
             {
@@ -289,6 +296,44 @@ namespace FastData.Base
 
                 return new List<string>();
             }
+        }
+        #endregion
+
+        #region 字段表达式解析
+        /// <summary>
+        /// 将字段选择表达式解析为带表别名的列名
+        /// 支持单字段（u =&gt; u.Name）与匿名对象（u =&gt; new { u.Id, u.Name }）
+        /// </summary>
+        private static IEnumerable<string> GetQualifiedFields(Expression body)
+        {
+            if (body == null)
+                throw new ArgumentNullException(nameof(body));
+
+            if (body is UnaryExpression unary)
+                body = unary.Operand;
+
+            if (body is MemberExpression member && member.Expression is ParameterExpression parameter)
+            {
+                yield return string.Format("{0}.{1}", parameter.Name, member.Member.Name);
+                yield break;
+            }
+
+            if (body is NewExpression newExpression)
+            {
+                foreach (var argument in newExpression.Arguments)
+                {
+                    var item = argument is UnaryExpression itemUnary ? itemUnary.Operand : argument;
+
+                    if (!(item is MemberExpression itemMember) || !(itemMember.Expression is ParameterExpression itemParameter))
+                        throw new ArgumentException("字段表达式仅支持属性访问", nameof(body));
+
+                    yield return string.Format("{0}.{1}", itemParameter.Name, itemMember.Member.Name);
+                }
+
+                yield break;
+            }
+
+            throw new ArgumentException("字段表达式必须是属性访问或匿名对象", nameof(body));
         }
         #endregion
 

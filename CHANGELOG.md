@@ -2,6 +2,50 @@
 
 本文档记录 FastData 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## [2.8.0] - 2026-10-18
+
+### Fixed
+
+- **写入路径空条件保护**
+  - `Update`/`Delete`/`UpdateAsync`/`DeleteAsync` 在 Lambda 无法解析为 WHERE 时快速失败，避免无条件全表更新/删除
+  - `BulkUpdate`/`BulkDelete` 补齐空条件守卫、去除表别名、补全 WHERE 参数
+  - `LambdaWhere` 无法解析表达式时返回 `IsSuccess=false`，不再静默当作无条件
+
+- **分页逻辑统一**
+  - 新增 `PaginationSqlBuilder`，同步/异步分页共用单一实现
+  - 修正多数据库偏移量、GroupBy 计数、页码夹取后的起止行号计算
+
+- **连接池与队列**
+  - `SmartConnectionPool` 修复等待成功后进入 null/异常分支导致的信号量许可泄漏
+  - `WriteBehindExecutor` 按实际入队数量统计成功/失败，未入队计入 FailedCount
+
+- **缓存隔离**
+  - `DataConfig.BuildCacheKey` 纳入项目名、数据库文件与 `FASTDATA_ACTIVE` 环境变量，修复跨项目缓存串用
+
+- **表达式解析**
+  - `BaseField.OrderBy`/`GroupBy` 支持单字段表达式，未知表达式不再静默返回空列表
+  - `QueryField` 单字段投影不再退化为 `u.*`
+  - 修复布尔成员在二元比较中重复拼接表别名的问题
+
+### Added
+
+- **企业级特性**
+  - `ConfigModel.CommandTimeout`（默认 30 秒），经 `DataContext.CreateCommand()` 统一注入所有命令
+  - `DataContext.BeginTransaction(IsolationLevel)` 重载，重复开启抛 `InvalidOperationException`，提交/回滚后清理事务
+  - `Dispose` 时回滚未提交事务
+
+- **测试**
+  - 新增 `BaseFieldTests` 覆盖单字段与匿名对象的字段/排序/分组解析
+
+### Changed
+
+- **工程化**
+  - 测试项目目标框架调整为 `net8.0;net10.0`
+  - `FastData.csproj` 移除 net452 下冗余的 RestSharp/NPOI 版本覆盖
+  - `PackageId` 统一为 `Fast.Data`
+  - GitHub Actions 构建矩阵补充 `-f/--framework` 参数
+  - 软删除写入配置删除值；导出不再强制截断为单行
+
 ## [2.7.0] - 2026-10-16
 
 ### Fixed

@@ -237,15 +237,15 @@ namespace FastData.Base
                 else
                 {
                     // 更新指定字段
-                    foreach (var member in (fieldSelector.Body as NewExpression).Members)
+                    foreach (var memberName in GetSelectedMemberNames(fieldSelector))
                     {
-                        if (primaryKeys.Exists(k => k == member.Name))
+                        if (primaryKeys.Exists(k => k == memberName))
                             continue;
 
-                        sqlBuilder.AppendFormat(" {0}={1}{0},", member.Name, config.Flag);
+                        sqlBuilder.AppendFormat(" {0}={1}{0},", memberName, config.Flag);
                         var parameter = factory.CreateParameter();
-                        parameter.ParameterName = member.Name;
-                        parameter.SourceColumn = member.Name;
+                        parameter.ParameterName = memberName;
+                        parameter.SourceColumn = memberName;
                         result.Param.Add(parameter);
                     }
                 }
@@ -287,9 +287,9 @@ namespace FastData.Base
                     }
                     else
                     {
-                        foreach (var member in (fieldSelector.Body as NewExpression).Members)
+                        foreach (var memberName in GetSelectedMemberNames(fieldSelector))
                         {
-                            row[member.Name] = entityGetter.GetValue(entity, member.Name, true);
+                            row[memberName] = entityGetter.GetValue(entity, memberName, true);
                         }
                     }
 
@@ -469,15 +469,47 @@ namespace FastData.Base
             }
             else
             {
-                foreach (var member in (fieldSelector.Body as NewExpression).Members)
+                foreach (var memberName in GetSelectedMemberNames(fieldSelector))
                 {
-                    sqlBuilder.AppendFormat(" {0}={1}{0},", member.Name, config.Flag);
+                    sqlBuilder.AppendFormat(" {0}={1}{0},", memberName, config.Flag);
                     var parameter = factory.CreateParameter();
-                    parameter.ParameterName = member.Name;
-                    parameter.Value = entityGetter.GetValue(entity, member.Name, config.IsPropertyCache) ?? (object)DBNull.Value;
+                    parameter.ParameterName = memberName;
+                    parameter.Value = entityGetter.GetValue(entity, memberName, config.IsPropertyCache) ?? (object)DBNull.Value;
                     result.Param.Add(parameter);
                 }
             }
+        }
+
+        /// <summary>
+        /// 提取字段选择器中的成员名，支持匿名对象、单字段和强制转换表达式
+        /// </summary>
+        internal static List<string> GetSelectedMemberNames<T>(Expression<Func<T, object>> fieldSelector)
+        {
+            var result = new List<string>();
+
+            if (fieldSelector == null)
+                return result;
+
+            var body = fieldSelector.Body;
+
+            if (body is UnaryExpression unary)
+                body = unary.Operand;
+
+            if (body is NewExpression newExpression)
+            {
+                foreach (var member in newExpression.Members)
+                    result.Add(member.Name);
+            }
+            else if (body is MemberExpression memberExpression)
+            {
+                result.Add(memberExpression.Member.Name);
+            }
+            else
+            {
+                throw new ArgumentException("字段选择器必须是属性访问或匿名对象表达式", nameof(fieldSelector));
+            }
+
+            return result;
         }
 
         /// <summary>
