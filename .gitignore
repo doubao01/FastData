@@ -38,6 +38,10 @@ tmp/
 temp/
 *.tmp
 
+# 误提交的临时产物
+tdata
+FastData.Tests/db_init_result.txt
+
 # 测试输出
 TestResults/
 coverage/
