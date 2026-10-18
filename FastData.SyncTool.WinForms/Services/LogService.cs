@@ -69,14 +69,7 @@ public enum LogEntryLevel
                 TaskId = taskId
             };
 
-            Logger.SetLogFile(taskId ?? "app");
-            switch (level)
-            {
-                case LogEntryLevel.Debug: Logger.Debug(message); break;
-                case LogEntryLevel.Info: Logger.Info(message); break;
-                case LogEntryLevel.Warn: Logger.Warn(message); break;
-                case LogEntryLevel.Error: Logger.Error(message); break;
-            }
+            Logger.Write(ToLogLevel(level), message, taskId ?? "app");
 
             lock (entries)
             {
@@ -131,5 +124,16 @@ public enum LogEntryLevel
         }
 
         public void Dispose() { }
+
+        private static LogLevel ToLogLevel(LogEntryLevel level)
+        {
+            switch (level)
+            {
+                case LogEntryLevel.Debug: return LogLevel.Debug;
+                case LogEntryLevel.Warn: return LogLevel.Warn;
+                case LogEntryLevel.Error: return LogLevel.Error;
+                default: return LogLevel.Info;
+            }
+        }
     }
 }

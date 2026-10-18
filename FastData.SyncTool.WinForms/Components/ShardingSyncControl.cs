@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows.Forms;
 using FastData.Sharding;
 using FastData.Sharding.Strategies;
+using FastData.Database;
 using FastData.SyncTool.WinForms.Services;
 
 namespace FastData.SyncTool.WinForms.Components
@@ -132,8 +133,9 @@ namespace FastData.SyncTool.WinForms.Components
 
             sourceLayout.Controls.Add(new Label { Text = "数据库类型:", TextAlign = ContentAlignment.MiddleRight }, 0, 0);
             sourceProviderBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            sourceProviderBox.Items.AddRange(new object[] { "SqlServer", "MySql", "SQLite" });
-            sourceProviderBox.SelectedIndex = 0;
+            sourceProviderBox.Items.AddRange(DatabaseProviderMappings.AllProviderNames);
+            var defaultProviderIndex = sourceProviderBox.Items.IndexOf(DatabaseProviderMappings.NormalizeProviderName("SqlServer"));
+            sourceProviderBox.SelectedIndex = defaultProviderIndex >= 0 ? defaultProviderIndex : 0;
             sourceLayout.Controls.Add(sourceProviderBox, 1, 0);
 
             sourceLayout.Controls.Add(new Label { Text = "连接字符串:", TextAlign = ContentAlignment.MiddleRight }, 0, 1);

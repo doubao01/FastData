@@ -44,8 +44,7 @@ namespace FastData.Sharding.Strategies
             if (string.IsNullOrEmpty(hashValue))
                 throw new InvalidOperationException(string.Format("字段 {0} 的值不能为空", hashField));
 
-            var shardIndex = GetShardIndex(config, hashValue);
-            return string.Format("{0}_{1:D4}", config.BaseTableName, shardIndex);
+            return ShardingNameResolver.ResolveHash(config, hashValue);
         }
 
         /// <summary>
@@ -69,8 +68,7 @@ namespace FastData.Sharding.Strategies
                 var hashValue = queryParams[hashField]?.ToString();
                 if (!string.IsNullOrEmpty(hashValue))
                 {
-                    var shardIndex = GetShardIndex(config, hashValue);
-                    result.Add(string.Format("{0}_{1:D4}", config.BaseTableName, shardIndex));
+                    result.Add(ShardingNameResolver.ResolveHash(config, hashValue));
                     return result;
                 }
             }
@@ -109,54 +107,6 @@ namespace FastData.Sharding.Strategies
         }
 
         #region 私有方法
-
-        private int GetShardIndex(ShardingConfig config, string hashValue)
-        {
-            var hash = ComputeHash(config, hashValue);
-            return hash % config.HashConfig.ShardCount;
-        }
-
-        private int ComputeHash(ShardingConfig config, string value)
-        {
-            return config.HashConfig.Algorithm switch
-            {
-                HashAlgorithm.Modulo => ComputeModuloHash(value),
-                HashAlgorithm.Consistent => ComputeConsistentHash(value),
-                HashAlgorithm.Crc32 => ComputeCrc32Hash(value),
-                _ => ComputeModuloHash(value)
-            };
-        }
-
-        private int ComputeModuloHash(string value)
-        {
-            // 简单取模哈希
-            int hash = 0;
-            foreach (char c in value)
-            {
-                hash = (hash * 31 + c) & 0x7FFFFFFF;
-            }
-            return Math.Abs(hash);
-        }
-
-        private int ComputeConsistentHash(string value)
-        {
-            // 一致性哈希（简化版）
-            using (var md5 = MD5.Create())
-            {
-                var inputBytes = Encoding.UTF8.GetBytes(value);
-                var hashBytes = md5.ComputeHash(inputBytes);
-                return Math.Abs(BitConverter.ToInt32(hashBytes, 0));
-            }
-        }
-
-        private int ComputeCrc32Hash(string value)
-        {
-            // CRC32 哈希
-            var crc32 = new Crc32();
-            var inputBytes = Encoding.UTF8.GetBytes(value);
-            var hash = crc32.ComputeHash(inputBytes);
-            return Math.Abs(BitConverter.ToInt32(hash, 0));
-        }
 
         #endregion
     }

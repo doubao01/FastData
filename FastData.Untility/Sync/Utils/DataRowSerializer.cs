@@ -66,46 +66,38 @@ namespace FastData.Tooling.Sync
         /// <returns>DataTable</returns>
         public static DataTable Deserialize(string json)
         {
-            if (string.IsNullOrWhiteSpace(json))
-                return new DataTable();
-
             var table = new DataTable();
+            if (string.IsNullOrWhiteSpace(json))
+                return table;
+
+            var columnDefs = new List<Tuple<string, string, bool>>();
+            var values = new List<KeyValuePair<string, object>>();
 
 #if NETFRAMEWORK
             var data = Serializer.Deserialize<Dictionary<string, object>>(json);
             if (data == null)
                 return table;
 
-            if (data.ContainsKey("Columns"))
+            if (data.ContainsKey("Columns") && data["Columns"] is System.Collections.IEnumerable columns)
             {
-                var columns = data["Columns"] as System.Collections.IEnumerable;
-                if (columns != null)
+                foreach (var colObj in columns)
                 {
-                    foreach (var colObj in columns)
+                    if (colObj is IDictionary<string, object> colDict &&
+                        colDict.ContainsKey("ColumnName") && colDict.ContainsKey("DataType"))
                     {
-                        var colDict = colObj as IDictionary<string, object>;
-                        if (colDict != null && colDict.ContainsKey("ColumnName") && colDict.ContainsKey("DataType"))
-                        {
-                            var columnName = colDict["ColumnName"].ToString();
-                            var dataTypeName = colDict["DataType"].ToString();
-                            var type = Type.GetType(dataTypeName) ?? typeof(string);
-                            table.Columns.Add(columnName, type);
-                        }
+                        var columnName = Convert.ToString(colDict["ColumnName"]);
+                        var dataTypeName = Convert.ToString(colDict["DataType"]);
+                        var isNullable = colDict.ContainsKey("IsNullable") && colDict["IsNullable"] != null && Convert.ToBoolean(colDict["IsNullable"]);
+                        columnDefs.Add(Tuple.Create(columnName, dataTypeName, isNullable));
                     }
                 }
             }
 
-            if (data.ContainsKey("Values"))
+            if (data.ContainsKey("Values") && data["Values"] is IDictionary<string, object> valueMap)
             {
-                var values = data["Values"] as IDictionary<string, object>;
-                if (values != null && table.Columns.Count > 0)
+                foreach (var kvp in valueMap)
                 {
-                    var row = table.NewRow();
-                    foreach (var kvp in values)
-                    {
-                        row[kvp.Key] = kvp.Value ?? DBNull.Value;
-                    }
-                    table.Rows.Add(row);
+                    values.Add(new KeyValuePair<string, object>(kvp.Key, kvp.Value));
                 }
             }
 #else
@@ -113,7 +105,7 @@ namespace FastData.Tooling.Sync
             {
                 var root = doc.RootElement;
 
-                if (root.TryGetProperty("Columns", out var columnsElement))
+                if (root.TryGetProperty("Columns", out var columnsElement) && columnsElement.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var colElement in columnsElement.EnumerateArray())
                     {
@@ -122,25 +114,154 @@ namespace FastData.Tooling.Sync
                         {
                             var columnName = nameElement.GetString();
                             var dataTypeName = typeElement.GetString();
-                            var type = Type.GetType(dataTypeName) ?? typeof(string);
-                            table.Columns.Add(columnName, type);
+                            var isNullable = colElement.TryGetProperty("IsNullable", out var nullableElement)
+                                && nullableElement.ValueKind == JsonValueKind.True;
+                            columnDefs.Add(Tuple.Create(columnName, dataTypeName, isNullable));
                         }
                     }
                 }
 
-                if (root.TryGetProperty("Values", out var valuesElement) && table.Columns.Count > 0)
+                if (root.TryGetProperty("Values", out var valuesElement) && valuesElement.ValueKind == JsonValueKind.Object)
                 {
-                    var row = table.NewRow();
                     foreach (var prop in valuesElement.EnumerateObject())
                     {
-                        row[prop.Name] = ConvertJsonValue(prop.Value);
+                        values.Add(new KeyValuePair<string, object>(prop.Name, ConvertJsonValue(prop.Value)));
                     }
-                    table.Rows.Add(row);
                 }
             }
 #endif
 
+            // 根据列定义解析类型并构建列
+            var columnTypes = new Dictionary<string, Type>(StringComparer.Ordinal);
+            foreach (var def in columnDefs)
+            {
+                if (string.IsNullOrEmpty(def.Item1) || table.Columns.Contains(def.Item1))
+                    continue;
+
+                var columnType = ResolveColumnType(def.Item2);
+                var column = table.Columns.Add(def.Item1, columnType);
+                column.AllowDBNull = def.Item3 || !columnType.IsValueType || Nullable.GetUnderlyingType(columnType) != null;
+                columnTypes[def.Item1] = columnType;
+            }
+
+            if (table.Columns.Count == 0)
+                return table;
+
+            var row = table.NewRow();
+            foreach (var kvp in values)
+            {
+                if (!table.Columns.Contains(kvp.Key))
+                    continue;
+
+                var targetType = columnTypes[kvp.Key];
+                row[kvp.Key] = ConvertToColumnType(kvp.Value, targetType);
+            }
+            table.Rows.Add(row);
+
             return table;
+        }
+
+        /// <summary>
+        /// 解析列的数据类型（兼容 Nullable 与常见类型别名）
+        /// </summary>
+        internal static Type ResolveColumnType(string dataTypeName)
+        {
+            if (string.IsNullOrEmpty(dataTypeName))
+                return typeof(string);
+
+            var type = Type.GetType(dataTypeName, throwOnError: false)
+                ?? Type.GetType(dataTypeName + ", mscorlib", throwOnError: false)
+                ?? Type.GetType(dataTypeName + ", System.Private.CoreLib", throwOnError: false);
+
+            var underlying = type != null ? Nullable.GetUnderlyingType(type) : null;
+            if (underlying != null)
+                type = underlying;
+
+            if (type != null)
+                return type;
+
+            var mapped = MapWellKnownType(dataTypeName);
+            return mapped ?? typeof(string);
+        }
+
+        private static Type MapWellKnownType(string name)
+        {
+            var normalized = name != null && name.EndsWith("?", StringComparison.Ordinal)
+                ? name.Substring(0, name.Length - 1)
+                : name;
+
+            switch (normalized)
+            {
+                case "System.String": return typeof(string);
+                case "System.Int32": return typeof(int);
+                case "System.Int64": return typeof(long);
+                case "System.Int16": return typeof(short);
+                case "System.Byte": return typeof(byte);
+                case "System.SByte": return typeof(sbyte);
+                case "System.UInt32": return typeof(uint);
+                case "System.UInt64": return typeof(ulong);
+                case "System.Decimal": return typeof(decimal);
+                case "System.Double": return typeof(double);
+                case "System.Single": return typeof(float);
+                case "System.Boolean": return typeof(bool);
+                case "System.DateTime": return typeof(DateTime);
+                case "System.DateTimeOffset": return typeof(DateTimeOffset);
+                case "System.TimeSpan": return typeof(TimeSpan);
+                case "System.Guid": return typeof(Guid);
+                case "System.Byte[]": return typeof(byte[]);
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// 将值转换为目标列类型，转换失败时保留原值
+        /// </summary>
+        internal static object ConvertToColumnType(object value, Type type)
+        {
+            if (value == null || value == DBNull.Value)
+                return DBNull.Value;
+
+            if (type == null || type == typeof(object))
+                return value;
+
+            var valueType = value.GetType();
+            if (type.IsAssignableFrom(valueType))
+                return value;
+
+            try
+            {
+                if (type == typeof(string))
+                    return Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
+
+                if (type == typeof(DateTime))
+                    return value is string dtStr
+                        ? DateTime.Parse(dtStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None)
+                        : Convert.ToDateTime(value, System.Globalization.CultureInfo.InvariantCulture);
+
+                if (type == typeof(DateTimeOffset))
+                    return value is string dtoStr
+                        ? (object)DateTimeOffset.Parse(dtoStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None)
+                        : new DateTimeOffset(Convert.ToDateTime(value, System.Globalization.CultureInfo.InvariantCulture));
+
+                if (type == typeof(TimeSpan))
+                    return value is TimeSpan ? value : TimeSpan.Parse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), System.Globalization.CultureInfo.InvariantCulture);
+
+                if (type == typeof(Guid))
+                    return value is Guid ? value : Guid.Parse(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture));
+
+                if (type == typeof(byte[]))
+                    return value is string base64 ? (object)Convert.FromBase64String(base64) : value;
+
+                if (type.IsEnum)
+                    return value is string enumStr ? Enum.Parse(type, enumStr, true) : Enum.ToObject(type, value);
+
+                return Convert.ChangeType(value, type, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                // 转换失败时保留原值，交由写入目标库时抛出更明确的错误
+                return value;
+            }
         }
 
 #if !NETFRAMEWORK

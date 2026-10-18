@@ -91,6 +91,51 @@ namespace FastData.Database
         }
 
         /// <summary>
+        /// 将用户输入的 Provider 名称规范化为可直接用于 DbProviderFactories 的 invariant 名称。
+        /// 支持三类输入：invariant 名称（原样返回）、显示名称（如 "SQL Server"）、
+        /// 以及常见短名（如 "SqlServer"、"MySql"、"PostgreSql"）。
+        /// 无法识别时返回去除首尾空白后的原值。
+        /// </summary>
+        /// <param name="providerName">用户输入的 Provider 名称</param>
+        /// <returns>规范化后的 invariant 名称</returns>
+        public static string NormalizeProviderName(string providerName)
+        {
+            if (string.IsNullOrWhiteSpace(providerName))
+                return null;
+
+            var trimmed = providerName.Trim();
+
+            foreach (var name in AllProviderNames)
+            {
+                if (string.Equals(name, trimmed, StringComparison.OrdinalIgnoreCase))
+                    return name;
+            }
+
+            var key = trimmed.Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
+            switch (key)
+            {
+                case "sqlserver":
+                case "mssql":
+                    return "Microsoft.Data.SqlClient";
+                case "mysql":
+                    return "MySql.Data.MySqlClient";
+                case "postgresql":
+                case "postgres":
+                case "pgsql":
+                case "npgsql":
+                    return "Npgsql";
+                case "sqlite":
+                    return "System.Data.SQLite";
+                case "oracle":
+                    return "Oracle.ManagedDataAccess.Client";
+                case "db2":
+                    return "IBM.Data.DB2.iSeries";
+                default:
+                    return trimmed;
+            }
+        }
+
+        /// <summary>
         /// 创建数据库连接
         /// </summary>
         /// <param name="providerName">提供程序名称</param>

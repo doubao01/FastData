@@ -47,25 +47,26 @@ namespace FastData.SyncTool.WinForms.Services
     public class SyncService : IDisposable
     {
         private readonly DataSyncService syncService = new DataSyncService();
+        private readonly object ctsLock = new object();
         private CancellationTokenSource cts;
         private bool disposed;
 
         public event EventHandler<SyncProgressInfo> ProgressChanged;
         public event EventHandler<SyncExecutionResult> TableCompleted;
 
-        public SyncExecutionResult ExecuteSync(DataSyncOptions options)
+        public SyncExecutionResult ExecuteSync(DataSyncOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
             var result = new SyncExecutionResult();
             var startTime = DateTime.Now;
+            var taskId = string.IsNullOrWhiteSpace(options.TaskId) ? "sync" : options.TaskId;
             result.SourceTable = options.SourceTable;
             result.TargetTable = options.TargetTable;
 
             try
             {
-                Logger.SetLogFile(options.TaskId ?? "sync");
-                Logger.Info(string.Format("开始同步: {0} -> {1}", options.SourceTable, options.TargetTable));
+                Logger.Write(LogLevel.Info, string.Format("开始同步: {0} -> {1}", options.SourceTable, options.TargetTable), taskId);
 
-                var syncResult = syncService.SyncTable(options);
+                var syncResult = syncService.SyncTable(options, cancellationToken);
 
                 result.ReadCount = syncResult.ReadCount;
                 result.WriteCount = syncResult.WriteCount;
@@ -75,14 +76,21 @@ namespace FastData.SyncTool.WinForms.Services
                 result.Duration = DateTime.Now - startTime;
                 result.Success = syncResult.FailedCount == 0;
 
-                Logger.Info(string.Format("同步完成: 读取 {0}, 写入 {1}, 失败 {2}", result.ReadCount, result.WriteCount, result.FailedCount));
+                Logger.Write(LogLevel.Info, string.Format("同步完成: 读取 {0}, 写入 {1}, 失败 {2}", result.ReadCount, result.WriteCount, result.FailedCount), taskId);
+            }
+            catch (OperationCanceledException)
+            {
+                result.Success = false;
+                result.ErrorMessage = "用户取消";
+                result.Duration = DateTime.Now - startTime;
+                Logger.Write(LogLevel.Warn, "同步已取消", taskId);
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
                 result.Duration = DateTime.Now - startTime;
-                Logger.Error("同步失败: " + ex.Message);
+                Logger.Write(LogLevel.Error, "同步失败: " + ex.Message, taskId);
             }
             return result;
         }
@@ -91,7 +99,16 @@ namespace FastData.SyncTool.WinForms.Services
         {
             var batchResult = new BatchSyncResult();
             var startTime = DateTime.Now;
-            cts = new CancellationTokenSource();
+            CancellationToken token;
+            lock (ctsLock)
+            {
+                if (cts != null)
+                {
+                    cts.Dispose();
+                }
+                cts = new CancellationTokenSource();
+                token = cts.Token;
+            }
 
             var enabledConfigs = new List<TableSyncConfig>();
             foreach (var tc in tableConfigs)
@@ -102,7 +119,7 @@ namespace FastData.SyncTool.WinForms.Services
 
             for (int i = 0; i < enabledConfigs.Count; i++)
             {
-                if (cts.Token.IsCancellationRequested)
+                if (token.IsCancellationRequested)
                 {
                     batchResult.SkippedTables = enabledConfigs.Count - i;
                     batchResult.ErrorMessage = "用户取消";
@@ -119,7 +136,7 @@ namespace FastData.SyncTool.WinForms.Services
                 });
 
                 var options = optionsBuilder != null ? optionsBuilder(baseOptions, tc) : baseOptions;
-                var result = ExecuteSync(options);
+                var result = ExecuteSync(options, token);
 
                 batchResult.TableResults.Add(result);
                 if (result.Success) batchResult.SuccessTables++;
@@ -139,10 +156,16 @@ namespace FastData.SyncTool.WinForms.Services
 
         public void CancelBatchSync()
         {
-            if (cts != null && !cts.IsCancellationRequested)
+            CancellationTokenSource source;
+            lock (ctsLock)
             {
-                cts.Cancel();
-                Logger.Warn("用户取消批量同步");
+                source = cts;
+            }
+
+            if (source != null && !source.IsCancellationRequested)
+            {
+                source.Cancel();
+                Logger.Write(LogLevel.Warn, "用户取消批量同步", null);
             }
         }
 
@@ -160,7 +183,10 @@ namespace FastData.SyncTool.WinForms.Services
         {
             if (!disposed)
             {
-                if (cts != null) { cts.Dispose(); cts = null; }
+                lock (ctsLock)
+                {
+                    if (cts != null) { cts.Dispose(); cts = null; }
+                }
                 disposed = true;
             }
         }

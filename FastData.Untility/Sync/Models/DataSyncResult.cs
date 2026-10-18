@@ -33,6 +33,11 @@ namespace FastData.Tooling.Sync
         public int RecoveredCount { get; set; }
 
         /// <summary>
+        /// 去重跳过的记录数（目标库已存在，未实际写入）
+        /// </summary>
+        public int SkippedCount { get; set; }
+
+        /// <summary>
         /// 结果消息
         /// </summary>
         public string Message { get; set; }

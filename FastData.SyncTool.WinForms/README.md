@@ -32,45 +32,55 @@
 FastData.SyncTool.WinForms/
 ├── MainForm.cs                     # 主窗口
 ├── Program.cs                      # 程序入口
-├── Components/                     # 模块化组件
+├── Components/                     # 模块化 UI 组件
 │   ├── DbConfigControl.cs          # 数据库配置
+│   ├── DbConnectionPanel.cs        # 连接面板
 │   ├── SyncConfigControl.cs        # 同步配置
-│   ├── TaskManagerControl.cs       # 任务管理
+│   ├── SyncConfigPanel.cs          # 同步配置面板
+│   ├── TableListManager.cs         # 表清单管理
+│   ├── TableSelectorDialog.cs      # 表选择对话框
+│   ├── FieldSelectorDialog.cs      # 字段选择对话框
+│   ├── LogViewerControl.cs         # 日志查看
+│   ├── TaskManager.cs              # 任务管理
+│   ├── TaskManagerControl.cs       # 任务管理界面
+│   ├── PrimaryKeyConfigDialog.cs   # 主键配置对话框
 │   ├── ReplayControl.cs            # 数据补录
-│   ├── ShardingSyncControl.cs      # 分表同步
-│   ├── ShardingTaskControl.cs      # 分表任务
-│   ├── ShardingImportControl.cs    # 分表导入
-│   └── ShardingDataControl.cs      # 分表数据操作
+│   ├── ShardingConfigVisualizer.cs # 分表配置可视化
+│   └── Sharding*.cs                # 分表相关界面
 ├── Services/                       # 服务层
+│   ├── DatabaseService.cs          # 数据库操作
 │   ├── SyncService.cs              # 同步服务
-│   ├── LogService.cs               # 日志服务
-│   ├── ReplayService.cs            # 数据补录服务
-│   └── ShardingTaskService.cs      # 分表任务服务
-└── IoC/                            # 依赖注入
-    └── ServiceProvider.cs          # DI 容器
+│   ├── TaskSchedulerService.cs     # 定时调度服务
+│   ├── ShardingTaskService.cs      # 分表任务服务
+│   └── LogService.cs               # 日志服务
+├── IoC/                            # 依赖注入
+│   ├── ServiceCollectionExtensions.cs
+│   └── ServiceContainer.cs
+└── Models/                         # 视图模型
 ```
 
 ---
 
 ## 同步配置示例
 
+以下字段名称与 `DataSyncOptions` / `SyncTaskConfig` 保持一致。
+
 ### SQL Server → MySQL 同步
 
 ```json
 {
   "TaskId": "ss_to_mysql",
-  "SourceProvider": "SqlServer",
-  "SourceConnStr": "server=localhost;database=FastDataDemo;uid=sa;pwd=xxx",
-  "TargetProvider": "MySql",
-  "TargetConnStr": "server=127.0.0.1;database=FastDataDemo;uid=root;pwd=xxx",
+  "SourceProvider": "System.Data.SqlClient",
+  "SourceConnectionString": "server=localhost;database=FastDataDemo;uid=sa;pwd=xxx",
+  "TargetProvider": "MySql.Data.MySqlClient",
+  "TargetConnectionString": "server=127.0.0.1;database=FastDataDemo;uid=root;pwd=xxx",
   "SourceTable": "AppUser",
   "TargetTable": "AppUser",
-  "SyncColumns": "Id,UserName,Email,Phone,Age,IsActive,CreateTime",
-  "KeyColumns": "Id",
+  "SyncColumns": [ "Id", "UserName", "Email", "Phone", "Age", "IsActive", "CreateTime" ],
+  "PrimaryKeyColumns": "Id",
   "BatchSize": 1000,
   "AlwaysDeduplicate": true,
-  "EnableRetry": true,
-  "MaxRetryCount": 3
+  "RetryCount": 3
 }
 ```
 
@@ -79,14 +89,14 @@ FastData.SyncTool.WinForms/
 ```json
 {
   "TaskId": "ss_to_pg",
-  "SourceProvider": "SqlServer",
-  "SourceConnStr": "server=localhost;database=FastDataDemo;uid=sa;pwd=xxx",
+  "SourceProvider": "System.Data.SqlClient",
+  "SourceConnectionString": "server=localhost;database=FastDataDemo;uid=sa;pwd=xxx",
   "TargetProvider": "Npgsql",
-  "TargetConnStr": "Host=localhost;Database=fastdatademo;Username=postgres;Password=xxx",
+  "TargetConnectionString": "Host=localhost;Database=fastdatademo;Username=postgres;Password=xxx",
   "SourceTable": "AppUser",
   "TargetTable": "AppUser",
-  "SyncColumns": "Id,UserName,Email,IsActive,CreateTime",
-  "KeyColumns": "Id",
+  "SyncColumns": [ "Id", "UserName", "Email", "IsActive", "CreateTime" ],
+  "PrimaryKeyColumns": "Id",
   "BatchSize": 1000
 }
 ```
@@ -125,14 +135,15 @@ var config = new TableSyncConfig
 ## 构建
 
 ```bash
-dotnet build FastData.SyncTool.WinForms --framework net10.0-windows
+dotnet build FastData.SyncTool.WinForms/FastData.SyncTool.WinForms.csproj --framework net10.0-windows
 ```
 
 ## 依赖
 
 - FastData（ORM 核心）
-- FastData.Tooling（工具库）
-- FastData.Shared（共享库）
+- FastData.Untility（同步核心与工具库，命名空间 `FastData.Tooling.Sync`）
+- Microsoft.Data.SqlClient（SQL Server 驱动）
+- System.Data.OleDb（OLE DB 驱动）
 
 ## 许可证
 

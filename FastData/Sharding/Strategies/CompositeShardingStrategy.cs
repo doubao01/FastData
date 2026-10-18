@@ -53,7 +53,7 @@ namespace FastData.Sharding.Strategies
                 values.Add(value);
             }
 
-            return GetTableNameByValues(config, values);
+            return ShardingNameResolver.ResolveComposite(config, values);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace FastData.Sharding.Strategies
             // 如果包含所有组合字段，直接定位到分表
             if (allFieldsPresent && values.Count > 0)
             {
-                result.Add(GetTableNameByValues(config, values));
+                result.Add(ShardingNameResolver.ResolveComposite(config, values));
                 return result;
             }
 
@@ -132,35 +132,6 @@ namespace FastData.Sharding.Strategies
         }
 
         #region 私有方法
-
-        private string GetTableNameByValues(ShardingConfig config, List<string> values)
-        {
-            var separator = config.CompositeConfig.Separator;
-            var combinedValue = string.Join(separator, values);
-
-            if (config.CompositeConfig.UseHash)
-            {
-                // 使用哈希方式
-                var hash = ComputeHash(combinedValue);
-                var shardIndex = hash % config.CompositeConfig.ShardCount;
-                return string.Format("{0}_{1:D4}", config.BaseTableName, shardIndex);
-            }
-            else
-            {
-                // 使用拼接方式
-                return string.Format("{0}_{1}", config.BaseTableName, combinedValue);
-            }
-        }
-
-        private int ComputeHash(string value)
-        {
-            using (var md5 = MD5.Create())
-            {
-                var inputBytes = Encoding.UTF8.GetBytes(value);
-                var hashBytes = md5.ComputeHash(inputBytes);
-                return Math.Abs(BitConverter.ToInt32(hashBytes, 0));
-            }
-        }
 
         #endregion
     }

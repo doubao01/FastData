@@ -178,12 +178,22 @@ namespace FastData.SyncTool.WinForms.Services
                     }
                     TaskProgressChanged?.Invoke(task);
 
-                    // 2. 创建分表
-                    var tableNames = ShardingManager.GetAllTableNames<object>();
+                    // 2. 读取源表结构并创建分表
+                    var schema = await GetSourceTableSchemaAsync(conn, task.SourceTable, cancellationToken);
+                    if (schema.Columns.Count == 0)
+                    {
+                        throw new InvalidOperationException($"源表 {task.SourceTable} 不存在或没有可复制的列");
+                    }
+
+                    var strategy = ShardingManager.GetStrategy(shardingConfig.ShardingType);
+                    var tableNames = strategy.GetAllTableNames(shardingConfig) ?? new List<string>();
+                    var createdTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                     foreach (var tableName in tableNames)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        await CreateShardingTableAsync(conn, task.SourceTable, tableName, cancellationToken);
+                        await EnsureShardingTableAsync(conn, tableName, schema, cancellationToken);
+                        createdTables.Add(tableName);
                     }
 
                     // 3. 分批读取源数据并插入分表
@@ -208,9 +218,8 @@ namespace FastData.SyncTool.WinForms.Services
                         using (var cmd = new SqlCommand(selectSql, conn))
                         using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
                         {
-                            var schemaTable = reader.GetSchemaTable();
                             var columnNames = new List<string>();
-                            foreach (DataRow row in schemaTable.Rows)
+                            foreach (DataRow row in reader.GetSchemaTable().Rows)
                             {
                                 columnNames.Add(row["ColumnName"].ToString());
                             }
@@ -229,14 +238,23 @@ namespace FastData.SyncTool.WinForms.Services
                                     var entity = new Dictionary<string, object>();
                                     foreach (var colName in columnNames)
                                     {
-                                        entity[colName] = reader[colName];
+                                        var value = reader[colName];
+                                        entity[colName] = value is DBNull ? null : value;
                                     }
 
                                     // 确定目标分表
-                                    var targetTable = GetTargetTableName(shardingConfig, entity);
+                                    var targetTable = ShardingNameResolver.Resolve(
+                                        shardingConfig,
+                                        field => entity.TryGetValue(field, out var v) ? v : null);
+
+                                    // 按需创建目标分表（防止分表命名与枚举结果不一致）
+                                    if (createdTables.Add(targetTable))
+                                    {
+                                        await EnsureShardingTableAsync(conn, targetTable, schema, cancellationToken);
+                                    }
 
                                     // 插入分表
-                                    await InsertToShardingTableAsync(conn, targetTable, entity, columnNames, cancellationToken);
+                                    await InsertToShardingTableAsync(conn, targetTable, entity, schema, cancellationToken);
 
                                     task.SuccessRecords++;
                                 }
@@ -287,53 +305,152 @@ namespace FastData.SyncTool.WinForms.Services
         }
 
         /// <summary>
-        /// 创建分表
+        /// 源表结构信息
         /// </summary>
-        private async Task CreateShardingTableAsync(SqlConnection conn, string sourceTable, string targetTable, CancellationToken cancellationToken)
+        private sealed class TableSchemaInfo
         {
-            var schemaSql = $@"
-                SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
-                FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_NAME = '{sourceTable}'
-                ORDER BY ORDINAL_POSITION";
+            /// <summary>
+            /// 建表列定义
+            /// </summary>
+            public List<string> Columns { get; } = new List<string>();
 
-            var columns = new List<string>();
+            /// <summary>
+            /// 可插入的列（排除计算列与 rowversion 等只读列）
+            /// </summary>
+            public List<string> InsertColumns { get; } = new List<string>();
+
+            /// <summary>
+            /// 标识列名称（无则为 null）
+            /// </summary>
+            public string IdentityColumn { get; set; }
+        }
+
+        /// <summary>
+        /// 读取源表结构
+        /// </summary>
+        private async Task<TableSchemaInfo> GetSourceTableSchemaAsync(SqlConnection conn, string sourceTable, CancellationToken cancellationToken)
+        {
+            var schema = new TableSchemaInfo();
+            var schemaSql = @"
+                SELECT c.COLUMN_NAME,
+                       c.DATA_TYPE,
+                       c.CHARACTER_MAXIMUM_LENGTH,
+                       c.IS_NULLABLE,
+                       c.NUMERIC_PRECISION,
+                       c.NUMERIC_SCALE,
+                       c.DATETIME_PRECISION,
+                       COLUMNPROPERTY(OBJECT_ID(QUOTENAME(c.TABLE_SCHEMA) + '.' + QUOTENAME(c.TABLE_NAME)), c.COLUMN_NAME, 'IsIdentity') AS IS_IDENTITY,
+                       COLUMNPROPERTY(OBJECT_ID(QUOTENAME(c.TABLE_SCHEMA) + '.' + QUOTENAME(c.TABLE_NAME)), c.COLUMN_NAME, 'IsComputed') AS IS_COMPUTED
+                FROM INFORMATION_SCHEMA.COLUMNS c
+                WHERE c.TABLE_NAME = @table
+                ORDER BY c.ORDINAL_POSITION";
+
             using (var cmd = new SqlCommand(schemaSql, conn))
-            using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
             {
-                while (await reader.ReadAsync(cancellationToken))
+                cmd.Parameters.AddWithValue("@table", sourceTable);
+                using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
                 {
-                    var colName = reader.GetString(0);
-                    var dataType = reader.GetString(1);
-                    var maxLength = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2);
-                    var isNullable = reader.GetString(3) == "YES";
-
-                    var columnDef = $"[{colName}] {dataType}";
-                    if (maxLength.HasValue && maxLength.Value > 0)
+                    while (await reader.ReadAsync(cancellationToken))
                     {
-                        columnDef += $"({maxLength.Value})";
-                    }
-                    if (!isNullable)
-                    {
-                        columnDef += " NOT NULL";
-                    }
+                        var colName = reader.GetString(0);
+                        var dataType = reader.GetString(1);
+                        var maxLength = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2);
+                        var isNullable = reader.GetString(3) == "YES";
+                        var numericPrecision = reader.IsDBNull(4) ? (int?)null : Convert.ToInt32(reader.GetValue(4));
+                        var numericScale = reader.IsDBNull(5) ? (int?)null : Convert.ToInt32(reader.GetValue(5));
+                        var dateTimePrecision = reader.IsDBNull(6) ? (int?)null : Convert.ToInt32(reader.GetValue(6));
+                        var isIdentity = !reader.IsDBNull(7) && Convert.ToInt32(reader.GetValue(7)) == 1;
+                        var isComputed = !reader.IsDBNull(8) && Convert.ToInt32(reader.GetValue(8)) == 1;
 
-                    columns.Add(columnDef);
+                        var columnDef = $"{EscapeIdentifier(colName)} {BuildColumnType(dataType, maxLength, numericPrecision, numericScale, dateTimePrecision)}";
+                        if (isIdentity)
+                        {
+                            columnDef += " IDENTITY(1,1)";
+                            schema.IdentityColumn = colName;
+                        }
+                        if (!isNullable)
+                        {
+                            columnDef += " NOT NULL";
+                        }
+
+                        schema.Columns.Add(columnDef);
+
+                        var isReadOnlyType = dataType.Equals("timestamp", StringComparison.OrdinalIgnoreCase)
+                            || dataType.Equals("rowversion", StringComparison.OrdinalIgnoreCase);
+                        if (!isComputed && !isReadOnlyType)
+                        {
+                            schema.InsertColumns.Add(colName);
+                        }
+                    }
                 }
             }
 
-            if (columns.Count > 0)
-            {
-                var createSql = $@"
-                    IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='{targetTable}' AND xtype='U')
-                    CREATE TABLE [{targetTable}] (
-                        {string.Join(",\n                        ", columns)}
-                    );";
+            return schema;
+        }
 
-                using (var cmd = new SqlCommand(createSql, conn))
-                {
-                    await cmd.ExecuteNonQueryAsync(cancellationToken);
-                }
+        /// <summary>
+        /// 根据数据类型构建列类型定义
+        /// </summary>
+        private static string BuildColumnType(string dataType, int? maxLength, int? numericPrecision, int? numericScale, int? dateTimePrecision)
+        {
+            switch (dataType.ToLowerInvariant())
+            {
+                case "char":
+                case "varchar":
+                case "nchar":
+                case "nvarchar":
+                case "binary":
+                case "varbinary":
+                    if (maxLength == -1)
+                        return $"{dataType}(max)";
+                    if (maxLength.HasValue && maxLength.Value > 0)
+                        return $"{dataType}({maxLength.Value})";
+                    return dataType;
+
+                case "decimal":
+                case "numeric":
+                    if (numericPrecision.HasValue)
+                        return $"{dataType}({numericPrecision.Value},{numericScale ?? 0})";
+                    return dataType;
+
+                case "datetime2":
+                case "datetimeoffset":
+                case "time":
+                    if (dateTimePrecision.HasValue)
+                        return $"{dataType}({dateTimePrecision.Value})";
+                    return dataType;
+
+                default:
+                    return dataType;
+            }
+        }
+
+        /// <summary>
+        /// 转义 SQL Server 标识符
+        /// </summary>
+        private static string EscapeIdentifier(string name)
+        {
+            return "[" + (name ?? string.Empty).Replace("]", "]]") + "]";
+        }
+
+        /// <summary>
+        /// 确保分表存在（不存在则创建）
+        /// </summary>
+        private async Task EnsureShardingTableAsync(SqlConnection conn, string targetTable, TableSchemaInfo schema, CancellationToken cancellationToken)
+        {
+            if (schema.Columns.Count == 0)
+                return;
+
+            var createSql = $@"
+                IF OBJECT_ID(@table, 'U') IS NULL
+                CREATE TABLE {EscapeIdentifier(targetTable)} (
+                    {string.Join(",\n                    ", schema.Columns)}
+                );";
+
+            using (var cmd = new SqlCommand(createSql, conn))
+            {
+                cmd.Parameters.AddWithValue("@table", targetTable);
+                await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
         }
 
@@ -344,82 +461,47 @@ namespace FastData.SyncTool.WinForms.Services
             SqlConnection conn,
             string tableName,
             Dictionary<string, object> entity,
-            List<string> columnNames,
+            TableSchemaInfo schema,
             CancellationToken cancellationToken)
         {
-            var columns = string.Join(", ", columnNames.Select(c => $"[{c}]"));
-            var parameters = string.Join(", ", columnNames.Select(c => $"@{c}"));
-            var sql = $"INSERT INTO [{tableName}] ({columns}) VALUES ({parameters})";
+            var insertColumns = schema.InsertColumns;
+            if (insertColumns.Count == 0)
+                return;
 
-            using (var cmd = new SqlCommand(sql, conn))
+            var columns = string.Join(", ", insertColumns.Select(EscapeIdentifier));
+            var parameters = string.Join(", ", insertColumns.Select((c, i) => $"@p{i}"));
+            var sql = $"INSERT INTO {EscapeIdentifier(tableName)} ({columns}) VALUES ({parameters})";
+
+            var useIdentityInsert = !string.IsNullOrEmpty(schema.IdentityColumn);
+            if (useIdentityInsert)
             {
-                foreach (var colName in columnNames)
+                using (var identityCmd = new SqlCommand($"SET IDENTITY_INSERT {EscapeIdentifier(tableName)} ON", conn))
                 {
-                    var value = entity[colName] ?? DBNull.Value;
-                    cmd.Parameters.AddWithValue($"@{colName}", value);
+                    await identityCmd.ExecuteNonQueryAsync(cancellationToken);
                 }
-                await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
-        }
 
-        /// <summary>
-        /// 根据分表配置获取目标表名
-        /// </summary>
-        private string GetTargetTableName(ShardingConfig config, Dictionary<string, object> entity)
-        {
-            switch (config.ShardingType)
+            try
             {
-                case ShardingType.Time:
-                    var timeField = config.TimeConfig.TimeField;
-                    var timeValue = Convert.ToDateTime(entity[timeField]);
-                    return GetTimeTableName(config.BaseTableName, timeValue, config.TimeConfig.Granularity);
-
-                case ShardingType.Hash:
-                    var hashField = config.HashConfig.HashField;
-                    var hashValue = entity[hashField]?.ToString() ?? "";
-                    var hash = Math.Abs(hashValue.GetHashCode()) % config.HashConfig.ShardCount;
-                    return $"{config.BaseTableName}_{hash}";
-
-                case ShardingType.List:
-                    var listField = config.ListConfig.ListField;
-                    var listValue = entity[listField]?.ToString() ?? "";
-                    if (config.ListConfig.ValueMapping.TryGetValue(listValue, out var suffix))
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    for (var i = 0; i < insertColumns.Count; i++)
                     {
-                        return $"{config.BaseTableName}_{suffix}";
+                        var value = entity.TryGetValue(insertColumns[i], out var v) ? v : null;
+                        cmd.Parameters.AddWithValue($"@p{i}", value ?? DBNull.Value);
                     }
-                    return $"{config.BaseTableName}_other";
-
-                case ShardingType.Composite:
-                    var compositeKey = string.Join("_", config.CompositeConfig.CompositeFields.Select(f => entity[f]?.ToString() ?? ""));
-                    var compositeHash = Math.Abs(compositeKey.GetHashCode()) % config.CompositeConfig.ShardCount;
-                    return $"{config.BaseTableName}_{compositeHash}";
-
-                default:
-                    return config.BaseTableName;
+                    await cmd.ExecuteNonQueryAsync(cancellationToken);
+                }
             }
-        }
-
-        /// <summary>
-        /// 获取时间分表名
-        /// </summary>
-        private string GetTimeTableName(string baseTableName, DateTime time, TimeGranularity granularity)
-        {
-            switch (granularity)
+            finally
             {
-                case TimeGranularity.Day:
-                    return $"{baseTableName}_{time:yyyyMMdd}";
-                case TimeGranularity.Week:
-                    var weekStart = time.AddDays(-(int)time.DayOfWeek);
-                    return $"{baseTableName}_{weekStart:yyyyMMdd}";
-                case TimeGranularity.Month:
-                    return $"{baseTableName}_{time:yyyyMM}";
-                case TimeGranularity.Quarter:
-                    var quarter = (time.Month - 1) / 3 + 1;
-                    return $"{baseTableName}_{time.Year}Q{quarter}";
-                case TimeGranularity.Year:
-                    return $"{baseTableName}_{time.Year}";
-                default:
-                    return $"{baseTableName}_{time:yyyyMM}";
+                if (useIdentityInsert)
+                {
+                    using (var identityCmd = new SqlCommand($"SET IDENTITY_INSERT {EscapeIdentifier(tableName)} OFF", conn))
+                    {
+                        await identityCmd.ExecuteNonQueryAsync(CancellationToken.None);
+                    }
+                }
             }
         }
 

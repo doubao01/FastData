@@ -64,6 +64,11 @@ namespace FastData.Tooling.Sync
         public DateTime? LastSyncTime { get; set; }
 
         /// <summary>
+        /// 上次同步的主键最大值（主键增量模式，以字符串保存以避免溢出）
+        /// </summary>
+        public string LastPrimaryKeyValue { get; set; }
+
+        /// <summary>
         /// 是否首次同步
         /// </summary>
         public bool IsFirstSync { get; set; } = true;

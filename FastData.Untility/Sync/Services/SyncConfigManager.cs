@@ -16,6 +16,7 @@ namespace FastData.Tooling.Sync
     public class SyncConfigManager
     {
         private readonly string configPath;
+        private readonly object syncRoot = new object();
         private IDictionary<string, SyncTaskConfig> configs;
 
         public SyncConfigManager(string configFilePath = null)
@@ -27,59 +28,78 @@ namespace FastData.Tooling.Sync
 
         /// <summary>
         /// 加载所有配置
+        /// 
+        /// 加载失败时保留已有配置，避免因读取异常导致配置被清空。
         /// </summary>
         private void LoadConfigs()
         {
             if (!File.Exists(configPath))
                 return;
 
+            List<SyncTaskConfig> items = null;
             try
             {
                 var json = File.ReadAllText(configPath);
-                configs = new Dictionary<string, SyncTaskConfig>(StringComparer.OrdinalIgnoreCase);
 
 #if NETFRAMEWORK
                 var serializer = new JavaScriptSerializer();
-                var items = serializer.Deserialize<List<SyncTaskConfig>>(json);
+                items = serializer.Deserialize<List<SyncTaskConfig>>(json);
 #else
-                var items = JsonSerializer.Deserialize<List<SyncTaskConfig>>(json);
+                items = JsonSerializer.Deserialize<List<SyncTaskConfig>>(json);
 #endif
-
-                if (items != null)
-                {
-                    foreach (var item in items)
-                    {
-                        if (!string.IsNullOrEmpty(item.TaskId))
-                        {
-                            configs[item.TaskId] = item;
-                        }
-                    }
-                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Trace.WriteLine("SyncConfigManager: Failed to load configs - " + ex.Message);
-                configs = new Dictionary<string, SyncTaskConfig>(StringComparer.OrdinalIgnoreCase);
+                return;
+            }
+
+            if (items == null)
+                return;
+
+            var loaded = new Dictionary<string, SyncTaskConfig>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in items)
+            {
+                if (!string.IsNullOrEmpty(item.TaskId))
+                {
+                    loaded[item.TaskId] = item;
+                }
+            }
+
+            lock (syncRoot)
+            {
+                configs = loaded;
             }
         }
 
         /// <summary>
-        /// 保存所有配置
+        /// 保存所有配置（先写临时文件再替换，避免写入中断导致配置损坏）
         /// </summary>
         private void SaveConfigs()
         {
+            List<SyncTaskConfig> snapshot;
+            lock (syncRoot)
+            {
+                snapshot = new List<SyncTaskConfig>(configs.Values);
+            }
+
             var dir = Path.GetDirectoryName(configPath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
 #if NETFRAMEWORK
             var serializer = new JavaScriptSerializer();
-            var json = serializer.Serialize(new List<SyncTaskConfig>(configs.Values));
+            var json = serializer.Serialize(snapshot);
 #else
-            var json = JsonSerializer.Serialize(new List<SyncTaskConfig>(configs.Values));
+            var json = JsonSerializer.Serialize(snapshot);
 #endif
 
-            File.WriteAllText(configPath, json);
+            var tempPath = configPath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            if (File.Exists(configPath))
+                File.Replace(tempPath, configPath, null);
+            else
+                File.Move(tempPath, configPath);
         }
 
         /// <summary>
@@ -90,8 +110,11 @@ namespace FastData.Tooling.Sync
             if (string.IsNullOrEmpty(taskId))
                 return null;
 
-            SyncTaskConfig config;
-            return configs.TryGetValue(taskId, out config) ? config : null;
+            lock (syncRoot)
+            {
+                SyncTaskConfig config;
+                return configs.TryGetValue(taskId, out config) ? config : null;
+            }
         }
 
         /// <summary>
@@ -102,7 +125,10 @@ namespace FastData.Tooling.Sync
             if (config == null || string.IsNullOrEmpty(config.TaskId))
                 return;
 
-            configs[config.TaskId] = config;
+            lock (syncRoot)
+            {
+                configs[config.TaskId] = config;
+            }
             SaveConfigs();
         }
 
@@ -121,11 +147,28 @@ namespace FastData.Tooling.Sync
         }
 
         /// <summary>
+        /// 更新最后同步的主键最大值（主键增量模式）
+        /// </summary>
+        public void UpdateLastPrimaryKeyValue(string taskId, string primaryKeyValue)
+        {
+            var config = GetTaskConfig(taskId);
+            if (config != null)
+            {
+                config.LastPrimaryKeyValue = primaryKeyValue;
+                config.IsFirstSync = false;
+                SaveTaskConfig(config);
+            }
+        }
+
+        /// <summary>
         /// 获取所有任务配置
         /// </summary>
         public IList<SyncTaskConfig> GetAllTaskConfigs()
         {
-            return new List<SyncTaskConfig>(configs.Values);
+            lock (syncRoot)
+            {
+                return new List<SyncTaskConfig>(configs.Values);
+            }
         }
 
         /// <summary>
@@ -133,7 +176,10 @@ namespace FastData.Tooling.Sync
         /// </summary>
         public IList<SyncTaskConfig> GetAllConfigs()
         {
-            return new List<SyncTaskConfig>(configs.Values);
+            lock (syncRoot)
+            {
+                return new List<SyncTaskConfig>(configs.Values);
+            }
         }
 
         /// <summary>
@@ -144,11 +190,14 @@ namespace FastData.Tooling.Sync
             if (string.IsNullOrEmpty(taskId))
                 return;
 
-            if (configs.ContainsKey(taskId))
+            var removed = false;
+            lock (syncRoot)
             {
-                configs.Remove(taskId);
-                SaveConfigs();
+                removed = configs.Remove(taskId);
             }
+
+            if (removed)
+                SaveConfigs();
         }
 
         /// <summary>

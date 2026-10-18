@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Timers;
 using FastData.Tooling.Sync;
 
@@ -21,10 +22,16 @@ namespace FastData.SyncTool.WinForms.Services
         public string LastError { get; set; }
         public SyncTaskConfig SyncConfig { get; set; }
         public DataSyncOptions Options { get; set; }
+
+        /// <summary>
+        /// 执行中标记，用于防止定时器重入（0 = 空闲，1 = 执行中）
+        /// </summary>
+        internal int RunningFlag;
     }
 
     public class TaskSchedulerService : IDisposable
     {
+        private readonly object gate = new object();
         private readonly Dictionary<string, System.Timers.Timer> timers = new Dictionary<string, System.Timers.Timer>();
         private readonly Dictionary<string, ScheduledTask> tasks = new Dictionary<string, ScheduledTask>();
         private readonly SyncService syncService = new SyncService();
@@ -48,66 +55,104 @@ namespace FastData.SyncTool.WinForms.Services
                 SyncConfig = config,
                 Options = options
             };
-            tasks[config.TaskId] = task;
 
             var timer = new System.Timers.Timer(interval.TotalMilliseconds) { AutoReset = true };
             timer.Elapsed += (s, e) => ExecuteTask(task);
-            timers[config.TaskId] = timer;
 
-            if (config.IsEnabled && state == SchedulerState.Running) timer.Start();
+            lock (gate)
+            {
+                tasks[config.TaskId] = task;
+                timers[config.TaskId] = timer;
+
+                if (config.IsEnabled && state == SchedulerState.Running) timer.Start();
+            }
         }
 
         public void RemoveTask(string taskId)
         {
-            if (timers.ContainsKey(taskId)) { timers[taskId].Stop(); timers[taskId].Dispose(); timers.Remove(taskId); }
-            tasks.Remove(taskId);
+            lock (gate)
+            {
+                if (timers.ContainsKey(taskId)) { timers[taskId].Stop(); timers[taskId].Dispose(); timers.Remove(taskId); }
+                tasks.Remove(taskId);
+            }
         }
 
         public void StartAll()
         {
-            foreach (var kv in timers) { if (tasks.ContainsKey(kv.Key) && tasks[kv.Key].Enabled) kv.Value.Start(); }
-            state = SchedulerState.Running;
+            lock (gate)
+            {
+                foreach (var kv in timers) { if (tasks.ContainsKey(kv.Key) && tasks[kv.Key].Enabled) kv.Value.Start(); }
+                state = SchedulerState.Running;
+            }
             OnStateChanged();
         }
 
         public void StopAll()
         {
-            foreach (var kv in timers) kv.Value.Stop();
-            state = SchedulerState.Stopped;
+            lock (gate)
+            {
+                foreach (var kv in timers) kv.Value.Stop();
+                state = SchedulerState.Stopped;
+            }
             OnStateChanged();
         }
 
         public void PauseAll()
         {
-            foreach (var kv in timers) kv.Value.Stop();
-            state = SchedulerState.Paused;
+            lock (gate)
+            {
+                foreach (var kv in timers) kv.Value.Stop();
+                state = SchedulerState.Paused;
+            }
             OnStateChanged();
         }
 
         public void ResumeAll()
         {
-            foreach (var kv in timers) { if (tasks.ContainsKey(kv.Key) && tasks[kv.Key].Enabled) kv.Value.Start(); }
-            state = SchedulerState.Running;
+            lock (gate)
+            {
+                foreach (var kv in timers) { if (tasks.ContainsKey(kv.Key) && tasks[kv.Key].Enabled) kv.Value.Start(); }
+                state = SchedulerState.Running;
+            }
             OnStateChanged();
         }
 
         public void PauseTask(string taskId)
         {
-            if (timers.ContainsKey(taskId)) { timers[taskId].Stop(); if (tasks.ContainsKey(taskId)) tasks[taskId].Enabled = false; }
+            lock (gate)
+            {
+                if (timers.ContainsKey(taskId)) { timers[taskId].Stop(); if (tasks.ContainsKey(taskId)) tasks[taskId].Enabled = false; }
+            }
         }
 
         public void ResumeTask(string taskId)
         {
-            if (timers.ContainsKey(taskId)) { timers[taskId].Start(); if (tasks.ContainsKey(taskId)) tasks[taskId].Enabled = true; }
+            lock (gate)
+            {
+                if (timers.ContainsKey(taskId)) { timers[taskId].Start(); if (tasks.ContainsKey(taskId)) tasks[taskId].Enabled = true; }
+            }
         }
 
         public void ExecuteTaskNow(string taskId)
         {
-            if (tasks.ContainsKey(taskId)) ExecuteTask(tasks[taskId]);
+            ScheduledTask task;
+            lock (gate)
+            {
+                tasks.TryGetValue(taskId, out task);
+            }
+
+            if (task != null) ExecuteTask(task);
         }
 
         private void ExecuteTask(ScheduledTask task)
         {
+            if (task == null)
+                return;
+
+            // 防止定时器在上一次执行尚未完成时重入
+            if (Interlocked.Exchange(ref task.RunningFlag, 1) == 1)
+                return;
+
             try
             {
                 task.LastRunTime = DateTime.Now;
@@ -139,13 +184,26 @@ namespace FastData.SyncTool.WinForms.Services
                 task.LastError = ex.Message;
                 TaskFailed?.Invoke(this, task);
             }
+            finally
+            {
+                Interlocked.Exchange(ref task.RunningFlag, 0);
+            }
         }
 
-        public List<ScheduledTask> GetAllTasks() { return new List<ScheduledTask>(tasks.Values); }
+        public List<ScheduledTask> GetAllTasks()
+        {
+            lock (gate)
+            {
+                return new List<ScheduledTask>(tasks.Values);
+            }
+        }
 
         public ScheduledTask GetTask(string taskId)
         {
-            return tasks.ContainsKey(taskId) ? tasks[taskId] : null;
+            lock (gate)
+            {
+                return tasks.ContainsKey(taskId) ? tasks[taskId] : null;
+            }
         }
 
         private void OnStateChanged() { StateChanged?.Invoke(this, state); }
@@ -154,9 +212,12 @@ namespace FastData.SyncTool.WinForms.Services
         {
             if (!disposed)
             {
-                foreach (var t in timers.Values) { t.Stop(); t.Dispose(); }
-                timers.Clear();
-                tasks.Clear();
+                lock (gate)
+                {
+                    foreach (var t in timers.Values) { t.Stop(); t.Dispose(); }
+                    timers.Clear();
+                    tasks.Clear();
+                }
                 syncService.Dispose();
                 disposed = true;
             }

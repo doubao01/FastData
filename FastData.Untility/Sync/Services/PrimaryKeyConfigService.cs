@@ -78,53 +78,6 @@ namespace FastData.Tooling.Sync
         }
 
         /// <summary>
-        /// 构建主键 WHERE 条件
-        /// </summary>
-        public string BuildPrimaryKeyWhereClause(TablePrimaryKeyConfig config, IList<string> parameterNames)
-        {
-            if (config == null || config.PrimaryKeyColumns == null || config.PrimaryKeyColumns.Count == 0)
-                return "1=1";
-
-            var conditions = new List<string>();
-            for (var i = 0; i < config.PrimaryKeyColumns.Count; i++)
-            {
-                var column = config.PrimaryKeyColumns[i];
-                var paramName = parameterNames != null && i < parameterNames.Count 
-                    ? parameterNames[i] 
-                    : "@pk" + i;
-                conditions.Add(column + " = " + paramName);
-            }
-
-            return string.Join(" AND ", conditions);
-        }
-
-        /// <summary>
-        /// 构建主键比较条件（用于增量同步）
-        /// </summary>
-        public string BuildIncrementalWhereClause(TablePrimaryKeyConfig config, int lastIndex)
-        {
-            if (config == null || config.PrimaryKeyColumns == null || config.PrimaryKeyColumns.Count == 0)
-                return "1=1";
-
-            if (config.IsAutoIncrement && config.PrimaryKeyColumns.Count == 1)
-            {
-                return config.PrimaryKeyColumns[0] + " > @lastValue";
-            }
-
-            var conditions = new List<string>();
-            for (var i = 0; i < config.PrimaryKeyColumns.Count; i++)
-            {
-                var column = config.PrimaryKeyColumns[i];
-                if (i <= lastIndex)
-                    conditions.Add(column + " > @lastValue" + i);
-                else
-                    conditions.Add(column + " IS NOT NULL");
-            }
-
-            return string.Join(" OR ", conditions);
-        }
-
-        /// <summary>
         /// 导出配置为 SQL（创建配置表并插入数据）
         /// </summary>
         public string ExportToSql()

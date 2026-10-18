@@ -16,6 +16,10 @@ namespace FastData.Tooling.Sync
 
     /// <summary>
     /// 同步工具日志记录器
+    /// 
+    /// 支持两种写入方式：
+    /// 1. 全局默认文件（<see cref="Initialize"/> + <see cref="Info"/> 等）
+    /// 2. 任务级文件（<see cref="Write"/> 传入 taskId，各任务互不干扰，适合并发同步场景）
     /// </summary>
     public static class Logger
     {
@@ -31,16 +35,19 @@ namespace FastData.Tooling.Sync
         /// <param name="minLevel">最低日志级别</param>
         public static void Initialize(string logDirectory, LogLevel minLevel = LogLevel.Info)
         {
-            _logDirectory = logDirectory;
-            _minLevel = minLevel;
-
-            if (!Directory.Exists(_logDirectory))
+            lock (LockObj)
             {
-                Directory.CreateDirectory(_logDirectory);
-            }
+                _logDirectory = logDirectory;
+                _minLevel = minLevel;
 
-            var fileName = string.Format("sync_{0}.log", DateTime.Now.ToString("yyyyMMdd"));
-            _logFile = Path.Combine(_logDirectory, fileName);
+                if (!Directory.Exists(_logDirectory))
+                {
+                    Directory.CreateDirectory(_logDirectory);
+                }
+
+                var fileName = string.Format("sync_{0}.log", DateTime.Now.ToString("yyyyMMdd"));
+                _logFile = Path.Combine(_logDirectory, fileName);
+            }
         }
 
         /// <summary>
@@ -49,11 +56,12 @@ namespace FastData.Tooling.Sync
         /// <param name="taskId">任务 ID</param>
         public static void SetLogFile(string taskId)
         {
-            if (string.IsNullOrWhiteSpace(_logDirectory))
-                Initialize("./logs");
+            EnsureDirectory();
 
-            var fileName = string.Format("sync_{0}_{1}.log", DateTime.Now.ToString("yyyyMMdd"), taskId);
-            _logFile = Path.Combine(_logDirectory, fileName);
+            lock (LockObj)
+            {
+                _logFile = Path.Combine(_logDirectory, BuildTaskLogFileName(taskId));
+            }
         }
 
         /// <summary>
@@ -61,7 +69,7 @@ namespace FastData.Tooling.Sync
         /// </summary>
         public static void Debug(string message)
         {
-            Log(LogLevel.Debug, message);
+            Write(LogLevel.Debug, message, null);
         }
 
         /// <summary>
@@ -69,7 +77,7 @@ namespace FastData.Tooling.Sync
         /// </summary>
         public static void Info(string message)
         {
-            Log(LogLevel.Info, message);
+            Write(LogLevel.Info, message, null);
         }
 
         /// <summary>
@@ -77,7 +85,7 @@ namespace FastData.Tooling.Sync
         /// </summary>
         public static void Warn(string message)
         {
-            Log(LogLevel.Warn, message);
+            Write(LogLevel.Warn, message, null);
         }
 
         /// <summary>
@@ -85,7 +93,7 @@ namespace FastData.Tooling.Sync
         /// </summary>
         public static void Error(string message)
         {
-            Log(LogLevel.Error, message);
+            Write(LogLevel.Error, message, null);
         }
 
         /// <summary>
@@ -93,13 +101,18 @@ namespace FastData.Tooling.Sync
         /// </summary>
         public static void Error(string message, Exception ex)
         {
-            Log(LogLevel.Error, string.Format("{0} {1}", message, ex.ToString()));
+            Write(LogLevel.Error, string.Format("{0} {1}", message, ex.ToString()), null);
         }
 
-        private static void Log(LogLevel level, string message)
+        /// <summary>
+        /// 按任务写入日志（并发安全，不切换全局日志文件）
+        /// </summary>
+        /// <param name="level">日志级别</param>
+        /// <param name="message">日志内容</param>
+        /// <param name="taskId">任务 ID（为空则写入默认文件）</param>
+        public static void Write(LogLevel level, string message, string taskId)
         {
-            if (level < _minLevel)
-                return;
+            EnsureDirectory();
 
             var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             var levelStr = level.ToString().ToUpper().PadRight(5);
@@ -107,28 +120,53 @@ namespace FastData.Tooling.Sync
 
             lock (LockObj)
             {
+                if (level < _minLevel)
+                    return;
+
+                var targetFile = string.IsNullOrWhiteSpace(taskId)
+                    ? _logFile
+                    : Path.Combine(_logDirectory, BuildTaskLogFileName(taskId));
+
+                if (string.IsNullOrWhiteSpace(targetFile))
+                {
+                    targetFile = Path.Combine(_logDirectory, string.Format("sync_{0}.log", DateTime.Now.ToString("yyyyMMdd")));
+                }
+
                 try
                 {
-                    if (string.IsNullOrWhiteSpace(_logFile))
-                    {
-                        _logDirectory = "./logs";
-                        if (!Directory.Exists(_logDirectory))
-                            Directory.CreateDirectory(_logDirectory);
-                        _logFile = Path.Combine(_logDirectory, string.Format("sync_{0}.log", DateTime.Now.ToString("yyyyMMdd")));
-                    }
-
-                    File.AppendAllText(_logFile, logLine + Environment.NewLine);
+                    File.AppendAllText(targetFile, logLine + Environment.NewLine);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine("[LOGGER ERROR] Failed to write log: " + ex.Message);
                 }
-            }
 
-            if (_minLevel <= LogLevel.Debug)
-            {
-                Console.WriteLine(logLine);
+                if (_minLevel <= LogLevel.Debug)
+                {
+                    Console.WriteLine(logLine);
+                }
             }
+        }
+
+        private static void EnsureDirectory()
+        {
+            lock (LockObj)
+            {
+                if (string.IsNullOrWhiteSpace(_logDirectory))
+                {
+                    _logDirectory = "./logs";
+                }
+
+                if (!Directory.Exists(_logDirectory))
+                {
+                    Directory.CreateDirectory(_logDirectory);
+                }
+            }
+        }
+
+        private static string BuildTaskLogFileName(string taskId)
+        {
+            return string.Format("sync_{0}_{1}.log", DateTime.Now.ToString("yyyyMMdd"), taskId);
         }
     }
 }

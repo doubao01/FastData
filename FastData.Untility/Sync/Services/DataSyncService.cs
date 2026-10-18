@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
+using System.Threading;
 using System.Xml;
 
 namespace FastData.Tooling.Sync
@@ -47,8 +48,9 @@ namespace FastData.Tooling.Sync
         /// 同步单个表的数据
         /// </summary>
         /// <param name="options">同步选项</param>
+        /// <param name="cancellationToken">取消令牌（支持行级取消）</param>
         /// <returns>同步结果</returns>
-        public DataSyncResult SyncTable(DataSyncOptions options)
+        public DataSyncResult SyncTable(DataSyncOptions options, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (options == null)
                 throw new ArgumentNullException("options");
@@ -120,8 +122,22 @@ namespace FastData.Tooling.Sync
             var failedCount = 0;
             var retryCount = 0;
             var recoveredCount = 0;
-            
+            var skippedCount = 0;
+
+            // 根据目标库的参数上限与列数收敛批次大小，避免单条 INSERT 参数数超限
+            if (table.Columns.Count > 0)
+            {
+                var maxParams = GetMaxParametersPerStatement(options.TargetProvider);
+                var maxRowsPerBatch = Math.Max(1, maxParams / table.Columns.Count);
+                if (batchSize > maxRowsPerBatch)
+                {
+                    Log(SyncLogLevel.Warn, string.Format("批次大小 {0} 超过目标库参数上限，自动收敛为 {1}", batchSize, maxRowsPerBatch));
+                    batchSize = maxRowsPerBatch;
+                }
+            }
+
             Log(SyncLogLevel.Info, "[步骤 4/7] 正在连接目标数据库...");
+            using (var intermediate = OpenIntermediateConnection(options))
             using (var target = CreateConnection(options.TargetProvider, options.TargetConnectionString))
             {
                 Log(SyncLogLevel.Debug, string.Format("目标库Provider: {0}", options.TargetProvider));
@@ -132,7 +148,7 @@ namespace FastData.Tooling.Sync
                 if (options.ResumeFailedRecords)
                 {
                     Log(SyncLogLevel.Info, "[步骤 5/7] 正在恢复历史失败记录...");
-                    recoveredCount = ResumeFailedRecords(options, target, maxRetryCount);
+                    recoveredCount = ResumeFailedRecords(options, target, intermediate, maxRetryCount);
                     Log(SyncLogLevel.Info, string.Format("[步骤 5/7] 失败记录恢复完成，成功恢复 {0} 条", recoveredCount));
                 }
                 else
@@ -148,19 +164,25 @@ namespace FastData.Tooling.Sync
 
                 foreach (DataRow row in table.Rows)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     processedRows++;
                     int rowRetryCount = 0;
-                    
+
                     // 去重模式：逐行插入
                     if (options.AlwaysDeduplicate && !string.IsNullOrEmpty(options.PrimaryKeyColumns))
                     {
-                        if (TryInsertRowWithDedup(target, options.TargetTable, table, row, maxRetryCount, out rowRetryCount, options.PrimaryKeyColumns))
-                            writeCount++;
+                        if (TryInsertRowWithDedup(target, options.TargetTable, table, row, maxRetryCount, out rowRetryCount, out var inserted, options.PrimaryKeyColumns))
+                        {
+                            if (inserted)
+                                writeCount++;
+                            else
+                                skippedCount++;
+                        }
                         else
                         {
                             failedCount++;
                             Log(SyncLogLevel.Warn, string.Format("行插入失败 (行 {0}/{1})，已保存到失败记录", processedRows, table.Rows.Count));
-                            SaveFailedRecord(options, taskId, table, row);
+                            SaveFailedRecord(options, intermediate, taskId, table, row);
                         }
                     }
                     else
@@ -196,7 +218,7 @@ namespace FastData.Tooling.Sync
                                         Log(SyncLogLevel.Error, string.Format("逐行插入失败: {0}", rowEx.Message));
                                         failedCount++;
                                         rowFailedCount++;
-                                        SaveFailedRecord(options, taskId, table, batchRow);
+                                        SaveFailedRecord(options, intermediate, taskId, table, batchRow);
                                     }
                                 }
                                 Log(SyncLogLevel.Info, string.Format("逐行降级完成: 成功 {0} 行，失败 {1} 行", rowSuccessCount, rowFailedCount));
@@ -210,7 +232,7 @@ namespace FastData.Tooling.Sync
                     // 每处理 1000 行打印一次进度
                     if (processedRows % 1000 == 0)
                     {
-                        Log(SyncLogLevel.Info, string.Format("同步进度: 已处理 {0}/{1} 行，已写入 {2} 行，失败 {3} 行", 
+                        Log(SyncLogLevel.Info, string.Format("同步进度: 已处理 {0}/{1} 行，已写入 {2} 行，失败 {3} 行",
                             processedRows, table.Rows.Count, writeCount, failedCount));
                     }
                 }
@@ -246,7 +268,7 @@ namespace FastData.Tooling.Sync
                                 Log(SyncLogLevel.Error, string.Format("最终逐行插入失败: {0}", rowEx.Message));
                                 failedCount++;
                                 rowFailedCount++;
-                                SaveFailedRecord(options, taskId, table, batchRow);
+                                SaveFailedRecord(options, intermediate, taskId, table, batchRow);
                             }
                         }
                         Log(SyncLogLevel.Info, string.Format("最终逐行降级完成: 成功 {0} 行，失败 {1} 行", rowSuccessCount, rowFailedCount));
@@ -257,7 +279,7 @@ namespace FastData.Tooling.Sync
                 if (options.CleanIntermediateData)
                 {
                     Log(SyncLogLevel.Info, "[步骤 7/7] 正在清理中间库成功记录...");
-                    CleanIntermediateData(options);
+                    CleanIntermediateData(options, intermediate);
                     Log(SyncLogLevel.Info, "[步骤 7/7] 中间库清理完成");
                 }
                 else
@@ -273,33 +295,33 @@ namespace FastData.Tooling.Sync
                 ReadCount = table.Rows.Count,
                 WriteCount = writeCount,
                 FailedCount = failedCount,
+                SkippedCount = skippedCount,
                 RetryCount = retryCount,
                 RecoveredCount = recoveredCount,
-                Message = string.Format("同步完成 [读取 {0} 行，写入 {1} 行，失败 {2} 行，重试 {3} 次，恢复 {4} 条] [耗时 {5:F1}秒] [去重模式：{6}]",
-                    table.Rows.Count, writeCount, failedCount, retryCount, recoveredCount, syncDuration.TotalSeconds, options.AlwaysDeduplicate ? "是" : "否"),
+                Message = string.Format("同步完成 [读取 {0} 行，写入 {1} 行，跳过 {2} 行，失败 {3} 行，重试 {4} 次，恢复 {5} 条] [耗时 {6:F1}秒] [去重模式：{7}]",
+                    table.Rows.Count, writeCount, skippedCount, failedCount, retryCount, recoveredCount, syncDuration.TotalSeconds, options.AlwaysDeduplicate ? "是" : "否"),
                 MaxPkValue = GetMaxPrimaryKeyValueFromDb(options.SourceProvider, options.SourceConnectionString, options.SourceTable, options.PrimaryKeyColumns)
                     ?? GetMaxPrimaryKeyValue(table, options.PrimaryKeyColumns)
             };
 
-            // 更新同步时间
-            var syncTime = DateTime.Now;
+            // 更新同步进度
             if (options.ConfigManager != null && !string.IsNullOrEmpty(options.TaskId))
             {
                 if (options.EnableTimeRange && result.ReadCount > 0)
                 {
-                    options.ConfigManager.UpdateLastSyncTime(options.TaskId, syncTime);
-                    Log(SyncLogLevel.Debug, string.Format("已更新任务同步时间 (时间范围模式): {0}", syncTime.ToString("yyyy-MM-dd HH:mm:ss")));
+                    options.ConfigManager.UpdateLastSyncTime(options.TaskId, syncTime: DateTime.Now);
+                    Log(SyncLogLevel.Debug, string.Format("已更新任务同步时间 (时间范围模式): {0}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
                 }
                 else if (!options.EnableTimeRange && result.MaxPkValue.HasValue)
                 {
-                    var dt = DateTime.MinValue.AddTicks(result.MaxPkValue.Value);
-                    options.ConfigManager.UpdateLastSyncTime(options.TaskId, dt);
-                    Log(SyncLogLevel.Debug, string.Format("已更新任务同步时间 (主键增量模式): {0} (Ticks: {1})", dt.ToString("yyyy-MM-dd HH:mm:ss"), result.MaxPkValue.Value));
+                    // 以字符串形式保存主键最大值，避免 ticks 溢出（主键可能超出 DateTime 范围）
+                    options.ConfigManager.UpdateLastPrimaryKeyValue(options.TaskId, result.MaxPkValue.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    Log(SyncLogLevel.Debug, string.Format("已更新任务主键最大值 (主键增量模式): {0}", result.MaxPkValue.Value));
                 }
             }
 
             Log(SyncLogLevel.Info, string.Format("========== 同步任务完成 =========="));
-            Log(SyncLogLevel.Info, string.Format("最终统计: 读取 {0} 行，成功写入 {1} 行，失败 {2} 行", result.ReadCount, result.WriteCount, result.FailedCount));
+            Log(SyncLogLevel.Info, string.Format("最终统计: 读取 {0} 行，成功写入 {1} 行，跳过 {2} 行，失败 {3} 行", result.ReadCount, result.WriteCount, result.SkippedCount, result.FailedCount));
             Log(SyncLogLevel.Info, string.Format("重试统计: 重试 {0} 次，恢复 {1} 条失败记录", result.RetryCount, result.RecoveredCount));
             Log(SyncLogLevel.Info, string.Format("耗时统计: {0:F1} 秒", syncDuration.TotalSeconds));
             Log(SyncLogLevel.Info, string.Format("源SQL: {0}", sourceSql));
@@ -310,7 +332,7 @@ namespace FastData.Tooling.Sync
         /// <summary>
         /// 应用全局配置
         /// </summary>
-        private static void ApplyGlobalConfig(DataSyncOptions options)
+        internal static void ApplyGlobalConfig(DataSyncOptions options)
         {
             if (options.EnableGlobalConfig)
             {
@@ -318,8 +340,8 @@ namespace FastData.Tooling.Sync
                 if (options.GlobalRangeDays > 0)
                     options.RangeDays = options.GlobalRangeDays;
 
-                // 使用全局配置的去重模式
-                // AlwaysDeduplicate 已经设置
+                // 使用全局配置的去重模式（覆盖任务级别的去重设置）
+                options.AlwaysDeduplicate = options.GlobalAlwaysDeduplicate;
             }
         }
 
@@ -337,6 +359,46 @@ namespace FastData.Tooling.Sync
                 throw new ArgumentException("源表不能为空");
             if (string.IsNullOrWhiteSpace(options.TargetTable))
                 throw new ArgumentException("目标表不能为空");
+
+            // 校验标识符，避免 SQL 注入
+            ValidateIdentifier(options.SourceTable, "源表");
+            ValidateIdentifier(options.TargetTable, "目标表");
+
+            if (!string.IsNullOrEmpty(options.PrimaryKeyColumns))
+            {
+                foreach (var col in options.PrimaryKeyColumns.Split(','))
+                    ValidateIdentifier(col.Trim(), "主键列");
+            }
+
+            if (!string.IsNullOrEmpty(options.TimeColumn))
+                ValidateIdentifier(options.TimeColumn, "时间列");
+
+            if (options.SyncColumns != null)
+            {
+                foreach (var col in options.SyncColumns)
+                    ValidateIdentifier(col?.Trim(), "同步列");
+            }
+        }
+
+        /// <summary>
+        /// 校验 SQL 标识符，拒绝包含引号、分号、空白等可用于注入的字符
+        /// </summary>
+        internal static void ValidateIdentifier(string value, string label)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^[A-Za-z_][A-Za-z0-9_$#@\.]*$"))
+                throw new ArgumentException(string.Format("{0} 名称不合法: {1}", label, value));
+        }
+
+        /// <summary>
+        /// 获取目标库的参数前缀（Oracle 使用 ':'，其余使用 '@'）
+        /// </summary>
+        internal static string GetParameterPrefix(DbConnection connection)
+        {
+            var typeName = connection?.GetType().FullName ?? string.Empty;
+            return typeName.IndexOf("Oracle", StringComparison.OrdinalIgnoreCase) >= 0 ? ":" : "@";
         }
 
         private static void CreateIntermediateSchema(DataSyncOptions options)
@@ -369,19 +431,26 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
                     return sql + " where " + timeWhere;
             }
             
-            // 2. 静态数据：按主键增量（如果有 LastSyncTime 记录上次的主键最大值）
+            // 2. 静态数据：按主键增量（如果有 LastPkValue/LastSyncTime 记录上次的主键最大值）
             if (!options.EnableTimeRange && !string.IsNullOrEmpty(options.PrimaryKeyColumns) && options.IsAutoIncrementKey)
             {
-                // 从配置中获取上次的 pk 最大值（存储为 DateTime.Ticks）
                 var config = options.ConfigManager?.GetTaskConfig(options.TaskId);
-                if (config?.LastSyncTime.HasValue == true && config.LastSyncTime.Value > DateTime.MinValue)
+                var lastPkValue = config?.LastPrimaryKeyValue;
+                if (string.IsNullOrEmpty(lastPkValue) && config?.LastSyncTime.HasValue == true)
+                {
+                    // 兼容旧配置：主键最大值曾以 DateTime.Ticks 保存
+                    lastPkValue = config.LastSyncTime.Value.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                if (!string.IsNullOrEmpty(lastPkValue))
                 {
                     var pkColumns = options.PrimaryKeyColumns.Split(',');
+                    var prefix = GetParameterPrefix(command.Connection);
                     var parameter = command.CreateParameter();
-                    parameter.ParameterName = "@lastPkValue";
-                    parameter.Value = config.LastSyncTime.Value.Ticks;
+                    parameter.ParameterName = prefix + "lastPkValue";
+                    parameter.Value = long.TryParse(lastPkValue, out var parsedPk) ? (object)parsedPk : lastPkValue;
                     command.Parameters.Add(parameter);
-                    return sql + " where " + pkColumns[0] + " > @lastPkValue";
+                    return sql + " where " + pkColumns[0] + " > " + prefix + "lastPkValue";
                 }
             }
 
@@ -414,44 +483,19 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             if (startTime == DateTime.MinValue)
                 return null;
 
+            var prefix = GetParameterPrefix(command.Connection);
+
             var parameterStart = command.CreateParameter();
-            parameterStart.ParameterName = "@startTime";
+            parameterStart.ParameterName = prefix + "startTime";
             parameterStart.Value = startTime;
             command.Parameters.Add(parameterStart);
 
             var parameterEnd = command.CreateParameter();
-            parameterEnd.ParameterName = "@endTime";
+            parameterEnd.ParameterName = prefix + "endTime";
             parameterEnd.Value = endTime;
             command.Parameters.Add(parameterEnd);
 
-            return timeColumn + " >= @startTime AND " + timeColumn + " <= @endTime";
-        }
-
-        private static string BuildPrimaryKeyIncrementalSql(TablePrimaryKeyConfig pkConfig, string lastValue, DbCommand command)
-        {
-            if (pkConfig.IsAutoIncrement && pkConfig.PrimaryKeyColumns.Count == 1)
-            {
-                var parameter = command.CreateParameter();
-                parameter.ParameterName = "@lastValue";
-                parameter.Value = lastValue;
-                command.Parameters.Add(parameter);
-                return pkConfig.PrimaryKeyColumns[0] + " > @lastValue";
-            }
-
-            var conditions = new System.Collections.Generic.List<string>();
-            var lastValues = lastValue.Split('|');
-            for (var i = 0; i < pkConfig.PrimaryKeyColumns.Count; i++)
-            {
-                var column = pkConfig.PrimaryKeyColumns[i];
-                var value = i < lastValues.Length ? lastValues[i] : lastValues[lastValues.Length - 1];
-                var parameter = command.CreateParameter();
-                parameter.ParameterName = "@lastValue" + i;
-                parameter.Value = value;
-                command.Parameters.Add(parameter);
-                conditions.Add(column + " > @lastValue" + i);
-            }
-
-            return string.Join(" OR ", conditions);
+            return timeColumn + " >= " + prefix + "startTime AND " + timeColumn + " <= " + prefix + "endTime";
         }
 
         private static DbConnection CreateConnection(string provider, string connectionString)
@@ -465,9 +509,46 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             return connection;
         }
 
-        private static bool TryInsertRowWithDedup(DbConnection connection, string tableName, DataTable table, DataRow row, int maxRetryCount, out int retryCount, string primaryKeyColumns = null)
+        /// <summary>
+        /// 打开中间库连接；未配置中间库时返回 null
+        /// </summary>
+        private static DbConnection OpenIntermediateConnection(DataSyncOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(options.IntermediateProvider) || string.IsNullOrWhiteSpace(options.IntermediateConnectionString))
+                return null;
+
+            var connection = CreateConnection(options.IntermediateProvider, options.IntermediateConnectionString);
+            connection.Open();
+            return connection;
+        }
+
+        /// <summary>
+        /// 获取单条 SQL 语句允许的最大参数个数（按目标库类型）
+        /// </summary>
+        internal static int GetMaxParametersPerStatement(string provider)
+        {
+            if (string.IsNullOrEmpty(provider))
+                return 900;
+
+            var name = provider.ToLowerInvariant();
+            if (name.Contains("sqlite"))
+                return 900;
+            if (name.Contains("mysql"))
+                return 60000;
+            if (name.Contains("npgsql") || name.Contains("postgres"))
+                return 60000;
+            if (name.Contains("sqlclient") || name.Contains("sqlserver"))
+                return 2000;
+            if (name.Contains("oracle"))
+                return 1000;
+
+            return 900;
+        }
+
+        private static bool TryInsertRowWithDedup(DbConnection connection, string tableName, DataTable table, DataRow row, int maxRetryCount, out int retryCount, out bool inserted, string primaryKeyColumns = null)
         {
             retryCount = 0;
+            inserted = false;
             for (var i = 0; i <= maxRetryCount; i++)
             {
                 try
@@ -480,6 +561,7 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
                     else
                     {
                         InsertRow(connection, tableName, table, row);
+                        inserted = true;
                         return true;
                     }
                 }
@@ -496,14 +578,14 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             return false;
         }
 
-        private static bool TryInsertRow(DbConnection connection, string tableName, DataTable table, DataRow row, int maxRetryCount, out int retryCount)
+        private static bool TryInsertRow(DbConnection connection, string tableName, DataTable table, DataRow row, int maxRetryCount, out int retryCount, string primaryKeyColumns = null)
         {
             retryCount = 0;
             for (var i = 0; i <= maxRetryCount; i++)
             {
                 try
                 {
-                    UpsertRow(connection, tableName, table, row);
+                    UpsertRow(connection, tableName, table, row, primaryKeyColumns);
                     return true;
                 }
                 catch (Exception ex)
@@ -536,11 +618,12 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
 
             using (var command = connection.CreateCommand())
             {
+                var prefix = GetParameterPrefix(connection);
                 var conditions = new System.Collections.Generic.List<string>();
                 for (var i = 0; i < pkColumns.Count; i++)
                 {
                     var column = pkColumns[i];
-                    var paramName = "@pk" + i;
+                    var paramName = prefix + "pk" + i;
                     conditions.Add(column + " = " + paramName);
 
                     var parameter = command.CreateParameter();
@@ -559,6 +642,7 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
         {
             using (var command = connection.CreateCommand())
             {
+                var prefix = GetParameterPrefix(connection);
                 var pkColumns = GetPrimaryKeyColumns(table, primaryKeyColumns);
                 var setClauses = new System.Collections.Generic.List<string>();
                 var whereClauses = new System.Collections.Generic.List<string>();
@@ -566,7 +650,7 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
                 for (var i = 0; i < table.Columns.Count; i++)
                 {
                     var column = table.Columns[i].ColumnName;
-                    var paramName = "@p" + i;
+                    var paramName = prefix + "p" + i;
                     setClauses.Add(column + " = " + paramName);
 
                     var parameter = command.CreateParameter();
@@ -578,7 +662,7 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
                 for (var i = 0; i < pkColumns.Count; i++)
                 {
                     var column = pkColumns[i];
-                    var paramName = "@pk" + i;
+                    var paramName = prefix + "pk" + i;
                     whereClauses.Add(column + " = " + paramName);
 
                     var parameter = command.CreateParameter();
@@ -614,29 +698,56 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             return pkColumns;
         }
 
-        private static long? GetMaxPrimaryKeyValue(DataTable table, string pkColumnsStr)
+        internal static long? GetMaxPrimaryKeyValue(DataTable table, string pkColumnsStr)
         {
             if (table.Rows.Count == 0 || string.IsNullOrEmpty(pkColumnsStr))
                 return null;
 
             var pkColumn = pkColumnsStr.Split(',')[0].Trim();
+            if (!table.Columns.Contains(pkColumn))
+                return null;
+
             long maxValue = 0;
             bool hasValue = false;
 
             foreach (DataRow row in table.Rows)
             {
-                if (row[pkColumn] != DBNull.Value)
+                if (row[pkColumn] == DBNull.Value)
+                    continue;
+
+                // 非数值主键（如 GUID/字符串）无法作为增量游标，安全跳过
+                if (!TryConvertToInt64(row[pkColumn], out var value))
+                    return null;
+
+                if (!hasValue || value > maxValue)
                 {
-                    var value = Convert.ToInt64(row[pkColumn]);
-                    if (!hasValue || value > maxValue)
-                    {
-                        maxValue = value;
-                        hasValue = true;
-                    }
+                    maxValue = value;
+                    hasValue = true;
                 }
             }
 
             return hasValue ? maxValue : (long?)null;
+        }
+
+        internal static bool TryConvertToInt64(object value, out long result)
+        {
+            result = 0;
+            if (value == null || value == DBNull.Value)
+                return false;
+
+            try
+            {
+                if (value is long l) { result = l; return true; }
+                if (value is int i) { result = i; return true; }
+                if (value is short s) { result = s; return true; }
+                if (value is byte b) { result = b; return true; }
+                result = Convert.ToInt64(value, System.Globalization.CultureInfo.InvariantCulture);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -658,8 +769,8 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
                     {
                         command.CommandText = string.Format("SELECT MAX({0}) FROM {1}", pkColumn, tableName);
                         var result = command.ExecuteScalar();
-                        if (result != null && result != DBNull.Value)
-                            return Convert.ToInt64(result);
+                        if (result != null && result != DBNull.Value && TryConvertToInt64(result, out var value))
+                            return value;
                     }
                 }
             }
@@ -671,16 +782,12 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             return null;
         }
 
-        private static void SaveFailedRecord(DataSyncOptions options, string taskId, DataTable table, DataRow row)
+        private static void SaveFailedRecord(DataSyncOptions options, DbConnection intermediateConnection, string taskId, DataTable table, DataRow row)
         {
-            if (string.IsNullOrWhiteSpace(options.IntermediateProvider) || string.IsNullOrWhiteSpace(options.IntermediateConnectionString))
+            if (intermediateConnection == null)
                 return;
 
-            using (var connection = CreateConnection(options.IntermediateProvider, options.IntermediateConnectionString))
-            {
-                connection.Open();
-                SaveFailedRecord(connection, taskId, SerializeRow(table, row));
-            }
+            SaveFailedRecord(intermediateConnection, taskId, SerializeRow(table, row));
         }
 
         private static void SaveFailedRecord(DbConnection connection, string taskId, string payload)
@@ -699,29 +806,32 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             }
         }
 
-        private static int ResumeFailedRecords(DataSyncOptions options, DbConnection target, int maxRetryCount)
+        private static int ResumeFailedRecords(DataSyncOptions options, DbConnection target, DbConnection intermediate, int maxRetryCount)
         {
-            if (string.IsNullOrWhiteSpace(options.IntermediateProvider) || string.IsNullOrWhiteSpace(options.IntermediateConnectionString))
+            if (intermediate == null)
                 return 0;
 
             var recoveredCount = 0;
-            using (var intermediate = CreateConnection(options.IntermediateProvider, options.IntermediateConnectionString))
+            var failedRecords = LoadFailedRecords(intermediate);
+            foreach (DataRow row in failedRecords.Rows)
             {
-                intermediate.Open();
-                var failedRecords = LoadFailedRecords(intermediate);
-                foreach (DataRow row in failedRecords.Rows)
-                {
-                    var payload = Convert.ToString(row["payload"]);
-                    var data = BuildDataTableFromPayload(payload);
-                    if (data.Rows.Count == 0)
-                        continue;
+                var recordId = Convert.ToString(row["record_id"]);
+                var payload = Convert.ToString(row["payload"]);
+                var data = BuildDataTableFromPayload(payload);
+                if (data.Rows.Count == 0)
+                    continue;
 
-                    int rowRetryCount;
-                    if (TryInsertRow(target, options.TargetTable, data, data.Rows[0], maxRetryCount, out rowRetryCount))
-                    {
-                        MarkRecordSuccess(intermediate, Convert.ToString(row["record_id"]));
-                        recoveredCount++;
-                    }
+                int rowRetryCount;
+                // 使用配置的主键列进行去重，避免重复插入导致主键冲突
+                if (TryInsertRow(target, options.TargetTable, data, data.Rows[0], maxRetryCount, out rowRetryCount, options.PrimaryKeyColumns))
+                {
+                    MarkRecordSuccess(intermediate, recordId);
+                    recoveredCount++;
+                }
+                else
+                {
+                    // 恢复失败：累加重试次数，便于后续排查
+                    IncrementRecordRetry(intermediate, recordId, "恢复失败记录时写入目标库失败");
                 }
             }
 
@@ -750,27 +860,39 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             }
         }
 
+        private static void IncrementRecordRetry(DbConnection connection, string recordId, string errorMessage)
+        {
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "update fd_sync_record set retry_count = retry_count + 1, error_message = @error_message where record_id = @record_id";
+                AddParameter(command, "@record_id", recordId);
+                AddParameter(command, "@error_message", errorMessage);
+                command.ExecuteNonQuery();
+            }
+        }
+
         private static void InsertRowBatch(DbConnection connection, string tableName, DataTable table, List<DataRow> rows)
         {
             if (rows.Count == 0) return;
 
             using (var command = connection.CreateCommand())
             {
+                var prefix = GetParameterPrefix(connection);
                 var columns = new string[table.Columns.Count];
+                var valueRows = new List<string>();
+                var paramIndex = 0;
+
                 for (var i = 0; i < table.Columns.Count; i++)
                 {
                     columns[i] = table.Columns[i].ColumnName;
                 }
-
-                var valueRows = new List<string>();
-                var paramIndex = 0;
 
                 foreach (var row in rows)
                 {
                     var rowParams = new List<string>();
                     for (var i = 0; i < table.Columns.Count; i++)
                     {
-                        var paramName = "@p" + paramIndex++;
+                        var paramName = prefix + "p" + paramIndex++;
                         rowParams.Add(paramName);
 
                         var parameter = command.CreateParameter();
@@ -790,12 +912,13 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
         {
             using (var command = connection.CreateCommand())
             {
+                var prefix = GetParameterPrefix(connection);
                 var columns = new string[table.Columns.Count];
                 var parameters = new string[table.Columns.Count];
                 for (var i = 0; i < table.Columns.Count; i++)
                 {
                     var column = table.Columns[i].ColumnName;
-                    var parameterName = "@p" + i;
+                    var parameterName = prefix + "p" + i;
                     columns[i] = column;
                     parameters[i] = parameterName;
 
@@ -828,17 +951,13 @@ private static string BuildSourceSql(DataSyncOptions options, DbCommand command)
             return DataRowSerializer.Deserialize(payload);
         }
 
-        private static void CleanIntermediateData(DataSyncOptions options)
+        private static void CleanIntermediateData(DataSyncOptions options, DbConnection intermediate)
         {
-            if (string.IsNullOrWhiteSpace(options.IntermediateProvider) || string.IsNullOrWhiteSpace(options.IntermediateConnectionString))
+            if (intermediate == null)
                 return;
 
-            using (var connection = CreateConnection(options.IntermediateProvider, options.IntermediateConnectionString))
-            {
-                connection.Open();
-                ExecuteIgnoreError(connection, "delete from fd_sync_record where status = 'Success'");
-                ExecuteIgnoreError(connection, "delete from fd_sync_batch where status = 'Success'");
-            }
+            ExecuteIgnoreError(intermediate, "delete from fd_sync_record where status = 'Success'");
+            ExecuteIgnoreError(intermediate, "delete from fd_sync_batch where status = 'Success'");
         }
 
         private static void ExecuteIgnoreError(DbConnection connection, string sql)

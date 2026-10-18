@@ -49,10 +49,15 @@ namespace FastData.Tooling.Sync
 
         /// <summary>
         /// 是否启用全局配置模式
-        /// true = 所有任务使用统一的全局配置（GlobalRangeDays, AlwaysDeduplicate）
+        /// true = 所有任务使用统一的全局配置（GlobalRangeDays, GlobalAlwaysDeduplicate）
         /// false = 每个任务使用自己的配置
         /// </summary>
         public bool EnableGlobalConfig { get; set; } = false;
+
+        /// <summary>
+        /// 全局去重模式（EnableGlobalConfig=true 时覆盖任务级别的 AlwaysDeduplicate）
+        /// </summary>
+        public bool GlobalAlwaysDeduplicate { get; set; } = true;
 
         public DateTime? EndTime { get; set; }
 

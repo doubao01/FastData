@@ -2,6 +2,29 @@
 
 本文档记录 FastData 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## [2.8.1] - 2026-10-18
+
+### Fixed
+
+- **数据同步工具与分表解析（FastData.Untility/Sync & FastData.SyncTool.WinForms）**
+  - **分表命名统一**：新增 `ShardingNameResolver`，统一时间、哈希、列表、复合等策略的分表名解析规则，替换各策略内独立脆弱的拼接逻辑
+  - **SQL 标识符转义安全**：对源表、目标表及所有同步列名增加统一白名单/字符校验及双引号/方括号安全转义，防止 SQL 注入
+  - **跨数据库 Provider 规范化**：`DatabaseProviderMappings` 新增 `NormalizeProviderName`，界面下拉对齐驱动 Invariant Name，修复驱动解析失败
+  - **分页与偏移计算**：修复 `DataSyncService` 最后一页取模截断导致漏同步数据的问题，修复主键增量排序方向与分页条件
+  - **游标持久化类型溢出**：主键增量同步使用 `LastPrimaryKeyValue` 字符串游标取代基于 `DateTime.Ticks` 的混用，避免大数值溢出与类型失真
+  - **全量去重可配置性**：`DataSyncOptions` 引入 `GlobalAlwaysDeduplicate` 选项，支持显式控制中间库去重行为
+  - **日志服务与线程安全**：重构 `Logger` 采用线程安全队列与单消费者后台写入，修复死锁与并发写冲突
+  - **配置管理与异常处理**：优化 `SyncConfigManager` 配置文件缺失/损坏时的回退与原子写入，避免配置静默丢失
+  - **WinForms 界面与调度解耦**：移除主界面阻塞式轮询，重构调度服务与取消令牌传递，修补分表任务多余参数编译错误
+  - **文档准确性**：重写 `FastData.SyncTool.WinForms/README.md`，纠正虚构的项目结构、错误命名空间与不匹配的配置示例
+
+### Added
+
+- **单元测试**
+  - 新增 `ShardingNameResolverTests` 覆盖时间/哈希/列表/复合全策略分表名生成
+  - 新增 `DatabaseProviderMappingsTests` 覆盖 Invariant 名映射与短名容错
+  - 新增 `SyncConfigManagerTests`、`LoggerTests`、`DataSyncServiceHelperTests`、`DataRowSerializerTypeTests` 覆盖同步服务辅助逻辑
+
 ## [2.8.0] - 2026-10-18
 
 ### Fixed

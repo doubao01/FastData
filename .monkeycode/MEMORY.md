@@ -54,6 +54,7 @@
   - 使用 NuGet 包管理，SDK-style csproj 格式
   - **禁止使用不兼容 net452 的包**：Microsoft.Data.SqlClient、MySqlConnector 2.x、Microsoft.Data.Sqlite
   - **推荐 net452 兼容包**：System.Data.SqlClient、MySql.Data.MySqlClient、System.Data.SQLite、Npgsql 4.0.x
+  - FastData/FastData.Untility 的 csproj 设 <GenerateAssemblyInfo>false</GenerateAssemblyInfo>，csproj 中的 <InternalsVisibleTo> 项不会生效；需在对应项目 Properties/AssemblyInfo.cs 手动声明 [assembly: InternalsVisibleTo("FastData.Tests")]
 
 **项目结构**
 - Date: 2026-05-29

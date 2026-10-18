@@ -14,9 +14,8 @@ namespace FastData.SyncTool.WinForms.Services
 
         public DatabaseService()
         {
-            // 优先从配置文件获取连接字符串
-            var configConn = FastDataConfig.GetConnectionString("SqlServer");
-            _connectionString = configConn ?? "server=localhost;database=FastDataDemo;uid=sa;pwd=FastData@Test123;TrustServerCertificate=true";
+            // 从配置文件获取连接字符串；不内置任何默认凭据，避免密钥硬编码
+            _connectionString = FastDataConfig.GetConnectionString("SqlServer");
         }
 
         public DatabaseService(string connectionString)
@@ -24,10 +23,19 @@ namespace FastData.SyncTool.WinForms.Services
             _connectionString = connectionString;
         }
 
+        private string RequireConnectionString()
+        {
+            if (string.IsNullOrWhiteSpace(_connectionString))
+            {
+                throw new InvalidOperationException("未配置数据库连接字符串。请在配置文件中设置名为 'SqlServer' 的连接字符串，或使用带连接字符串参数的构造函数。");
+            }
+            return _connectionString;
+        }
+
         public List<string> GetTableList()
         {
             var tables = new List<string>();
-            using (var conn = new SqlConnection(_connectionString))
+            using (var conn = new SqlConnection(RequireConnectionString()))
             {
                 conn.Open();
                 using (var cmd = conn.CreateCommand())
@@ -47,7 +55,7 @@ namespace FastData.SyncTool.WinForms.Services
 
         public async Task<int> GetTableCountAsync(string tableName)
         {
-            using (var conn = new SqlConnection(_connectionString))
+            using (var conn = new SqlConnection(RequireConnectionString()))
             {
                 await conn.OpenAsync();
                 using (var cmd = conn.CreateCommand())
@@ -62,7 +70,7 @@ namespace FastData.SyncTool.WinForms.Services
         public async Task<DataTable> GetTableDataAsync(string tableName, int offset, int batchSize)
         {
             var dataTable = new DataTable();
-            using (var conn = new SqlConnection(_connectionString))
+            using (var conn = new SqlConnection(RequireConnectionString()))
             {
                 await conn.OpenAsync();
                 using (var cmd = conn.CreateCommand())

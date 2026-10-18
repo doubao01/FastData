@@ -1,5 +1,7 @@
 using System;
 using System.Windows.Forms;
+using FastData.Database;
+using FastData.Infrastructure;
 
 namespace FastData.SyncTool.WinForms
 {
@@ -40,17 +42,19 @@ namespace FastData.SyncTool.WinForms
             AddHeader(panel, "中间库（可选）", row++);
             AddRow(panel, row++, "Provider:", intermediateProviderBox, intermediateConnectionBox, null);
 
-            sourceProviderBox.Items.AddRange(new object[] { "SqlServer", "MySql", "PostgreSql" });
+            sourceProviderBox.Items.AddRange(DatabaseProviderMappings.AllProviderNames);
+            var defaultProvider = DatabaseProviderMappings.NormalizeProviderName("SqlServer");
+            var defaultIndex = sourceProviderBox.Items.IndexOf(defaultProvider);
             sourceProviderBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            sourceProviderBox.SelectedIndex = 0;
+            sourceProviderBox.SelectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
 
-            targetProviderBox.Items.AddRange(new object[] { "SqlServer", "MySql", "PostgreSql" });
+            targetProviderBox.Items.AddRange(DatabaseProviderMappings.AllProviderNames);
             targetProviderBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            targetProviderBox.SelectedIndex = 0;
+            targetProviderBox.SelectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
 
-            intermediateProviderBox.Items.AddRange(new object[] { "SqlServer", "MySql", "PostgreSql" });
+            intermediateProviderBox.Items.AddRange(DatabaseProviderMappings.AllProviderNames);
             intermediateProviderBox.DropDownStyle = ComboBoxStyle.DropDownList;
-            intermediateProviderBox.SelectedIndex = 0;
+            intermediateProviderBox.SelectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
 
             sourceConnectionBox.Width = 300;
             targetConnectionBox.Width = 300;
@@ -99,7 +103,8 @@ namespace FastData.SyncTool.WinForms
             }
             try
             {
-                using (var conn = System.Data.Common.DbProviderFactories.GetFactory(provider).CreateConnection())
+                var invariantName = DatabaseProviderMappings.NormalizeProviderName(provider) ?? provider;
+                using (var conn = DbProviderAutoRegistrar.GetFactory(invariantName).CreateConnection())
                 {
                     conn.ConnectionString = connStr;
                     conn.Open();
@@ -112,15 +117,26 @@ namespace FastData.SyncTool.WinForms
             }
         }
 
-        public string SourceProvider { get { return sourceProviderBox.SelectedItem?.ToString(); } }
+        public string SourceProvider { get { return DatabaseProviderMappings.NormalizeProviderName(sourceProviderBox.SelectedItem?.ToString()); } }
         public string SourceConnectionString { get { return sourceConnectionBox.Text; } }
-        public string TargetProvider { get { return targetProviderBox.SelectedItem?.ToString(); } }
+        public string TargetProvider { get { return DatabaseProviderMappings.NormalizeProviderName(targetProviderBox.SelectedItem?.ToString()); } }
         public string TargetConnectionString { get { return targetConnectionBox.Text; } }
-        public string IntermediateProvider { get { return intermediateProviderBox.SelectedItem?.ToString(); } }
+        public string IntermediateProvider { get { return DatabaseProviderMappings.NormalizeProviderName(intermediateProviderBox.SelectedItem?.ToString()); } }
         public string IntermediateConnectionString { get { return intermediateConnectionBox.Text; } }
 
-        public void SetSource(string provider, string connStr) { sourceProviderBox.SelectedItem = provider; sourceConnectionBox.Text = connStr ?? ""; }
-        public void SetTarget(string provider, string connStr) { targetProviderBox.SelectedItem = provider; targetConnectionBox.Text = connStr ?? ""; }
-        public void SetIntermediate(string provider, string connStr) { intermediateProviderBox.SelectedItem = provider; intermediateConnectionBox.Text = connStr ?? ""; }
+        public void SetSource(string provider, string connStr) { SelectProvider(sourceProviderBox, provider); sourceConnectionBox.Text = connStr ?? ""; }
+        public void SetTarget(string provider, string connStr) { SelectProvider(targetProviderBox, provider); targetConnectionBox.Text = connStr ?? ""; }
+        public void SetIntermediate(string provider, string connStr) { SelectProvider(intermediateProviderBox, provider); intermediateConnectionBox.Text = connStr ?? ""; }
+
+        private static void SelectProvider(ComboBox box, string provider)
+        {
+            var normalized = DatabaseProviderMappings.NormalizeProviderName(provider);
+            if (string.IsNullOrEmpty(normalized))
+                return;
+
+            var index = box.Items.IndexOf(normalized);
+            if (index >= 0)
+                box.SelectedIndex = index;
+        }
     }
 }

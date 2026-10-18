@@ -43,7 +43,7 @@ namespace FastData.Sharding.Strategies
                 throw new InvalidOperationException(string.Format("实体类型 {0} 中找不到字段 {1}", entityType.Name, timeField));
 
             var timeValue = (DateTime)property.GetValue(entity);
-            return GetTableNameByTime(config, timeValue);
+            return ShardingNameResolver.ResolveTime(config, timeValue);
         }
 
         /// <summary>
@@ -133,42 +133,7 @@ namespace FastData.Sharding.Strategies
 
         private string GetTableNameByTime(ShardingConfig config, DateTime time)
         {
-            var suffix = config.SuffixFormat;
-
-            if (string.IsNullOrEmpty(suffix))
-            {
-                suffix = config.TimeConfig.Granularity switch
-                {
-                    TimeGranularity.Day => "yyyyMMdd",
-                    TimeGranularity.Week => "yyyyww",
-                    TimeGranularity.Month => "yyyyMM",
-                    TimeGranularity.Quarter => "yyyyqQ",
-                    TimeGranularity.Year => "yyyy",
-                    _ => "yyyyMMdd"
-                };
-            }
-
-            var suffixStr = FormatTimeByGranularity(time, config.TimeConfig.Granularity, suffix);
-            return string.Format("{0}_{1}", config.BaseTableName, suffixStr);
-        }
-
-        private string FormatTimeByGranularity(DateTime time, TimeGranularity granularity, string format)
-        {
-            return granularity switch
-            {
-                TimeGranularity.Day => time.ToString("yyyyMMdd"),
-                TimeGranularity.Week => string.Format("{0:yyyy}W{1:D2}", time, GetWeekOfYear(time)),
-                TimeGranularity.Month => time.ToString("yyyyMM"),
-                TimeGranularity.Quarter => string.Format("{0:yyyy}Q{1}", time, (time.Month - 1) / 3 + 1),
-                TimeGranularity.Year => time.ToString("yyyy"),
-                _ => time.ToString("yyyyMMdd")
-            };
-        }
-
-        private int GetWeekOfYear(DateTime time)
-        {
-            var calendar = System.Globalization.CultureInfo.InvariantCulture.Calendar;
-            return calendar.GetWeekOfYear(time, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+            return ShardingNameResolver.ResolveTime(config, time);
         }
 
         private DateTime GetTimeBoundary(TimeGranularity granularity, DateTime time)

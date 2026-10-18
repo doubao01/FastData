@@ -690,6 +690,8 @@ namespace FastData.SyncTool.WinForms
                 IntermediateProvider = _connectionPanel.IntermediateProvider,
                 IntermediateConnectionString = _connectionPanel.IntermediateConnectionString,
                 TaskId = _currentTaskId,
+                ConfigManager = _configManager,
+                PrimaryKeyConfigService = _pkConfigService,
             };
             _syncConfigPanel.ApplyToOptions(baseOptions);
 
@@ -715,6 +717,10 @@ namespace FastData.SyncTool.WinForms
                     AlwaysDeduplicate = tc.AlwaysDeduplicate,
                     EnableGlobalConfig = tc.EnableGlobalConfig,
                     GlobalRangeDays = tc.GlobalRangeDays,
+                    GlobalAlwaysDeduplicate = opts.AlwaysDeduplicate,
+                    ConfigManager = opts.ConfigManager,
+                    PrimaryKeyConfigService = opts.PrimaryKeyConfigService,
+                    IsFullSyncForFirstTime = opts.IsFullSyncForFirstTime,
                     BatchSize = opts.BatchSize,
                     RetryCount = opts.RetryCount,
                     CleanIntermediateData = opts.CleanIntermediateData,

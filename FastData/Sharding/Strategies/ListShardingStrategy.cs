@@ -42,7 +42,7 @@ namespace FastData.Sharding.Strategies
             if (string.IsNullOrEmpty(fieldValue))
                 throw new InvalidOperationException(string.Format("字段 {0} 的值不能为空", listField));
 
-            return GetTableNameByValue(config, fieldValue);
+            return ShardingNameResolver.ResolveList(config, fieldValue);
         }
 
         /// <summary>
@@ -72,14 +72,14 @@ namespace FastData.Sharding.Strategies
                         var values = fieldValue.Split(',');
                         foreach (var value in values)
                         {
-                            var tableName = GetTableNameByValue(config, value.Trim());
+                            var tableName = ShardingNameResolver.ResolveList(config, value.Trim());
                             if (!result.Contains(tableName))
                                 result.Add(tableName);
                         }
                     }
                     else
                     {
-                        result.Add(GetTableNameByValue(config, fieldValue));
+                        result.Add(ShardingNameResolver.ResolveList(config, fieldValue));
                     }
                     return result;
                 }
@@ -121,17 +121,6 @@ namespace FastData.Sharding.Strategies
         }
 
         #region 私有方法
-
-        private string GetTableNameByValue(ShardingConfig config, string value)
-        {
-            if (config.ListConfig.ValueMapping.TryGetValue(value, out var suffix))
-            {
-                return string.Format("{0}_{1}", config.BaseTableName, suffix);
-            }
-
-            // 如果没有映射，使用值本身作为后缀
-            return string.Format("{0}_{1}", config.BaseTableName, value);
-        }
 
         #endregion
     }
