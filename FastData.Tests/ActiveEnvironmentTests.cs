@@ -10,6 +10,7 @@ namespace FastData.Tests
     /// 
     /// 测试环境配置的加载和切换功能。
     /// </summary>
+    [Collection(nameof(ConfigEnvironmentCollection))]
     public class ActiveEnvironmentTests
     {
         /// <summary>
