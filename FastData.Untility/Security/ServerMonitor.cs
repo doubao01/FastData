@@ -182,12 +182,91 @@ namespace FastUntility.Security
                 {
                     return GetMemoryInfoLinux();
                 }
+                else if (FrameworkCompat.IsMacOS())
+                {
+                    return GetMemoryInfoMacOS();
+                }
             }
             catch (Exception ex)
             {
                 BaseLog.SaveLog(string.Format("获取内存信息失败: {0}", ex.Message), "ServerMonitor_Error");
             }
             return (0, 0, 0, 0);
+        }
+
+        /// <summary>
+        /// macOS 内存信息：总内存取 sysctl hw.memsize；已用/可用取 vm_stat（页大小 4096）。
+        /// </summary>
+        private static (long Total, long Used, long Available, double UsagePercentage) GetMemoryInfoMacOS()
+        {
+            var total = 0L;
+
+            var totalOutput = RunCommand("/usr/sbin/sysctl", "-n hw.memsize");
+            if (!string.IsNullOrEmpty(totalOutput))
+                long.TryParse(totalOutput.Trim(), out total);
+
+            var pageSize = 4096L;
+            long freePages = -1, inactivePages = -1, purgeablePages = -1, wiredPages = -1, compressedPages = -1, activePages = -1;
+
+            var vmOutput = RunCommand("/usr/bin/vm_stat", null);
+            if (!string.IsNullOrEmpty(vmOutput))
+            {
+                foreach (var line in vmOutput.Split('\n'))
+                {
+                    long value;
+                    if (TryParseVmStatLine(line, "Pages free", ref pageSize, out value)) freePages = value;
+                    else if (TryParseVmStatLine(line, "Pages inactive", ref pageSize, out value)) inactivePages = value;
+                    else if (TryParseVmStatLine(line, "Pages purgeable", ref pageSize, out value)) purgeablePages = value;
+                    else if (TryParseVmStatLine(line, "Pages wired down", ref pageSize, out value)) wiredPages = value;
+                    else if (TryParseVmStatLine(line, "Pages occupied by compressor", ref pageSize, out value)) compressedPages = value;
+                    else if (TryParseVmStatLine(line, "Pages active", ref pageSize, out value)) activePages = value;
+                }
+            }
+
+            if (total <= 0 || freePages < 0)
+                return (0, 0, 0, 0);
+
+            // 口径与 Activity Monitor 一致：可用 = free + inactive + purgeable
+            var availableBytes = (freePages + Math.Max(inactivePages, 0) + Math.Max(purgeablePages, 0)) * pageSize;
+            if (availableBytes > total) availableBytes = total;
+            var usedBytes = total - availableBytes;
+            var usage = total > 0 ? (double)usedBytes / total * 100 : 0;
+            return (total, usedBytes, availableBytes, usage);
+        }
+
+        private static bool TryParseVmStatLine(string line, string label, ref long pageSize, out long pages)
+        {
+            pages = -1;
+            if (line == null || !line.StartsWith(label)) return false;
+            var index = line.LastIndexOf(':');
+            if (index < 0) return false;
+            var tail = line.Substring(index + 1).Trim().Split(' ')[0];
+            return long.TryParse(tail, out pages);
+        }
+
+        private static string RunCommand(string file, string args)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = file,
+                    Arguments = args ?? string.Empty,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                };
+                using (var p = Process.Start(psi))
+                {
+                    if (p == null) return null;
+                    var output = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(3000);
+                    return output;
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
