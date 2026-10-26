@@ -195,7 +195,8 @@ namespace FastUntility.Security
         }
 
         /// <summary>
-        /// macOS 内存信息：总内存取 sysctl hw.memsize；已用/可用取 vm_stat（页大小 4096）。
+        /// macOS 内存信息：总内存取 sysctl hw.memsize；可用取 vm_stat（页大小从输出首行解析，
+        /// Apple Silicon 为 16384，Intel 为 4096）。
         /// </summary>
         private static (long Total, long Used, long Available, double UsagePercentage) GetMemoryInfoMacOS()
         {
@@ -205,21 +206,32 @@ namespace FastUntility.Security
             if (!string.IsNullOrEmpty(totalOutput))
                 long.TryParse(totalOutput.Trim(), out total);
 
-            var pageSize = 4096L;
-            long freePages = -1, inactivePages = -1, purgeablePages = -1, wiredPages = -1, compressedPages = -1, activePages = -1;
+            long pageSize = 4096;
+            long freePages = -1, inactivePages = -1, purgeablePages = -1;
 
             var vmOutput = RunCommand("/usr/bin/vm_stat", null);
             if (!string.IsNullOrEmpty(vmOutput))
             {
-                foreach (var line in vmOutput.Split('\n'))
+                foreach (var rawLine in vmOutput.Split('\n'))
                 {
-                    long value;
-                    if (TryParseVmStatLine(line, "Pages free", ref pageSize, out value)) freePages = value;
-                    else if (TryParseVmStatLine(line, "Pages inactive", ref pageSize, out value)) inactivePages = value;
-                    else if (TryParseVmStatLine(line, "Pages purgeable", ref pageSize, out value)) purgeablePages = value;
-                    else if (TryParseVmStatLine(line, "Pages wired down", ref pageSize, out value)) wiredPages = value;
-                    else if (TryParseVmStatLine(line, "Pages occupied by compressor", ref pageSize, out value)) compressedPages = value;
-                    else if (TryParseVmStatLine(line, "Pages active", ref pageSize, out value)) activePages = value;
+                    var line = rawLine.Trim();
+                    if (line.StartsWith("page size of"))
+                    {
+                        // 形如 "Mach Virtual Memory Statistics: (page size of 16384 bytes)"
+                        var parts = line.Split(' ');
+                        for (var i = 0; i < parts.Length - 1; i++)
+                        {
+                            if (parts[i] == "of" && long.TryParse(parts[i + 1], out var ps) && ps > 0)
+                            {
+                                pageSize = ps;
+                                break;
+                            }
+                        }
+                        continue;
+                    }
+                    if (line.StartsWith("Pages free")) freePages = ParseVmStatValue(line);
+                    else if (line.StartsWith("Pages inactive")) inactivePages = ParseVmStatValue(line);
+                    else if (line.StartsWith("Pages purgeable")) purgeablePages = ParseVmStatValue(line);
                 }
             }
 
@@ -234,14 +246,18 @@ namespace FastUntility.Security
             return (total, usedBytes, availableBytes, usage);
         }
 
-        private static bool TryParseVmStatLine(string line, string label, ref long pageSize, out long pages)
+        /// <summary>
+        /// 解析 vm_stat 行尾数值。vm_stat 的输出形如 "Pages free:  15219."，
+        /// 数值带句点后缀，须先剥离再解析。
+        /// </summary>
+        private static long ParseVmStatValue(string line)
         {
-            pages = -1;
-            if (line == null || !line.StartsWith(label)) return false;
             var index = line.LastIndexOf(':');
-            if (index < 0) return false;
-            var tail = line.Substring(index + 1).Trim().Split(' ')[0];
-            return long.TryParse(tail, out pages);
+            if (index < 0) return -1;
+            var tail = line.Substring(index + 1).Trim();
+            var dot = tail.IndexOf('.');
+            if (dot >= 0) tail = tail.Substring(0, dot);
+            return long.TryParse(tail, out var value) ? value : -1;
         }
 
         private static string RunCommand(string file, string args)
