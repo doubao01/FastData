@@ -14,11 +14,10 @@
   
   <!-- 
     .NET Framework 4.5.2 兼容包版本覆盖
-    RestSharp 114.0.0 不支持 net452，需要降级到 106.15.0
+    注：RestSharp/NPOI 的 net452 降级已改为 Untility.csproj 内显式版本
+    （CPM outer-graph 钉定问题，见该文件注释），此处仅保留 ValueTuple。
   -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net452'">
-    <PackageReference Update="RestSharp" VersionOverride="106.15.0" />
-    <PackageReference Update="NPOI" VersionOverride="2.5.6" />
     <PackageReference Update="System.ValueTuple" VersionOverride="4.5.0" />
   </ItemGroup>
   
