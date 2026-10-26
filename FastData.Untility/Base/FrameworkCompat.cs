@@ -157,6 +157,19 @@ namespace FastUntility.Base
         }
 
         /// <summary>
+        /// 是否运行在 macOS 上（兼容 net452；net452 下无法区分 Unix 细分，返回 false）
+        /// </summary>
+        public static bool IsMacOS()
+        {
+#if NET452
+            return false;
+#else
+            return System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                System.Runtime.InteropServices.OSPlatform.OSX);
+#endif
+        }
+
+        /// <summary>
         /// 进程架构（如 X64、X86、Arm64）（兼容 net452）
         /// </summary>
         public static string ProcessArchitecture()
