@@ -8,6 +8,8 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <LangVersion>latest</LangVersion>
     <NoWarn>CS1591</NoWarn>
+    <!-- 本项目 net452 组需要显式版本（绕开 outer-graph 钉定），与 CPM 混用，项目级关闭 CPM 校验 -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <!-- NuGet 打包配置 -->
     <PackageId>FastData.Untility</PackageId>
     <Description>FastData ORM 框架配套工具库，提供缓存、Redis、序列化、加密等通用功能</Description>
@@ -53,30 +55,33 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Xml" />
-    <!-- net452 专用 NuGet 包 -->
-    <PackageReference Include="RestSharp" VersionOverride="106.15.0" />
-    <PackageReference Include="NPOI" VersionOverride="2.5.6" />
-    <PackageReference Include="Newtonsoft.Json" />
-    <PackageReference Include="Microsoft.AspNet.WebApi.Client" />
-    <PackageReference Include="Microsoft.AspNet.WebApi.Core" />
-    <PackageReference Include="Microsoft.AspNet.WebApi.SelfHost" />
-    <PackageReference Include="Microsoft.Win32Ex" />
-    <PackageReference Include="NServiceKit.Redis" />
-    <PackageReference Include="NServiceKit.Common" />
-    <PackageReference Include="NServiceKit.Text" />
+    <!-- net452 专用 NuGet 包。
+         说明：sln 级 restore 的 outer graph 阶段 TargetFramework 为空，ItemGroup 条件不生效，
+         该阶段会看到无条件评估的引用；VersionOverride 在该阶段不可靠。
+         此处用显式 Version 并在项目级关闭 CPM 校验（NU1008），确保任何阶段都拿到兼容版本。 -->
+    <PackageReference Include="RestSharp" Version="106.15.0" />
+    <PackageReference Include="NPOI" Version="2.5.6" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.9" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.9" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.SelfHost" Version="5.2.9" />
+    <PackageReference Include="Microsoft.Win32Ex" Version="1.2.0.0" />
+    <PackageReference Include="NServiceKit.Redis" Version="1.0.17" />
+    <PackageReference Include="NServiceKit.Common" Version="1.0.31" />
+    <PackageReference Include="NServiceKit.Text" Version="1.0.10" />
     <!-- 元组语法支持（net452 缺失） -->
-    <PackageReference Include="System.ValueTuple" />
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
 
   <!-- .NET 8/10 专用包引用 -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net452'">
-    <PackageReference Include="RestSharp" />
-    <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="NPOI" />
-    <PackageReference Include="Newtonsoft.Json" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" />
-    <PackageReference Include="NewLife.Redis" />
+    <PackageReference Include="RestSharp" Version="114.0.0" />
+    <PackageReference Include="System.Text.Json" Version="10.0.8" />
+    <PackageReference Include="NPOI" Version="2.8.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.8" />
+    <PackageReference Include="NewLife.Redis" Version="6.5.2026.601" />
   </ItemGroup>
 
   <!-- BasePdf.cs 依赖 SelectPdf，暂不包含 -->
