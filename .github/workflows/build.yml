@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, develop, 'release/**' ]
+    branches: [ main, develop, master, 'release/**' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, master ]
 
 env:
   DOTNET_NOLOGO: true
