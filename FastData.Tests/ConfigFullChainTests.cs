@@ -15,6 +15,7 @@ namespace FastData.Tests
     /// <summary>
     /// 配置文件解析到 DataContext/CRUD 的端到端验证。
     /// </summary>
+    [Collection(nameof(ConfigEnvironmentCollection))]
     public class ConfigFullChainTests
     {
         [Table(Name = "ConfigChainEntity")]
