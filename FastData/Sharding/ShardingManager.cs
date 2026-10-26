@@ -256,51 +256,55 @@ namespace FastData.Sharding
             return new DataContext(config.DatabaseKey);
         }
 
+        private const string ShardingNotImplementedHint =
+            "此前版本会静默返回成功/空集合，导致调用方误认为操作已完成。为避免数据静默丢失，现改为显式抛出异常。";
+
         /// <summary>
         /// 从分表查询数据
         /// </summary>
+        /// <exception cref="NotSupportedException">该方法尚未实现</exception>
         public static List<T> QueryFromShard<T>(string tableName, DataQuery query) where T : class, new()
         {
-            // 这里需要修改查询逻辑，将表名替换为分表名
-            // 实际实现需要修改 DataContext 的查询方法
-            return new List<T>();
+            // 待实现：需要 DataContext 支持动态表名替换
+            throw new NotSupportedException(
+                "QueryFromShard 尚未实现：分表 " + tableName + " 的查询需要 DataContext 支持动态表名替换。" +
+                ShardingNotImplementedHint);
         }
 
         /// <summary>
         /// 向分表插入数据
         /// </summary>
+        /// <exception cref="NotSupportedException">该方法尚未实现</exception>
         public static bool InsertToShard<T>(T entity) where T : class
         {
-            var tableName = GetTableName(entity);
-            AutoCreateTable(entity);
-
-            // 这里需要修改插入逻辑，将表名替换为分表名
-            // 实际实现需要修改 DataContext 的插入方法
-            return true;
+            // 待实现：需要 DataContext 支持动态表名替换
+            throw new NotSupportedException(
+                "InsertToShard 尚未实现：分表插入需要 DataContext 支持动态表名替换。" +
+                ShardingNotImplementedHint);
         }
 
         /// <summary>
         /// 从分表更新数据
         /// </summary>
+        /// <exception cref="NotSupportedException">该方法尚未实现</exception>
         public static bool UpdateInShard<T>(T entity) where T : class
         {
-            var tableName = GetTableName(entity);
-
-            // 这里需要修改更新逻辑，将表名替换为分表名
-            // 实际实现需要修改 DataContext 的更新方法
-            return true;
+            // 待实现：需要 DataContext 支持动态表名替换
+            throw new NotSupportedException(
+                "UpdateInShard 尚未实现：分表更新需要 DataContext 支持动态表名替换。" +
+                ShardingNotImplementedHint);
         }
 
         /// <summary>
         /// 从分表删除数据
         /// </summary>
+        /// <exception cref="NotSupportedException">该方法尚未实现</exception>
         public static bool DeleteFromShard<T>(T entity) where T : class
         {
-            var tableName = GetTableName(entity);
-
-            // 这里需要修改删除逻辑，将表名替换为分表名
-            // 实际实现需要修改 DataContext 的删除方法
-            return true;
+            // 待实现：需要 DataContext 支持动态表名替换
+            throw new NotSupportedException(
+                "DeleteFromShard 尚未实现：分表删除需要 DataContext 支持动态表名替换。" +
+                ShardingNotImplementedHint);
         }
 
         /// <summary>
