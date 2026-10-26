@@ -182,12 +182,107 @@ namespace FastUntility.Security
                 {
                     return GetMemoryInfoLinux();
                 }
+                else if (FrameworkCompat.IsMacOS())
+                {
+                    return GetMemoryInfoMacOS();
+                }
             }
             catch (Exception ex)
             {
                 BaseLog.SaveLog(string.Format("获取内存信息失败: {0}", ex.Message), "ServerMonitor_Error");
             }
             return (0, 0, 0, 0);
+        }
+
+        /// <summary>
+        /// macOS 内存信息：总内存取 sysctl hw.memsize；可用取 vm_stat（页大小从输出首行解析，
+        /// Apple Silicon 为 16384，Intel 为 4096）。
+        /// </summary>
+        private static (long Total, long Used, long Available, double UsagePercentage) GetMemoryInfoMacOS()
+        {
+            var total = 0L;
+
+            var totalOutput = RunCommand("/usr/sbin/sysctl", "-n hw.memsize");
+            if (!string.IsNullOrEmpty(totalOutput))
+                long.TryParse(totalOutput.Trim(), out total);
+
+            long pageSize = 4096;
+            long freePages = -1, inactivePages = -1, purgeablePages = -1;
+
+            var vmOutput = RunCommand("/usr/bin/vm_stat", null);
+            if (!string.IsNullOrEmpty(vmOutput))
+            {
+                foreach (var rawLine in vmOutput.Split('\n'))
+                {
+                    var line = rawLine.Trim();
+                    if (line.StartsWith("page size of"))
+                    {
+                        // 形如 "Mach Virtual Memory Statistics: (page size of 16384 bytes)"
+                        var parts = line.Split(' ');
+                        for (var i = 0; i < parts.Length - 1; i++)
+                        {
+                            if (parts[i] == "of" && long.TryParse(parts[i + 1], out var ps) && ps > 0)
+                            {
+                                pageSize = ps;
+                                break;
+                            }
+                        }
+                        continue;
+                    }
+                    if (line.StartsWith("Pages free")) freePages = ParseVmStatValue(line);
+                    else if (line.StartsWith("Pages inactive")) inactivePages = ParseVmStatValue(line);
+                    else if (line.StartsWith("Pages purgeable")) purgeablePages = ParseVmStatValue(line);
+                }
+            }
+
+            if (total <= 0 || freePages < 0)
+                return (0, 0, 0, 0);
+
+            // 口径与 Activity Monitor 一致：可用 = free + inactive + purgeable
+            var availableBytes = (freePages + Math.Max(inactivePages, 0) + Math.Max(purgeablePages, 0)) * pageSize;
+            if (availableBytes > total) availableBytes = total;
+            var usedBytes = total - availableBytes;
+            var usage = total > 0 ? (double)usedBytes / total * 100 : 0;
+            return (total, usedBytes, availableBytes, usage);
+        }
+
+        /// <summary>
+        /// 解析 vm_stat 行尾数值。vm_stat 的输出形如 "Pages free:  15219."，
+        /// 数值带句点后缀，须先剥离再解析。
+        /// </summary>
+        private static long ParseVmStatValue(string line)
+        {
+            var index = line.LastIndexOf(':');
+            if (index < 0) return -1;
+            var tail = line.Substring(index + 1).Trim();
+            var dot = tail.IndexOf('.');
+            if (dot >= 0) tail = tail.Substring(0, dot);
+            return long.TryParse(tail, out var value) ? value : -1;
+        }
+
+        private static string RunCommand(string file, string args)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = file,
+                    Arguments = args ?? string.Empty,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                };
+                using (var p = Process.Start(psi))
+                {
+                    if (p == null) return null;
+                    var output = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(3000);
+                    return output;
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
