@@ -169,8 +169,8 @@ jobs:
 
       - name: Pack
         run: |
-          dotnet pack FastData/FastData.csproj -c Release --no-build -f net8.0 -o artifacts
-          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -f net8.0 -o artifacts
+          dotnet pack FastData/FastData.csproj -c Release --no-build -p:TargetFramework=net8.0 -o artifacts
+          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -p:TargetFramework=net8.0 -o artifacts
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v4
