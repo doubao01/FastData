@@ -16,7 +16,10 @@
   
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <!-- 关闭传递依赖钉定：sln 级 restore 的静态合并图会把高 TFM 的包版本（RestSharp 114）
+         钉进 net452 的还原图，产生 NU1202。Untility 已在项目内按 TFM 显式声明版本，
+         无需全局钉定。 -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   
   <ItemGroup>
