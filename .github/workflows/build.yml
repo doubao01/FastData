@@ -11,8 +11,9 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
-  build-cross-platform:
-    name: Build (Cross-Platform)
+  # ---- 跨平台：只构建真正的跨平台项目（核心库 + 工具库 + 测试）----
+  build-core:
+    name: Build Core (${{ matrix.os }}, ${{ matrix.framework }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -30,17 +31,28 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: Restore dependencies
-        run: dotnet restore FastData.sln -p:BuildPlatform=cross
+      # 逐项目构建，避免 sln 把 WinForms/Demo 拖进来
+      - name: Restore core projects
+        run: |
+          dotnet restore FastData.Untility/FastData.Untility.csproj -p:BuildPlatform=cross
+          dotnet restore FastData/FastData.csproj -p:BuildPlatform=cross
+          dotnet restore FastData.Tests/FastData.Tests.csproj -p:BuildPlatform=cross
 
-      - name: Build
-        run: dotnet build FastData.sln -p:BuildPlatform=cross -c Release -f ${{ matrix.framework }} --no-restore
+      - name: Build core projects
+        run: |
+          dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f ${{ matrix.framework }} --no-restore
+          dotnet build FastData/FastData.csproj -c Release -f ${{ matrix.framework }} --no-restore
+          dotnet build FastData.Tests/FastData.Tests.csproj -c Release -f ${{ matrix.framework }} --no-restore
 
       - name: Run Tests (non-integration)
-        run: dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build --framework ${{ matrix.framework }} --filter "FullyQualifiedName!~Integration" -v minimal
+        run: >
+          dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build
+          --framework ${{ matrix.framework }}
+          --filter "FullyQualifiedName!~Integration" -v minimal
 
-  build-windows-full:
-    name: Build (Windows Full - includes .NET Framework 4.5.2)
+  # ---- Windows 专属项目（WinForms 两个工具 + Demo）----
+  build-windows-projects:
+    name: Build Windows Projects (net8.0-windows / net10.0-windows)
     runs-on: windows-latest
 
     steps:
@@ -53,15 +65,51 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: Restore dependencies
-        run: dotnet restore FastData.sln -p:BuildPlatform=windows
+      - name: Restore windows projects
+        run: |
+          dotnet restore FastData.ModelGenerator.WinForms/FastData.ModelGenerator.WinForms.csproj
+          dotnet restore FastData.SyncTool.WinForms/FastData.SyncTool.WinForms.csproj
+          dotnet restore FastData.Demo/FastData.Demo.csproj
 
-      - name: Build
-        run: dotnet build FastData.sln -p:BuildPlatform=windows -c Release --no-restore
+      # WinForms 项目自己的 TFM 就是 -windows 后缀，不需要 -f 覆盖，让其全部构建
+      - name: Build windows projects
+        run: |
+          dotnet build FastData.ModelGenerator.WinForms/FastData.ModelGenerator.WinForms.csproj -c Release --no-restore
+          dotnet build FastData.SyncTool.WinForms/FastData.SyncTool.WinForms.csproj -c Release --no-restore
+          dotnet build FastData.Demo/FastData.Demo.csproj -c Release --no-restore
 
-      - name: Run Tests
-        run: dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build --filter "FullyQualifiedName!~Integration" -v minimal
+  # ---- Windows Full（含 net452 传统目标）----
+  build-windows-full:
+    name: Build Windows Full (includes net452)
+    runs-on: windows-latest
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # net452 需要引用程序集
+      - name: Restore (windows full)
+        run: |
+          dotnet restore FastData.Untility/FastData.Untility.csproj -p:BuildPlatform=windows
+          dotnet restore FastData/FastData.csproj -p:BuildPlatform=windows
+
+      - name: Build net452
+        run: |
+          dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net452 --no-restore
+          dotnet build FastData/FastData.csproj -c Release -f net452 --no-restore
+
+      - name: Build net8.0
+        run: |
+          dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net8.0 --no-restore
+          dotnet build FastData/FastData.csproj -c Release -f net8.0 --no-restore
+
+  # ---- 安全扫描 ----
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -76,22 +124,28 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: Check for vulnerable packages
-        run: dotnet list package --vulnerable --include-transitive
-        continue-on-error: true
+      - name: Restore for scan
+        run: |
+          dotnet restore FastData/FastData.csproj -p:BuildPlatform=cross
+          dotnet restore FastData.Tests/FastData.Tests.csproj -p:BuildPlatform=cross
 
-      - name: Check for deprecated packages
-        run: dotnet list package --deprecated
+      - name: Check for vulnerable packages
+        run: |
+          dotnet list FastData/FastData.csproj package --vulnerable --include-transitive
+          dotnet list FastData.Tests/FastData.Tests.csproj package --vulnerable --include-transitive
         continue-on-error: true
 
       - name: Build with analyzers
-        run: dotnet build FastData.sln -p:BuildPlatform=cross -c Release /p:RunAnalyzers=true
+        run: |
+          dotnet build FastData/FastData.csproj -c Release --no-restore /p:RunAnalyzers=true
+          dotnet build FastData.Tests/FastData.Tests.csproj -c Release --no-restore /p:RunAnalyzers=true
 
+  # ---- NuGet 打包 ----
   package:
     name: Package NuGet
     runs-on: windows-latest
-    needs: [build-cross-platform, build-windows-full, security-scan]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+    needs: [build-core, build-windows-projects, build-windows-full, security-scan]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/master')
 
     steps:
       - uses: actions/checkout@v4
@@ -104,15 +158,19 @@ jobs:
             10.0.x
 
       - name: Restore
-        run: dotnet restore FastData.sln -p:BuildPlatform=cross
+        run: |
+          dotnet restore FastData/FastData.csproj -p:BuildPlatform=cross
+          dotnet restore FastData.Untility/FastData.Untility.csproj -p:BuildPlatform=cross
 
       - name: Build
-        run: dotnet build FastData.sln -p:BuildPlatform=cross -c Release --no-restore
+        run: |
+          dotnet build FastData/FastData.csproj -c Release -f net8.0 --no-restore
+          dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net8.0 --no-restore
 
       - name: Pack
         run: |
-          dotnet pack FastData/FastData.csproj -c Release --no-build -o artifacts
-          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -o artifacts
+          dotnet pack FastData/FastData.csproj -c Release --no-build -f net8.0 -o artifacts
+          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -f net8.0 -o artifacts
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v4
