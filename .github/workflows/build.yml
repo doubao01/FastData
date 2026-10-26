@@ -101,8 +101,8 @@ jobs:
 
       - name: Build net452
         run: |
-          dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net452 --no-restore
-          dotnet build FastData/FastData.csproj -c Release -f net452 --no-restore
+          dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net452 --no-restore -p:BuildPlatform=windows
+          dotnet build FastData/FastData.csproj -c Release -f net452 --no-restore -p:BuildPlatform=windows
 
       - name: Build net8.0
         run: |
