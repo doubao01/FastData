@@ -166,11 +166,10 @@ jobs:
         run: |
           dotnet build FastData/FastData.csproj -c Release -f net8.0 --no-restore
           dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net8.0 --no-restore
-
-      - name: Pack
-        run: |
-          dotnet pack FastData/FastData.csproj -c Release --no-build -p:TargetFramework=net8.0 -o artifacts
-          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -p:TargetFramework=net8.0 -o artifacts
+          # 多 TFM 项目 pack 时 MSBuild 会按 TargetFrameworks 列表最后一个（net10.0）找输出，
+          # 显式把列表改写为单 TFM，使 pack 的输出查找与 build 产物一致
+          dotnet pack FastData/FastData.csproj -c Release --no-build -p:TargetFrameworks=net8.0 -o artifacts
+          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -p:TargetFrameworks=net8.0 -o artifacts
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v4
