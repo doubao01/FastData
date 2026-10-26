@@ -51,8 +51,9 @@ namespace FastData.Example.Example
             Console.WriteLine("说明：");
             Console.WriteLine("  - BaseSymmetric.Encrypto: 加密字符串");
             Console.WriteLine("  - BaseSymmetric.Decrypto: 解密字符串");
-            Console.WriteLine("  - 加密算法: Rijndael (AES)");
-            Console.WriteLine("  - 密钥长度: 256 位");
+            Console.WriteLine("  - 加密算法: AES-256-CBC + HMAC-SHA256 完整性校验");
+            Console.WriteLine("  - 必须先配置密钥: BaseSymmetric.ConfigureKey(key) 或环境变量 FASTDATA_ENCRYPTION_KEY");
+            Console.WriteLine("  - 输出格式: FD2: + Base64(IV ‖ 密文 ‖ MAC)");
             Console.WriteLine();
         }
 
@@ -141,10 +142,14 @@ namespace FastData.Example.Example
             Console.WriteLine();
 
             Console.WriteLine("C# 代码：");
-            Console.WriteLine(@"  // 1. 使用新密钥加密
+            Console.WriteLine(@"  // 轮换密钥（不再需要改源码里的常量）
   var connStr = ""Server=127.0.0.1;Database=app_db;Uid=root;Pwd=MySecretPassword123!"";
 
-  // 使用自定义密钥加密（需要修改 BaseSymmetric 的 key 字段）
+  // 生成并配置新的主密钥
+  var newKey = BaseSymmetric.GenerateKey();
+  BaseSymmetric.ConfigureKey(newKey);
+
+  // 用新密钥重新加密存量配置
   var encryptedWithNewKey = BaseSymmetric.Encrypto(connStr);
 
   // 2. 批量更新配置文件
