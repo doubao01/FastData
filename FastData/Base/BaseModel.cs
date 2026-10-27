@@ -265,7 +265,9 @@ namespace FastData.Base
                         result.Sql = string.Format("{0} and {1}={2}{1} ", result.Sql, primaryKey, config.Flag);
 
                     var parameter = factory.CreateParameter();
-                    parameter.ParameterName = primaryKey;
+                    // WHERE 主键参数同样要带前缀：SQL 里写的是 {Flag}{主键}（如 @Id），
+                    // 无前缀的 'Id' 会被 SqlClient 判为无效参数名。
+                    parameter.ParameterName = config.Flag + primaryKey;
                     parameter.SourceColumn = primaryKey;
                     result.Param.Add(parameter);
                     keyIndex++;
