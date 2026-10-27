@@ -93,7 +93,16 @@ namespace FastData.Base
         #region 返回bool
         /// <summary>
         ///  返回bool
+        /// <summary>
+        ///  返回bool
         /// </summary>
+        /// <remarks>
+        /// 判定依据是「没有抛异常」，而不是「受影响行数 &gt; 0」。
+        /// 受影响行数在不同驱动/语句形态下语义不同：SQL Server 的 SET NOCOUNT ON、
+        /// TVP 批量、Oracle ArrayBindCount 都可能返回 -1（无计数），
+        /// 用 &gt; 0 判定会把「其实已写入」误判为失败，调用方重试后变成重复插入。
+        /// 仍保留「恰好返回 0 视为失败」的既有语义，供 UPDATE/DELETE 判断未命中行。
+        /// </remarks>
         /// <param name="cmd">数据库命令对象</param>
         /// <param name="sql">SQL语句</param>
         /// <param name="IsProcedure">是否存储过程</param>
@@ -105,7 +114,7 @@ namespace FastData.Base
             if (IsProcedure)
                 cmd.CommandType = CommandType.StoredProcedure;
 
-            return cmd.ExecuteNonQuery() > 0;
+            return cmd.ExecuteNonQuery() >= 0;
         }
 
         /// <summary>

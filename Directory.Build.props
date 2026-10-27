@@ -5,7 +5,14 @@
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
-    <TreatWarningsAsWarnings>true</TreatWarningsAsWarnings>
+    <!--
+      原为 <TreatWarningsAsWarnings>true</TreatWarningsAsWarnings>：
+      MSBuild 没有这个属性，它一直是被静默忽略的空配置。
+      真正生效的是 TreatWarningsAsErrors，但当前代码仍有若干警告
+      （如 CS1998 异步方法缺 await），直接打开会打断构建。
+      清理完警告后再改这一行使之真正生效。
+    -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- BuildPlatform: cross=仅 net6.0+, windows=含 net45/net462 -->
     <BuildPlatform Condition="'$(BuildPlatform)' == ''">cross</BuildPlatform>
     <!-- NPOI 2.8+ 需要接受 OSMF EULA 许可 -->

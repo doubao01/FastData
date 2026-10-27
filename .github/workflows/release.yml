@@ -16,6 +16,12 @@ jobs:
       contents: write
       packages: write
 
+    # 必须放在 job 级：GitHub 在评估 step 的 `if` 时还读不到该 step 自己的 env，
+    # 原来把 NUGET_API_KEY 写在 step 的 env 里、再用 `if: env.NUGET_API_KEY != ''`，
+    # 条件是永远为假的 —— 发布因此从未执行过。
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,7 +61,7 @@ jobs:
           draft: true
 
       - name: Publish to NuGet
-        run: dotnet nuget push "artifacts/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key ${{ env.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
         if: env.NUGET_API_KEY != ''
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

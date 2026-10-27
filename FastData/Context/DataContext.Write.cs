@@ -442,8 +442,21 @@ namespace FastData.Context
 
                 insert = BaseModel.InsertToSql<T>(model, config);
 
+                // InsertToSql 失败（属性缺少 [Column]、表名解析失败、主键缺失等）必须显式失败。
+                // 这里原本是个空 if 块，随后走 else 直接返回默认 DataReturn：
+                // 调用方会拿到「没有异常、没有 Message、Sql 为空」的对象，误以为数据已写入。
                 if (!insert.IsSuccess)
                 {
+                    result.WriteReturn.IsSuccess = false;
+                    result.WriteReturn.Message = string.Format("生成插入语句失败（{0}）：{1}",
+                        typeof(T).Name,
+                        string.IsNullOrEmpty(insert.Message) ? "未提供原因" : insert.Message);
+
+                    if (isTrans)
+                        RollbackTrans();
+
+                    AopAfter(tableName, insert.Sql, insert.Param, config, false, AopType.Add, false);
+                    return result;
                 }
 
                 if (insert.IsSuccess)
@@ -707,6 +720,9 @@ namespace FastData.Context
                     
                     cmd.CommandText = insertSql;
                     
+                    var affectedRows = 0;
+                    var rowCountUnknown = false;
+
                     foreach (var item in list)
                     {
                         cmd.Parameters.Clear();
@@ -725,13 +741,22 @@ namespace FastData.Context
                         
                         if (conn.State == ConnectionState.Closed)
                             conn.Open();
-                        cmd.ExecuteNonQuery();
+                        var rowCount = cmd.ExecuteNonQuery();
+                        if (rowCount < 0) rowCountUnknown = true; else affectedRows += rowCount;
                     }
                     
                     if (!IsTrans)
                         SubmitTrans();
                     
-                    result.WriteReturn.IsSuccess = true;
+                    // 原来这里无条件置成功：逐条执行的返回值被丢弃，
+                    // 中间某行没写进去也照样报告成功。现在按实际受影响行数比对。
+                    // -1 表示驱动不提供行数（如 SET NOCOUNT ON），无法判定时按成功处理。
+                    result.WriteReturn.IsSuccess = rowCountUnknown || affectedRows >= list.Count;
+                    if (!result.WriteReturn.IsSuccess)
+                    {
+                        result.WriteReturn.Message = string.Format(
+                            "批量插入受影响行数不足：期望 {0} 行，实际 {1} 行", list.Count, affectedRows);
+                    }
                     result.Sql = string.Format("{0} (x{1})", insertSql, list.Count);
                     
                     AopAfter(new List<string> { pgTableName }, result.Sql, null, config, false, AopType.AddList, result.WriteReturn.IsSuccess);
@@ -759,6 +784,9 @@ namespace FastData.Context
                     
                     cmd.CommandText = insertSql;
                     
+                    var affectedRows = 0;
+                    var rowCountUnknown = false;
+
                     foreach (var item in list)
                     {
                         cmd.Parameters.Clear();
@@ -770,13 +798,22 @@ namespace FastData.Context
                             param.Value = value ?? DBNull.Value;
                             cmd.Parameters.Add(param);
                         }
-                        cmd.ExecuteNonQuery();
+                        var rowCount = cmd.ExecuteNonQuery();
+                        if (rowCount < 0) rowCountUnknown = true; else affectedRows += rowCount;
                     }
                     
                     if (!IsTrans)
                         SubmitTrans();
                     
-                    result.WriteReturn.IsSuccess = true;
+                    // 原来这里无条件置成功：逐条执行的返回值被丢弃，
+                    // 中间某行没写进去也照样报告成功。现在按实际受影响行数比对。
+                    // -1 表示驱动不提供行数（如 SET NOCOUNT ON），无法判定时按成功处理。
+                    result.WriteReturn.IsSuccess = rowCountUnknown || affectedRows >= list.Count;
+                    if (!result.WriteReturn.IsSuccess)
+                    {
+                        result.WriteReturn.Message = string.Format(
+                            "批量插入受影响行数不足：期望 {0} 行，实际 {1} 行", list.Count, affectedRows);
+                    }
                     result.Sql = string.Format("{0} (x{1})", insertSql, list.Count);
                     
                     AopAfter(new List<string> { sqliteTableName }, result.Sql, null, config, false, AopType.AddList, result.WriteReturn.IsSuccess);
@@ -1628,6 +1665,9 @@ namespace FastData.Context
 
                     cmd.CommandText = insertSql;
 
+                    var affectedRows = 0;
+                    var rowCountUnknown = false;
+
                     foreach (var item in list)
                     {
                         cmd.Parameters.Clear();
@@ -1644,13 +1684,22 @@ namespace FastData.Context
                         }
 
                         await EnsureConnectionOpenAsync(cancellationToken).ConfigureAwait(false);
-                        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                        var rowCount = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                        if (rowCount < 0) rowCountUnknown = true; else affectedRows += rowCount;
                     }
 
                     if (!isTrans)
                         SubmitTrans();
 
-                    result.WriteReturn.IsSuccess = true;
+                    // 原来这里无条件置成功：逐条执行的返回值被丢弃，
+                    // 中间某行没写进去也照样报告成功。现在按实际受影响行数比对。
+                    // -1 表示驱动不提供行数（如 SET NOCOUNT ON），无法判定时按成功处理。
+                    result.WriteReturn.IsSuccess = rowCountUnknown || affectedRows >= list.Count;
+                    if (!result.WriteReturn.IsSuccess)
+                    {
+                        result.WriteReturn.Message = string.Format(
+                            "批量插入受影响行数不足：期望 {0} 行，实际 {1} 行", list.Count, affectedRows);
+                    }
                     result.Sql = string.Format("{0} (x{1})", insertSql, list.Count);
 
                     AopAfter(new List<string> { pgTableName }, result.Sql, null, config, false, AopType.AddList, result.WriteReturn.IsSuccess);
@@ -1676,6 +1725,9 @@ namespace FastData.Context
 
                     cmd.CommandText = insertSql;
 
+                    var affectedRows = 0;
+                    var rowCountUnknown = false;
+
                     foreach (var item in list)
                     {
                         cmd.Parameters.Clear();
@@ -1687,13 +1739,22 @@ namespace FastData.Context
                             param.Value = value ?? DBNull.Value;
                             cmd.Parameters.Add(param);
                         }
-                        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                        var rowCount = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                        if (rowCount < 0) rowCountUnknown = true; else affectedRows += rowCount;
                     }
 
                     if (!isTrans)
                         SubmitTrans();
 
-                    result.WriteReturn.IsSuccess = true;
+                    // 原来这里无条件置成功：逐条执行的返回值被丢弃，
+                    // 中间某行没写进去也照样报告成功。现在按实际受影响行数比对。
+                    // -1 表示驱动不提供行数（如 SET NOCOUNT ON），无法判定时按成功处理。
+                    result.WriteReturn.IsSuccess = rowCountUnknown || affectedRows >= list.Count;
+                    if (!result.WriteReturn.IsSuccess)
+                    {
+                        result.WriteReturn.Message = string.Format(
+                            "批量插入受影响行数不足：期望 {0} 行，实际 {1} 行", list.Count, affectedRows);
+                    }
                     result.Sql = string.Format("{0} (x{1})", insertSql, list.Count);
 
                     AopAfter(new List<string> { sqliteTableName }, result.Sql, null, config, false, AopType.AddList, result.WriteReturn.IsSuccess);
