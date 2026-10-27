@@ -762,7 +762,11 @@ namespace FastData.Context
                 sql.Append(whereClause);
             }
 
-            AppendTakeClause(item, sql);
+            // Oracle 的 rownum 只能出现在 WHERE 中；其余方言的 LIMIT / FETCH FIRST
+            // 必须跟在 ORDER BY 之后，否则会拼出 `... where x limit 2 order by id`
+            // 这种语法错误（issue：分页查询返回 0 行）。
+            if (item.Config.DbType == DataDbType.Oracle)
+                AppendTakeClause(item, sql);
 
             if (item.GroupBy.Count > 0)
             {
@@ -775,6 +779,9 @@ namespace FastData.Context
                 sql.Append(" order by ");
                 sql.Append(string.Join(",", item.OrderBy));
             }
+
+            if (item.Config.DbType != DataDbType.Oracle)
+                AppendTakeClause(item, sql);
         }
 
         /// <summary>
