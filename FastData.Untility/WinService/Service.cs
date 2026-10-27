@@ -3,6 +3,7 @@ using System.Collections;
 using System.ServiceProcess;
 using Microsoft.Win32;
 using System.Configuration.Install;
+using FastUntility.Base;
 
 namespace FastUntility.WinService
 {
@@ -41,8 +42,11 @@ namespace FastUntility.WinService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // 降级合理：服务控制失败时返回 false（调用方已有可判定信号），
+                // 但必须记日志，否则“重起失败”永远查不到原因。
+                BaseLog.SaveLog(string.Format("ReStatService 重起服务 {0} 失败：{1}", serviceName, ex), "WinService_exp");
                 return false;
             }
 
@@ -63,8 +67,11 @@ namespace FastUntility.WinService
 
                 return mySevice.Status;
             }
-            catch
+            catch (Exception ex)
             {
+                // 降级合理：取不到状态时返回 ContinuePending，但该值不是真实状态，
+                // 必须记日志避免调用方误判服务状态。
+                BaseLog.SaveLog(string.Format("GetServiceStatus 获取服务 {0} 状态失败：{1}", serviceName, ex), "WinService_exp");
                 return ServiceControllerStatus.ContinuePending;
             }
         }
@@ -86,8 +93,10 @@ namespace FastUntility.WinService
                     && mySevice.Status == ServiceControllerStatus.StopPending)
                     returnValue = true;
             }
-            catch
+            catch (Exception ex)
             {
+                // 降级合理：停服务失败返回 false（可判定），但需记录失败原因。
+                BaseLog.SaveLog(string.Format("StopService 停止服务 {0} 失败：{1}", serviceName, ex), "WinService_exp");
                 returnValue = false;
             }
 
@@ -115,6 +124,9 @@ namespace FastUntility.WinService
             }
             catch (Exception ex)
             {
+                // 降级合理：注册表写入失败返回 false（可判定），但必须记录原因，
+                // 否则“改了启动类型没生效”无法排查（常见于权限不足）。
+                BaseLog.SaveLog(string.Format("ChangeServiceStartType 修改服务 {0} 启动类型为 {1} 失败：{2}", serviceName, startType, ex), "WinService_exp");
                 return false;
             }
 
@@ -137,8 +149,10 @@ namespace FastUntility.WinService
                     var serviceFileName = location.Substring(0, location.LastIndexOf('\\') + 1) + serviceName + ".exe";
                     InstallmyService(null, serviceFileName);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // 降级合理：安装失败返回 false（可判定），但必须记录原因。
+                    BaseLog.SaveLog(string.Format("InstallService 安装服务 {0} 失败：{1}", serviceName, ex), "WinService_exp");
                     flag = false;
                 }
 
@@ -162,8 +176,10 @@ namespace FastUntility.WinService
                     var serviceFileName = location.Substring(0, location.LastIndexOf('\\') + 1) + serviceName + ".exe";
                     UnInstallmyService(serviceFileName);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    // 降级合理：卸载失败返回 false（可判定），但必须记录原因。
+                    BaseLog.SaveLog(string.Format("UninstallService 卸载服务 {0} 失败：{1}", serviceName, ex), "WinService_exp");
                     flag = false;
                 }
             }

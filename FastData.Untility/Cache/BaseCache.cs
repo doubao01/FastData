@@ -87,8 +87,11 @@ namespace FastUntility.Cache
                 else
                     return null;
             }
-            catch
+            catch (Exception ex)
             {
+                // 降级合理：缓存读不到时返回 null（调用方已有可判定信号），
+                // 不能因缓存故障抛异常打断业务；但需留痕。
+                BaseLog.SaveLog("BaseCache.Get 读取缓存失败，key：" + key + "，异常：" + ex, "BaseCache_exp");
                 return null;
             }
         }
@@ -116,8 +119,11 @@ namespace FastUntility.Cache
                 else
                     return new T();
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：缓存读取/反序列化失败却返回 new T()，调用方无法区分
+                // “缓存为空”与“读取失败”，容易拿到脏数据。签名不能改，用日志让失败可见。
+                BaseLog.SaveLog("BaseCache.Get<T> 读取缓存失败，key：" + key + "，异常：" + ex, "BaseCache_exp");
                 return new T();
             }
         }

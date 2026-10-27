@@ -39,7 +39,14 @@ namespace FastUntility.Base
                     foreach (var m in GetOracleBlob.ReturnType.GetMethods())
                         if (m.Name == "get_Value") GetBlobValue = m;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // 降级合理：未安装 Oracle 驱动时探测失败属于预期情况，
+                // 后续 GetOracleClob/GetOracleBlob 为 null 时按普通值处理。
+                // 但不能无痕迹，至少留下警告便于排查“CLOB 变成空串”类问题。
+                System.Diagnostics.Trace.TraceWarning(
+                    "BaseJson: 反射探测 OracleDataReader 方法失败，CLOB/BLOB 将按通用类型处理。" + ex);
+            }
         }
     }
 
@@ -111,8 +118,12 @@ namespace FastUntility.Base
             {
                 return JsonConvert.SerializeObject(obj);
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：序列化失败却返回空串，调用方会把“序列化失败”当成“内容为空”。
+                // 签名不能改（仍返回 string），因此用日志让失败可见。
+                BaseLog.SaveLog(string.Format("ObjectToJson 序列化失败，类型：{0}，异常：{1}",
+                    obj.GetType().FullName, ex), "BaseJson_exp");
                 return string.Empty;
             }
         }
@@ -133,8 +144,12 @@ namespace FastUntility.Base
                 var result = JsonConvert.DeserializeObject<T>(jsonString);
                 return result ?? new T();
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：反序列化失败返回 new T() 会让调用方拿到“看起来正常的空对象”，
+                // 这是最典型的静默数据错误。签名不能改，必须用日志把失败暴露出来。
+                BaseLog.SaveLog(string.Format("JsonToObject<{0}> 反序列化失败，原始内容：{1}，异常：{2}",
+                    typeof(T).FullName, jsonString, ex), "BaseJson_exp");
                 return new T();
             }
         }
@@ -154,8 +169,12 @@ namespace FastUntility.Base
             {
                 return JsonConvert.SerializeObject(list);
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：序列化失败返回 "[]" 与“空列表”无法区分，调用方会丢掉整批数据。
+                // 签名不能改，用日志让失败可见。
+                BaseLog.SaveLog(string.Format("ListToJson<{0}> 序列化失败，条数：{1}，异常：{2}",
+                    typeof(T).FullName, list.Count, ex), "BaseJson_exp");
                 return "[]";
             }
         }
@@ -185,8 +204,12 @@ namespace FastUntility.Base
 
                 return list;
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：解析失败返回空列表会被当成“确实没有数据”，属于静默数据错误。
+                // 签名不能改，用日志让失败可见。
+                BaseLog.SaveLog(string.Format("JsonToList<{0}> 解析失败，原始内容：{1}，异常：{2}",
+                    typeof(T).FullName, jsonString, ex), "BaseJson_exp");
                 return new List<T>();
             }
         }
@@ -217,8 +240,12 @@ namespace FastUntility.Base
 
                 return dict;
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：解析失败返回空字典与“空对象”无法区分，属于静默数据错误。
+                // 签名不能改，用日志让失败可见。
+                BaseLog.SaveLog(string.Format("JsonToDictionary 解析失败，原始内容：{0}，异常：{1}",
+                    jsonString, ex), "BaseJson_exp");
                 return new Dictionary<string, object>();
             }
         }
@@ -245,8 +272,12 @@ namespace FastUntility.Base
 
                 return list;
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：解析失败返回空列表会被当成“确实没有数据”，属于静默数据错误。
+                // 签名不能改，用日志让失败可见。
+                BaseLog.SaveLog(string.Format("JsonToDictionaryList 解析失败，原始内容：{0}，异常：{1}",
+                    jsonString, ex), "BaseJson_exp");
                 return new List<Dictionary<string, object>>();
             }
         }
@@ -415,8 +446,12 @@ namespace FastUntility.Base
                         return OracleJsonMethodCache.GetClobValue.Invoke(clobObject, null);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：CLOB 反射读取失败却返回空串，会让调用方以为字段本来就为空。
+                // 签名不能改，用日志让失败可见。
+                BaseLog.SaveLog(string.Format("读取 Oracle CLOB 字段失败，序号：{0}，异常：{1}",
+                    ordinal, ex), "BaseJson_exp");
             }
 
             return string.Empty;
@@ -439,8 +474,12 @@ namespace FastUntility.Base
                         return OracleJsonMethodCache.GetBlobValue.Invoke(blobObject, null);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：BLOB 反射读取失败却返回 null，会让调用方以为字段本来就不存在。
+                // 签名不能改，用日志让失败可见。
+                BaseLog.SaveLog(string.Format("读取 Oracle BLOB 字段失败，序号：{0}，异常：{1}",
+                    ordinal, ex), "BaseJson_exp");
             }
 
             return null;

@@ -53,8 +53,12 @@ namespace FastUntility.Base
 
                 return list;
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：XML 解析失败却返回空列表，调用方会当成“确实没有数据”，
+                // 是最典型的静默数据错误。签名不能改，必须用日志让失败可见。
+                BaseLog.SaveLog(string.Format("GetXmlList<{0}> 解析失败，xpath：{1}，异常：{2}",
+                    typeof(T).FullName, xpath, ex), "BaseXml_exp");
                 return new List<T>();
             }
         }
@@ -88,8 +92,12 @@ namespace FastUntility.Base
 
                 return list;
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：XML 解析失败返回空列表与“无匹配节点”无法区分，
+                // 必须用日志让失败可见。
+                BaseLog.SaveLog(string.Format("GetXmlList 解析失败，xpath：{0}，异常：{1}",
+                    xpath, ex), "BaseXml_exp");
                 return new List<string>();
             }
         }
@@ -138,8 +146,12 @@ namespace FastUntility.Base
 
                 return list;
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：XML 文件解析失败返回空列表与“无匹配节点”无法区分，
+                // 必须用日志让失败可见。
+                BaseLog.SaveLog(string.Format("GetXmlListFromFileAsync 解析失败，文件：{0}，xpath：{1}，异常：{2}",
+                    fileName, xpath, ex), "BaseXml_exp");
                 return new List<string>();
             }
         }
@@ -178,8 +190,12 @@ namespace FastUntility.Base
 
                 return list;
             }
-            catch
+            catch (Exception ex)
             {
+                // 数据错误：XML 文件解析失败返回空列表与“无匹配节点”无法区分，
+                // 必须用日志让失败可见。
+                BaseLog.SaveLog(string.Format("GetXmlListFromFile 解析失败，文件：{0}，xpath：{1}，异常：{2}",
+                    fileName, xpath, ex), "BaseXml_exp");
                 return new List<string>();
             }
         }

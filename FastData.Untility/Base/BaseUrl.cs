@@ -16,17 +16,33 @@ namespace FastUntility.Base
 
         static BaseUrl()
         {
-            conn = new Lazy<HttpClient>(() => new HttpClient(new HttpClientHandler() { AutomaticDecompression = DecompressionMethods.GZip }));
+            conn = new Lazy<HttpClient>(CreateHttpClient);
         }
 
+        /// <summary>
+        /// 创建单例 HttpClient（只执行一次）
+        /// 说明：HttpClient 是线程安全且设计为复用的，但不允许在每次请求时修改它的
+        /// 实例级状态（DefaultRequestHeaders / BaseAddress / Timeout）。
+        /// 因此所有固定配置都在这里一次性设置，http 属性 getter 只负责返回实例，
+        /// 不再产生任何副作用（issue #13）。
+        /// </summary>
+        private static HttpClient CreateHttpClient()
+        {
+            var client = new HttpClient(new HttpClientHandler() { AutomaticDecompression = DecompressionMethods.GZip });
+
+            // 连接保持：仅在单例创建时设置一次，避免每次访问 http 重复 Add 造成
+            // "Connection: keep-alive, keep-alive, ..." 的头部膨胀。
+            client.DefaultRequestHeaders.Connection.Add("keep-alive");
+
+            return client;
+        }
+
+        /// <summary>
+        /// 共享 HttpClient 实例（无副作用）
+        /// </summary>
         internal static HttpClient http
         {
-            get
-            {
-                var http = conn.Value;
-                http.DefaultRequestHeaders.Connection.Add("keep-alive");
-                return http;
-            }
+            get { return conn.Value; }
         }
 
 

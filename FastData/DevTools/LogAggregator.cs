@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FastData.DevTools
@@ -169,44 +170,49 @@ namespace FastData.DevTools
 
         private static async Task ProcessLogsAsync()
         {
-            while (_logQueue.TryDequeue(out var logEntry))
+            // 用循环而不是自我递归：日志持续写入时递归会形成不断增长的任务链
+            while (true)
             {
-                try
+                while (_logQueue.TryDequeue(out var logEntry))
                 {
-                    ILogProvider[] providers;
-                    lock (_lock)
+                    try
                     {
-                        providers = _providers.ToArray();
-                    }
+                        ILogProvider[] providers;
+                        lock (_lock)
+                        {
+                            providers = _providers.ToArray();
+                        }
 
-                    foreach (var provider in providers)
+                        foreach (var provider in providers)
+                        {
+                            try
+                            {
+                                await provider.WriteLogAsync(logEntry).ConfigureAwait(false);
+                            }
+                            catch
+                            {
+                                // 单个提供者写入失败不应阻断其它提供者，这是有意的降级
+                            }
+                        }
+                    }
+                    catch
                     {
-                        try
-                        {
-                            await provider.WriteLogAsync(logEntry);
-                        }
-                        catch
-                        {
-                            // 忽略单个提供者的错误
-                        }
+                        // 单条日志处理失败不影响队列其余条目
                     }
                 }
-                catch
-                {
-                    // 忽略处理错误
-                }
-            }
 
-            lock (_lock)
-            {
-                if (_logQueue.IsEmpty)
+                // 排空后再在锁内确认：若确实为空则退出，否则说明期间又来了新日志，继续消费。
+                // 这样既不会递归，也不会在“排空→置 _isRunning”之间丢失唤醒。
+                lock (_lock)
                 {
-                    _isRunning = false;
+                    if (_logQueue.IsEmpty)
+                    {
+                        _isRunning = false;
+                        return;
+                    }
                 }
-                else
-                {
-                    _processingTask = ProcessLogsAsync();
-                }
+
+                await Task.Yield();
             }
         }
 
@@ -226,15 +232,92 @@ namespace FastData.DevTools
         }
 
         /// <summary>
-        /// 停止日志处理
+        /// 停止日志处理，最多等待 30 秒。超时后返回，不会永久挂起。
         /// </summary>
         public static async Task StopAsync()
         {
-            // 处理所有剩余日志
+            await StopAsync(TimeSpan.FromSeconds(30), CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 停止日志处理，等待队列排空。
+        /// </summary>
+        /// <param name="timeout">最长等待时间；为 <see cref="Timeout.InfiniteTimeSpan"/> 时一直等（不推荐）。</param>
+        /// <param name="cancellationToken">取消令牌。</param>
+        /// <returns>停止后队列中剩余未处理条数；0 表示已排空。</returns>
+        /// <remarks>
+        /// 旧实现是无超时的忙等：若 <c>_isRunning</c> 停留在 true 而实际没有消费者，
+        /// 队列永不排空，调用方会永久挂起。现在超时或取消都会正常返回剩余条数。
+        /// </remarks>
+        public static async Task<int> StopAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
+        {
+            if (timeout < TimeSpan.Zero && timeout != Timeout.InfiniteTimeSpan)
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+
+            var hasDeadline = timeout != Timeout.InfiniteTimeSpan;
+            var deadline = hasDeadline ? DateTime.UtcNow + timeout : DateTime.MaxValue;
+
+            Task pending;
+            lock (_lock)
+            {
+                pending = _processingTask;
+            }
+
+            // 等队列排空，间隔 50ms 且有界，不再是无上限的 100ms 忙等
             while (!_logQueue.IsEmpty)
             {
-                await Task.Delay(100);
+                if (cancellationToken.IsCancellationRequested)
+                    break;
+
+                if (hasDeadline && DateTime.UtcNow >= deadline)
+                    break;
+
+                var slice = TimeSpan.FromMilliseconds(50);
+                if (hasDeadline)
+                {
+                    var remaining = deadline - DateTime.UtcNow;
+                    if (remaining < slice)
+                        slice = remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+                }
+
+                if (slice <= TimeSpan.Zero)
+                    break;
+
+                try
+                {
+                    await Task.Delay(slice, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
+
+            // 队列已空时，再等处理任务收尾（它自己会在锁内把 _isRunning 置回 false）
+            if (pending != null && !pending.IsCompleted && !cancellationToken.IsCancellationRequested)
+            {
+                var wait = TimeSpan.FromSeconds(5);
+                if (hasDeadline)
+                {
+                    var remaining = deadline - DateTime.UtcNow;
+                    if (remaining < wait)
+                        wait = remaining;
+                }
+
+                if (wait > TimeSpan.Zero)
+                {
+                    try
+                    {
+                        await Task.WhenAny(pending, Task.Delay(wait, cancellationToken)).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // 取消即返回
+                    }
+                }
+            }
+
+            return _logQueue.Count;
         }
     }
 

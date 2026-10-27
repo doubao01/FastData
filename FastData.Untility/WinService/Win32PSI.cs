@@ -1,6 +1,7 @@
 using System;
 using System.Management;
 using System.Web;
+using FastUntility.Base;
 
 namespace FastUntility.WinService
 {
@@ -31,9 +32,11 @@ namespace FastUntility.WinService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 忽略获取异常
+                // 降级合理：WMI 在某些环境不可用，取不到 CPU 序列号就返回空串。
+                // 但必须留下痕迹，否则“硬件指纹总是空”无法排查。
+                BaseLog.SaveLog("GetCpuInfo 获取 CPU 序列号失败：" + ex, "Win32PSI_exp");
             }
 
             return string.Empty;
@@ -64,9 +67,10 @@ namespace FastUntility.WinService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 忽略获取异常
+                // 降级合理：无可用网卡/无权限时返回空串，但保留日志避免“MAC 恒为空”无从排查。
+                BaseLog.SaveLog("GetMacAddress 获取网卡 MAC 地址失败：" + ex, "Win32PSI_exp");
             }
 
             return string.Empty;
@@ -102,9 +106,10 @@ namespace FastUntility.WinService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 忽略获取异常
+                // 降级合理：取不到系统类型就返回空串，但保留日志避免静默。
+                BaseLog.SaveLog("GetSystemType 获取操作系统类型失败：" + ex, "Win32PSI_exp");
             }
 
             return string.Empty;
@@ -140,9 +145,10 @@ namespace FastUntility.WinService
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 忽略获取异常
+                // 降级合理：取不到物理内存就返回空串，但保留日志避免静默。
+                BaseLog.SaveLog("GetPhysicalMemory 获取物理内存失败：" + ex, "Win32PSI_exp");
             }
 
             return string.Empty;
@@ -182,8 +188,11 @@ namespace FastUntility.WinService
 
                 return string.IsNullOrEmpty(userIP) ? "127.0.0.1" : userIP;
             }
-            catch
+            catch (Exception ex)
             {
+                // 降级合理：取不到客户端 IP 时回退到本地回环，不能因取 IP 失败而抛异常。
+                // 但必须留日志，否则代理配置错误会长期无人发现。
+                BaseLog.SaveLog("GetClientIPAsync 获取客户端 IP 失败，已回退 127.0.0.1：" + ex, "Win32PSI_exp");
                 return "127.0.0.1";
             }
         }
@@ -223,8 +232,11 @@ namespace FastUntility.WinService
 
                 return string.IsNullOrEmpty(userIP) ? "127.0.0.1" : userIP;
             }
-            catch
+            catch (Exception ex)
             {
+                // 降级合理：取不到客户端 IP 时回退到本地回环，不能因取 IP 失败而抛异常。
+                // 但必须留日志，否则代理配置错误会长期无人发现。
+                BaseLog.SaveLog("GetClientIP 获取客户端 IP 失败，已回退 127.0.0.1：" + ex, "Win32PSI_exp");
                 return "127.0.0.1";
             }
         }

@@ -76,9 +76,11 @@ namespace FastUntility.Base
                 // 每小时检查一次是否需要清理旧日志
                 TryCleanOldLogs(now);
             }
-            catch
+            catch (Exception ex)
             {
-                // 日志写入失败不应影响主程序
+                // 降级合理：日志写入失败绝不能影响主程序，否则日志会拖垮业务。
+                // 但这是日志设施自身的失败，不能再次调 SaveLog（会递归），用 Trace 留痕。
+                System.Diagnostics.Trace.TraceWarning("LogManager.SaveLog 写日志失败，已忽略：" + ex);
             }
         }
 
@@ -173,7 +175,8 @@ namespace FastUntility.Base
                 }
                 catch (AbandonedMutexException)
                 {
-                    // 忽略被遗弃的互斥锁
+                    // 合理：上一个持有者崩死导致锁被遗弃，本进程已获得锁，继续写入即可。
+                    // 属预期情形，无需告警。
                 }
 
                 try
@@ -245,17 +248,19 @@ namespace FastUntility.Base
                             {
                                 Directory.Delete(dir, true);
                             }
-                            catch
+                            catch (Exception ex)
                             {
-                                // 删除失败不影响主程序
+                                // 降级合理：旧日志目录删不掉不影响写日志，用 Trace 留痕。
+                                System.Diagnostics.Trace.TraceWarning("LogManager 删除过期日志目录失败：" + dir + " " + ex);
                             }
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 清理失败不影响主程序
+                // 降级合理：清理失败不影响主程序，但需留痕。
+                System.Diagnostics.Trace.TraceWarning("LogManager 清理过期日志失败：" + ex);
             }
         }
 
@@ -295,8 +300,11 @@ namespace FastUntility.Base
 
                 return (files.Length, totalSize / (1024.0 * 1024.0), earliestDate);
             }
-            catch
+            catch (Exception ex)
             {
+                // 降级合理：统计信息取不到时返回零值（调用方已有可判定结果），
+                // 但需留痕以便排查权限/路径问题。
+                System.Diagnostics.Trace.TraceWarning("LogManager.GetLogStatistics 统计日志失败：" + ex);
                 return (0, 0, null);
             }
         }
