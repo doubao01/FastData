@@ -148,6 +148,15 @@ namespace FastData.Context
                     DbLogTable.LogException<T>(config, ex, "GetPage<T>", "");
                 else
                     DbLog.LogException<T>(item.Config.IsOutError, item.Config.DbType, ex, "GetPage<T>", result.Sql);
+
+                // 异常不能只记日志就返回空壳：调用方看到的 TotalRecord=0 + 空列表，
+                // 与「查询确实没有匹配行」完全无法区分（分页查询长期表现为「静默 0 行」的原因）。
+                // 把失败信号与原因带回结果对象。
+                result.WriteReturn.IsSuccess = false;
+                result.WriteReturn.Message = string.Format("{0}: {1}", ex.GetType().Name, ex.Message);
+                result.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
+                result.PageResult.Sql = result.Sql;
+                result.PageResult.pModel = pModel;
             }
 
             return result;
