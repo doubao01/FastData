@@ -48,10 +48,16 @@ namespace FastData.Base
             {
                 case DataDbType.SqlServer:
                 {
-                    var rowNumberOrder = string.IsNullOrEmpty(orderBy) ? "order by tempcolumn" : "order by " + orderBy;
+                    // row_number() 作用在派生表 t 之上，t 只暴露列名（Id / UserName ...），
+                    // 不暴露原表的别名。若这里沿用 "u.Id" 这种带别名前缀的写法，
+                    // SQL Server 会报 The multi-part identifier "u.Id" could not be bound，
+                    // 表现为分页查询抛异常 → 上层吞掉 → 返回 0 行。
+                    var windowOrder = string.IsNullOrEmpty(orderBy)
+                        ? "order by tempcolumn"
+                        : "order by " + StripTableAlias(orderBy, table);
                     return string.Format(
                         "select top {0} * from (select row_number() over({1}) temprownumber,* from (select tempcolumn=0,{2} from {3}{4})t)tt where temprownumber>={5}",
-                        pageSize, rowNumberOrder, fields, table, whereFragment, startId);
+                        pageSize, windowOrder, fields, table, whereFragment, startId);
                 }
 
                 case DataDbType.Oracle:
@@ -175,6 +181,45 @@ namespace FastData.Base
             }
 
             return string.Format("select count(0) from {0}{1}", table, whereFragment);
+        }
+
+        /// <summary>
+        /// 去掉排序项里的表别名前缀。
+        /// <para>
+        /// 分页把原查询包进派生表后，原表别名在该层已不可见，
+        /// "u.Id" 这种写法会绑定失败；派生表暴露的是列名本身。
+        /// </para>
+        /// </summary>
+        /// <param name="orderBy">逗号分隔的排序项</param>
+        /// <param name="table">FROM 片段（形如 "perf_users u"）</param>
+        private static string StripTableAlias(string orderBy, string table)
+        {
+            if (string.IsNullOrEmpty(orderBy))
+                return orderBy;
+
+            // 从 FROM 片段解析出别名（最后一段），没有别名就无需处理
+            var alias = string.Empty;
+            if (!string.IsNullOrEmpty(table))
+            {
+                var parts = table.Trim().Split(' ');
+                if (parts.Length > 1)
+                    alias = parts[parts.Length - 1].Trim();
+            }
+
+            if (string.IsNullOrEmpty(alias))
+                return orderBy;
+
+            var items = orderBy.Split(',');
+            for (var i = 0; i < items.Length; i++)
+            {
+                var item = items[i].Trim();
+                var prefix = alias + ".";
+                if (item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    item = item.Substring(prefix.Length);
+                items[i] = item;
+            }
+
+            return string.Join(",", items);
         }
 
         private static string BuildTable(DataQuery item, List<DbParameter> param)
