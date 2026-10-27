@@ -229,7 +229,9 @@ namespace FastData.Base
 
                         sqlBuilder.AppendFormat(" {0}={1}{0},", property.Name, config.Flag);
                         var parameter = factory.CreateParameter();
-                        parameter.ParameterName = property.Name;
+                        // SQL 里写的是 {Flag}{列名}（如 @Age），参数名必须带同样的前缀，
+                        // 否则 SqlClient 会抛 "Specified parameter name 'Age' is not valid"。
+                        parameter.ParameterName = config.Flag + property.Name;
                         parameter.SourceColumn = property.Name;
                         result.Param.Add(parameter);
                     }
@@ -244,7 +246,7 @@ namespace FastData.Base
 
                         sqlBuilder.AppendFormat(" {0}={1}{0},", memberName, config.Flag);
                         var parameter = factory.CreateParameter();
-                        parameter.ParameterName = memberName;
+                        parameter.ParameterName = config.Flag + memberName;
                         parameter.SourceColumn = memberName;
                         result.Param.Add(parameter);
                     }
@@ -460,9 +462,16 @@ namespace FastData.Base
                 var properties = PropertyCache.GetPropertiesCached<T>();
                 foreach (var property in properties)
                 {
+                    // 自增列不能出现在 SET 子句里：SQL Server 直接报
+                    // "Cannot update identity column 'Id'"，MySQL/PG 同样会报错或写坏序列。
+                    if (IsIdentityColumn<T>(property.Name))
+                        continue;
+
                     sqlBuilder.AppendFormat(" {0}={1}{0},", property.Name, config.Flag);
                     var parameter = factory.CreateParameter();
-                    parameter.ParameterName = property.Name;
+                    // SQL 里写的是 {Flag}{列名}（如 @Age），参数名必须带同样前缀，
+                    // 否则 SqlClient 会抛 "Specified parameter name 'Age' is not valid"。
+                    parameter.ParameterName = config.Flag + property.Name;
                     parameter.Value = entityGetter.GetValue(entity, property.Name, config.IsPropertyCache) ?? (object)DBNull.Value;
                     result.Param.Add(parameter);
                 }
@@ -471,13 +480,31 @@ namespace FastData.Base
             {
                 foreach (var memberName in GetSelectedMemberNames(fieldSelector))
                 {
+                    if (IsIdentityColumn<T>(memberName))
+                        continue;
+
                     sqlBuilder.AppendFormat(" {0}={1}{0},", memberName, config.Flag);
                     var parameter = factory.CreateParameter();
-                    parameter.ParameterName = memberName;
+                    parameter.ParameterName = config.Flag + memberName;
                     parameter.Value = entityGetter.GetValue(entity, memberName, config.IsPropertyCache) ?? (object)DBNull.Value;
                     result.Param.Add(parameter);
                 }
             }
+        }
+
+        /// <summary>
+        /// 判断属性是否标记为自增列（[Column(IsIdentity = true)]）。
+        /// </summary>
+        private static bool IsIdentityColumn<T>(string propertyName) where T : class
+        {
+            var propInfo = typeof(T).GetProperty(propertyName);
+            if (propInfo == null)
+                return false;
+
+            var colAttr = propInfo.GetCustomAttributes(typeof(Property.ColumnAttribute), false)
+                .FirstOrDefault() as Property.ColumnAttribute;
+
+            return colAttr != null && colAttr.IsIdentity;
         }
 
         /// <summary>
