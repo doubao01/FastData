@@ -21,7 +21,8 @@ namespace FastData.DevTools
         /// </summary>
         public static BackupResult CreateBackup(string dbKey, string backupPath, BackupOptions options = null)
         {
-            var result = new BackupResult { Success = false, StartTime = DateTime.Now };
+            var startTime = DateTime.Now;
+            var result = new BackupResult { Success = false, StartTime = startTime };
 
             try
             {
@@ -34,7 +35,8 @@ namespace FastData.DevTools
                     return result;
                 }
 
-                result.DatabaseName = ExtractDatabaseName(config.ConnStr);
+                var databaseName = ExtractDatabaseName(config.ConnStr);
+                result.DatabaseName = databaseName;
 
                 switch (config.DbType)
                 {
@@ -59,12 +61,12 @@ namespace FastData.DevTools
                         break;
                 }
 
-                if (result.Success)
-                {
-                    result.EndTime = DateTime.Now;
-                    result.Duration = result.EndTime - result.StartTime;
-                    result.BackupPath = backupPath;
-                }
+                // 内层实现会新建结果对象，公共字段在这里重新回填，避免 Duration 变成「0001-01-01 到现在」
+                result.EndTime = DateTime.Now;
+                result.Duration = result.EndTime - startTime;
+                result.BackupPath = backupPath;
+                if (string.IsNullOrEmpty(result.DatabaseName))
+                    result.DatabaseName = databaseName;
             }
             catch (Exception ex)
             {
@@ -80,7 +82,8 @@ namespace FastData.DevTools
         /// </summary>
         public static RestoreResult RestoreBackup(string dbKey, string backupPath, RestoreOptions options = null)
         {
-            var result = new RestoreResult { Success = false, StartTime = DateTime.Now };
+            var startTime = DateTime.Now;
+            var result = new RestoreResult { Success = false, StartTime = startTime };
 
             try
             {
@@ -124,11 +127,11 @@ namespace FastData.DevTools
                         break;
                 }
 
-                if (result.Success)
-                {
-                    result.EndTime = DateTime.Now;
-                    result.Duration = result.EndTime - result.StartTime;
-                }
+                // 内层实现会新建结果对象，公共字段在这里重新回填
+                result.StartTime = startTime;
+                result.BackupPath = backupPath;
+                result.EndTime = DateTime.Now;
+                result.Duration = result.EndTime - result.StartTime;
             }
             catch (Exception ex)
             {
@@ -338,158 +341,210 @@ namespace FastData.DevTools
 
         private static RestoreResult RestoreMySql(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
         {
-            var result = new RestoreResult { Success = false };
-
-            try
-            {
-                var sql = File.ReadAllText(backupPath, Encoding.UTF8);
-                var statements = ParseSqlStatements(sql);
-
-                using var db = new DataContext(dbKey);
-
-                if (options.DropExisting)
-                {
-                    var tables = GetTables(dbKey);
-                    foreach (var table in tables)
-                    {
-                        try
-                        {
-                            db.cmd.CommandText = string.Format("DROP TABLE IF EXISTS {0}", table);
-                            db.cmd.ExecuteNonQuery();
-                        }
-                        catch { }
-                    }
-                }
-
-                foreach (var statement in statements)
-                {
-                    if (!string.IsNullOrWhiteSpace(statement) && !statement.Trim().StartsWith("--"))
-                    {
-                        try
-                        {
-                            db.cmd.CommandText = statement;
-                            db.cmd.ExecuteNonQuery();
-                        }
-                        catch { }
-                    }
-                }
-
-                result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.ErrorMessage = string.Format("MySQL 恢复失败: {0}", ex.Message);
-            }
-
-            return result;
+            return ExecuteScriptRestore(dbKey, backupPath, options, "MySQL");
         }
 
         private static RestoreResult RestoreSqlServer(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
         {
+            return ExecuteScriptRestore(dbKey, backupPath, options, "SQL Server");
+        }
+
+        private static RestoreResult RestorePostgreSql(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
+        {
+            return ExecuteScriptRestore(dbKey, backupPath, options, "PostgreSQL");
+        }
+
+        /// <summary>
+        /// 按 SQL 脚本恢复数据库（MySQL / SQL Server / PostgreSQL 共用实现）。
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// 失败不再被吞掉：默认遇到第一条失败语句即中止并回滚
+        /// （<see cref="RestoreOptions.IgnoreErrors"/> 为 false）；
+        /// 显式设置 IgnoreErrors 时会继续执行剩余语句，但只要有一条失败，
+        /// <see cref="RestoreResult.Success"/> 就为 false，明细在 <see cref="RestoreResult.Errors"/>。
+        /// </para>
+        /// <para>
+        /// MySQL 的 DDL 会隐式提交事务，回滚无法撤销已执行的 DDL；
+        /// SQL Server / PostgreSQL 支持事务性 DDL，回滚更彻底。
+        /// 需要在 MySQL 上获得原子性时，应改用物理备份工具而不是 SQL 脚本回放。
+        /// </para>
+        /// </remarks>
+        private static RestoreResult ExecuteScriptRestore(string dbKey, string backupPath, RestoreOptions options, string engineName)
+        {
             var result = new RestoreResult { Success = false };
+            options = options ?? new RestoreOptions();
 
             try
             {
                 var sql = File.ReadAllText(backupPath, Encoding.UTF8);
-                var statements = ParseSqlStatements(sql);
+                var statements = FilterStatements(ParseSqlStatements(sql));
+                result.TotalStatements = statements.Count;
+
+                if (statements.Count == 0)
+                {
+                    result.ErrorMessage = string.Format("{0} 备份文件中没有可执行语句: {1}", engineName, backupPath);
+                    return result;
+                }
 
                 using var db = new DataContext(dbKey);
+                var transactionStarted = false;
 
-                if (options.DropExisting)
+                if (options.UseTransaction)
                 {
-                    var tables = GetTables(dbKey);
-                    foreach (var table in tables)
+                    db.BeginTransaction();
+                    transactionStarted = true;
+                }
+
+                try
+                {
+                    if (options.DropExisting)
                     {
-                        try
-                        {
-                            db.cmd.CommandText = string.Format("DROP TABLE IF EXISTS {0}", table);
-                            db.cmd.ExecuteNonQuery();
-                        }
-                        catch { }
+                        var tables = GetTables(dbKey);
+                        result.DroppedTables = tables.Count;
+
+                        var drops = new List<string>();
+                        foreach (var table in tables)
+                            drops.Add(string.Format("DROP TABLE IF EXISTS {0}", table));
+
+                        RunStatements(drops, result, options, s => ExecuteCommand(db, s));
+                    }
+
+                    if (result.FailedStatements == 0)
+                    {
+                        RunStatements(statements, result, options, s => ExecuteCommand(db, s));
+                    }
+                }
+                finally
+                {
+                    if (transactionStarted && result.FailedStatements > 0 && !options.IgnoreErrors)
+                    {
+                        db.RollbackTransaction();
+                        result.RolledBack = true;
                     }
                 }
 
-                foreach (var statement in statements)
+                if (transactionStarted && !result.RolledBack)
                 {
-                    if (!string.IsNullOrWhiteSpace(statement) && !statement.Trim().StartsWith("--"))
-                    {
-                        try
-                        {
-                            db.cmd.CommandText = statement;
-                            db.cmd.ExecuteNonQuery();
-                        }
-                        catch { }
-                    }
+                    db.CommitTransaction();
                 }
 
-                result.Success = true;
+                result.Success = result.FailedStatements == 0;
+                result.IsPartial = !result.Success && result.ExecutedStatements > 0;
+
+                if (!result.Success)
+                {
+                    result.ErrorMessage = result.RolledBack
+                        ? string.Format(
+                            "{0} 恢复失败并已回滚：{1} 条语句执行失败（共 {2} 条）。首条错误：{3}",
+                            engineName, result.FailedStatements, result.TotalStatements, FirstError(result))
+                        : string.Format(
+                            "{0} 恢复失败，数据库可能处于部分恢复状态：{1} 条语句失败，{2} 条已提交（共 {3} 条）。首条错误：{4}",
+                            engineName, result.FailedStatements, result.ExecutedStatements, result.TotalStatements,
+                            FirstError(result));
+                }
             }
             catch (Exception ex)
             {
-                result.ErrorMessage = string.Format("SQL Server 恢复失败: {0}", ex.Message);
+                result.Success = false;
+                result.ErrorMessage = string.Format("{0} 恢复失败: {1}", engineName, ex.Message);
             }
 
             return result;
         }
 
-        private static RestoreResult RestorePostgreSql(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
+        /// <summary>
+        /// 按顺序执行一组语句，遇失败按 <see cref="RestoreOptions.IgnoreErrors"/> 决定是否中止。
+        /// </summary>
+        internal static void RunStatements(IEnumerable<string> statements, RestoreResult result, RestoreOptions options, Action<string> execute)
         {
-            var result = new RestoreResult { Success = false };
+            foreach (var statement in statements)
+            {
+                if (!ExecuteOneCore(statement, result, options, execute))
+                    break;
+            }
+        }
+
+        private static void ExecuteCommand(DataContext db, string statement)
+        {
+            db.cmd.CommandText = statement;
+            db.cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// 执行单条语句的核心逻辑，执行动作由调用方注入，便于在不接数据库时验证失败记账契约。
+        /// </summary>
+        internal static bool ExecuteOneCore(string statement, RestoreResult result, RestoreOptions options, Action<string> execute)
+        {
+            if (execute == null)
+                throw new ArgumentNullException(nameof(execute));
+
+            options = options ?? new RestoreOptions();
 
             try
             {
-                var sql = File.ReadAllText(backupPath, Encoding.UTF8);
-                var statements = ParseSqlStatements(sql);
-
-                using var db = new DataContext(dbKey);
-
-                if (options.DropExisting)
-                {
-                    var tables = GetTables(dbKey);
-                    foreach (var table in tables)
-                    {
-                        try
-                        {
-                            db.cmd.CommandText = string.Format("DROP TABLE IF EXISTS {0}", table);
-                            db.cmd.ExecuteNonQuery();
-                        }
-                        catch { }
-                    }
-                }
-
-                foreach (var statement in statements)
-                {
-                    if (!string.IsNullOrWhiteSpace(statement) && !statement.Trim().StartsWith("--"))
-                    {
-                        try
-                        {
-                            db.cmd.CommandText = statement;
-                            db.cmd.ExecuteNonQuery();
-                        }
-                        catch { }
-                    }
-                }
-
-                result.Success = true;
+                execute(statement);
+                result.ExecutedStatements++;
+                return true;
             }
             catch (Exception ex)
             {
-                result.ErrorMessage = string.Format("PostgreSQL 恢复失败: {0}", ex.Message);
+                result.FailedStatements++;
+                result.Errors.Add(string.Format("{0} | 语句: {1}", ex.Message, SummarizeStatement(statement)));
+                return options.IgnoreErrors;
+            }
+        }
+
+        internal static List<string> FilterStatements(List<string> statements)
+        {
+            var executable = new List<string>();
+
+            foreach (var statement in statements)
+            {
+                if (string.IsNullOrWhiteSpace(statement))
+                    continue;
+
+                if (statement.TrimStart().StartsWith("--", StringComparison.Ordinal))
+                    continue;
+
+                executable.Add(statement);
             }
 
-            return result;
+            return executable;
+        }
+
+        private static string SummarizeStatement(string statement)
+        {
+            var singleLine = statement.Replace("\r", " ").Replace("\n", " ").Trim();
+            return singleLine.Length <= 120 ? singleLine : singleLine.Substring(0, 120) + "...";
+        }
+
+        private static string FirstError(RestoreResult result)
+        {
+            return result.Errors.Count > 0 ? result.Errors[0] : string.Empty;
         }
 
         private static RestoreResult RestoreSQLite(string dbKey, ConfigModel config, string backupPath, RestoreOptions options)
         {
             var result = new RestoreResult { Success = false };
+            options = options ?? new RestoreOptions();
+            string preservedOriginal = null;
+            string dbPath = null;
 
             try
             {
-                var dbPath = ExtractDatabasePath(config.ConnStr);
+                dbPath = ExtractDatabasePath(config.ConnStr);
+                if (string.IsNullOrWhiteSpace(dbPath))
+                {
+                    result.ErrorMessage = "无法从连接字符串解析 SQLite 数据库路径，拒绝恢复以免写错文件。";
+                    return result;
+                }
 
                 if (options.DropExisting && File.Exists(dbPath))
                 {
+                    // 先留一份原库副本：删库后拷贝失败时还能退回去，避免数据全失
+                    preservedOriginal = dbPath + ".before-restore-" + DateTime.Now.ToString("yyyyMMddHHmmss");
+                    File.Copy(dbPath, preservedOriginal, true);
                     File.Delete(dbPath);
                 }
 
@@ -498,10 +553,39 @@ namespace FastData.DevTools
             }
             catch (Exception ex)
             {
+                result.Success = false;
                 result.ErrorMessage = string.Format("SQLite 恢复失败: {0}", ex.Message);
+
+                if (preservedOriginal != null && dbPath != null)
+                {
+                    try
+                    {
+                        File.Copy(preservedOriginal, dbPath, true);
+                        result.RolledBack = true;
+                        TryDelete(preservedOriginal);
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        result.Errors.Add(string.Format(
+                            "回退原数据库失败，原库副本位于 {0}：{1}", preservedOriginal, rollbackEx.Message));
+                    }
+                }
             }
 
             return result;
+        }
+
+        private static void TryDelete(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+                // 清理失败不影响恢复结果
+            }
         }
 
         private static List<string> GetTables(string dbKey)
@@ -717,7 +801,7 @@ namespace FastData.DevTools
     public class RestoreResult
     {
         /// <summary>
-        /// 是否成功
+        /// 是否成功。只要有任意一条语句失败，这里就是 false。
         /// </summary>
         public bool Success { get; set; }
         /// <summary>
@@ -740,6 +824,34 @@ namespace FastData.DevTools
         /// 错误信息
         /// </summary>
         public string ErrorMessage { get; set; }
+        /// <summary>
+        /// 失败语句明细（每条含异常信息与被截断的语句文本）
+        /// </summary>
+        public List<string> Errors { get; set; } = new List<string>();
+        /// <summary>
+        /// 备份文件中待执行的语句总数
+        /// </summary>
+        public int TotalStatements { get; set; }
+        /// <summary>
+        /// 已成功执行的语句数
+        /// </summary>
+        public int ExecutedStatements { get; set; }
+        /// <summary>
+        /// 执行失败的语句数
+        /// </summary>
+        public int FailedStatements { get; set; }
+        /// <summary>
+        /// 恢复前删除的表数量（仅 DropExisting 时统计）
+        /// </summary>
+        public int DroppedTables { get; set; }
+        /// <summary>
+        /// 是否已回滚
+        /// </summary>
+        public bool RolledBack { get; set; }
+        /// <summary>
+        /// 是否处于部分恢复状态（已执行部分语句但整体未成功）
+        /// </summary>
+        public bool IsPartial { get; set; }
     }
 
     /// <summary>
@@ -775,9 +887,23 @@ namespace FastData.DevTools
         /// </summary>
         public bool DropExisting { get; set; } = false;
         /// <summary>
-        /// 是否忽略恢复过程中的错误
+        /// 是否忽略恢复过程中的错误。
+        /// <para>
+        /// 默认 false：遇到第一条失败语句即中止并回滚。
+        /// 设为 true 时继续执行剩余语句，但只要有失败，
+        /// <see cref="RestoreResult.Success"/> 仍为 false（不会谎报成功），
+        /// 明细见 <see cref="RestoreResult.Errors"/>。
+        /// </para>
         /// </summary>
         public bool IgnoreErrors { get; set; } = false;
+        /// <summary>
+        /// 是否在单个事务中执行恢复（默认 true）。
+        /// <para>
+        /// MySQL 的 DDL 会隐式提交事务，回滚无法撤销已执行的 DDL；
+        /// SQL Server / PostgreSQL 支持事务性 DDL，回滚更彻底。
+        /// </para>
+        /// </summary>
+        public bool UseTransaction { get; set; } = true;
     }
 
     /// <summary>
