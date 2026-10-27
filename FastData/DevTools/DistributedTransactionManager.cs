@@ -7,11 +7,28 @@ using System.Threading.Tasks;
 using FastData.Config;
 using FastData.Model;
 
+// 本文件内部会自引用这些已标记 Obsolete 的成员；
+// 这里只抑制文件内的诊断，外部调用方仍然会收到 CS0619。
+#pragma warning disable CS0618
+
 namespace FastData.DevTools
 {
     /// <summary>
-    /// 分布式事务管理器
+    /// 分布式事务管理器。
+    /// <para>
+    /// <b>注意：本类不是分布式的，也不是真正的两阶段提交。</b>
+    /// 它只在进程内的字典里记录各库连接的提交状态，无法处理
+    /// 「一个库已提交、另一个库提交失败」后的补偿（没有回滚日志、没有协调者、
+    /// 没有超时恢复）。进程崩溃时未完成的「事务」不会回滚。
+    /// </para>
+    /// <para>
+    /// 用它包裹跨库写操作会得到「看起来原子、实际不原子」的结果，
+    /// 因此这里标记为编译错误，避免误用。跨库一致性请改用
+    /// 单库事务 + 最终一致（消息/补偿），或事务性消息表。
+    /// </para>
     /// </summary>
+    [Obsolete("DistributedTransactionManager 不是真正的两阶段提交：不做补偿、不做崩溃恢复，" +
+              "会把跨库写入伪装成原子操作。请改用单库事务 + 最终一致性方案。")]
     public static class DistributedTransactionManager
     {
         private static readonly Dictionary<string, DistributedTransaction> _activeTransactions = new Dictionary<string, DistributedTransaction>();
@@ -523,3 +540,5 @@ namespace FastData.DevTools
         }
     }
 }
+
+#pragma warning restore CS0618

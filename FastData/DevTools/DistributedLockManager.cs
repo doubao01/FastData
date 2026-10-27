@@ -6,11 +6,27 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+// 本文件内部会自引用这些已标记 Obsolete 的成员；
+// 这里只抑制文件内的诊断，外部调用方仍然会收到 CS0618。
+#pragma warning disable CS0618
+
 namespace FastData.DevTools
 {
     /// <summary>
-    /// 分布式锁管理器
+    /// 分布式锁管理器。
+    /// <para>
+    /// <b>注意：本类不是分布式的。</b>它把锁状态保存在进程内的
+    /// <see cref="ConcurrentDictionary{TKey,TValue}"/> 中，只对同一进程内的调用者可见。
+    /// 多实例 / 多进程部署时，每个实例都会「成功」拿到同一把锁，
+    /// 不提供任何跨进程互斥保证。
+    /// </para>
+    /// <para>
+    /// 需要真正的分布式互斥时，请改用数据库行锁（SELECT ... FOR UPDATE）、
+    /// Redis SETNX + 过期时间，或其它外部协调服务。
+    /// </para>
     /// </summary>
+    [Obsolete("DistributedLockManager 仅在同进程内有效，多实例部署下不提供互斥保证。" +
+              "请改用数据库行锁或 Redis 等外部协调服务。")]
     public static class DistributedLockManager
     {
         private static readonly ConcurrentDictionary<string, LockInfo> _locks = new ConcurrentDictionary<string, LockInfo>();
@@ -444,3 +460,5 @@ namespace FastData.DevTools
         }
     }
 }
+
+#pragma warning restore CS0618
