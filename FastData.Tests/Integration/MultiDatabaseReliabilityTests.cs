@@ -45,7 +45,9 @@ namespace FastData.Tests.Integration
             var inserted = await FastRead.Use(dbName)
                 .Query<PerfUser>(u => u.UserName == tag)
                 .ToItemAsync<PerfUser>();
-            Assert.NotNull(inserted);
+            Assert.True(inserted != null,
+                string.Format("{0} AddAsy 后按 UserName={1} 查不到刚插入的行（异步读取返回 null）",
+                    dbName, tag));
 
             var updatedEmail = $"updated_{tag}@example.com";
             var updateResult = await FastWrite.UpdateAsy(

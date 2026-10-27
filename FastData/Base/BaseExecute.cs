@@ -154,6 +154,11 @@ namespace FastData.Base
         /// <summary>
         ///  异步返回bool（真正的I/O异步）
         /// </summary>
+        /// <remarks>
+        /// 与同步版本 <see cref="ToBool"/> 保持同一判定语义：没抛异常即成功。
+        /// 受影响行数在 SET NOCOUNT ON、TVP、ArrayBind 场景下可能是 -1，
+        /// 用 &gt; 0 会把「其实已写入」误判为失败。
+        /// </remarks>
         /// <param name="cmd">数据库命令对象</param>
         /// <param name="sql">SQL语句</param>
         /// <param name="IsProcedure">是否存储过程</param>
@@ -165,7 +170,7 @@ namespace FastData.Base
             if (IsProcedure)
                 cmd.CommandType = CommandType.StoredProcedure;
 
-            return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) > 0;
+            return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) >= 0;
         }
 
         /// <summary>
