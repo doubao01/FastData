@@ -64,7 +64,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: FastData@Test123
-          MYSQL_DATABASE: fastdatademo
+          MYSQL_DATABASE: FastDataTest
         ports:
           - 3306:3306
         options: >-
@@ -78,7 +78,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: FastData@Test123
-          POSTGRES_DB: fastdatademo
+          POSTGRES_DB: fastdatatest
         ports:
           - 5432:5432
         options: >-
@@ -114,26 +114,38 @@ jobs:
       - name: Build test project
         run: dotnet build FastData.Tests/FastData.Tests.csproj -c Release --no-restore -f net8.0
 
-      # SQL Server 容器没有 health-cmd（镜像里 sqlcmd 路径随版本变化），单独等端口 + 额外宽限
-      - name: Wait for SQL Server
+      # SQL Server 容器没有 health-cmd（镜像里 sqlcmd 路径随版本变化），单独等端口 + 创建测试库
+      - name: Wait for SQL Server and create test database
         run: |
-          for i in $(seq 1 90); do
-            if (echo > /dev/tcp/127.0.0.1/1433) >/dev/null 2>&1; then
-              echo "SQL Server port is open (attempt $i)"
-              sleep 20
+          CID=$(docker ps --filter "ancestor=mcr.microsoft.com/mssql/server:2022-latest" --format "{{.ID}}" | head -1)
+          if [ -z "$CID" ]; then
+            echo "未找到 SQL Server 容器" >&2
+            exit 1
+          fi
+          echo "container: $CID"
+          for i in $(seq 1 60); do
+            if docker exec "$CID" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'FastData@Test123' -C \
+                 -Q "IF DB_ID('FastDataTest') IS NULL CREATE DATABASE FastDataTest" 2>/dev/null; then
+              echo "FastDataTest 已就绪（第 $i 次尝试）"
               exit 0
             fi
-            sleep 2
+            if docker exec "$CID" /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'FastData@Test123' \
+                 -Q "IF DB_ID('FastDataTest') IS NULL CREATE DATABASE FastDataTest" 2>/dev/null; then
+              echo "FastDataTest 已就绪（第 $i 次尝试，旧路径 sqlcmd）"
+              exit 0
+            fi
+            sleep 3
           done
-          echo "SQL Server 未在 180 秒内就绪" >&2
+          echo "SQL Server 未在 180 秒内就绪或建库失败" >&2
+          docker logs "$CID" 2>&1 | tail -20
           exit 1
 
       - name: Run integration tests
         env:
           FASTDATA_RUN_DB_INTEGRATION: "true"
-          FASTDATA_MYSQL_CONNSTR: "server=127.0.0.1;port=3306;database=fastdatademo;uid=root;pwd=FastData@Test123;SslMode=None;AllowPublicKeyRetrieval=true;Allow User Variables=true"
-          FASTDATA_POSTGRESQL_CONNSTR: "host=127.0.0.1;port=5432;database=fastdatademo;username=postgres;password=FastData@Test123"
-          FASTDATA_SQLSERVER_CONNSTR: "server=127.0.0.1,1433;database=FastDataDemo;uid=sa;pwd=FastData@Test123;TrustServerCertificate=true;Encrypt=False"
+          FASTDATA_MYSQL_CONNSTR: "server=127.0.0.1;port=3306;database=FastDataTest;uid=root;pwd=FastData@Test123;SslMode=None;AllowPublicKeyRetrieval=true;Allow User Variables=true"
+          FASTDATA_POSTGRESQL_CONNSTR: "host=127.0.0.1;port=5432;database=fastdatatest;username=postgres;password=FastData@Test123"
+          FASTDATA_SQLSERVER_CONNSTR: "server=127.0.0.1,1433;database=FastDataTest;uid=sa;pwd=FastData@Test123;TrustServerCertificate=true;Encrypt=False"
         run: >
           dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build
           --framework net8.0
