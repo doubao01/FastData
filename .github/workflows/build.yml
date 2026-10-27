@@ -48,7 +48,7 @@ jobs:
         run: >
           dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build
           --framework ${{ matrix.framework }}
-          --filter "FullyQualifiedName!~Integration" -v minimal
+          --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~OrmCrudTests" -v minimal
 
   # ---- 集成测试：连真实数据库跑 ----
   # 背景（issue #3）：此前的测试步骤用 `--filter "FullyQualifiedName!~Integration"`
@@ -183,7 +183,7 @@ jobs:
         run: >
           dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build
           --framework net8.0
-          --filter "FullyQualifiedName~Integration" -v minimal
+          --filter "FullyQualifiedName~Integration|FullyQualifiedName~OrmCrudTests" -v minimal
 
   # ---- Windows 专属项目（WinForms 两个工具 + Demo）----
   build-windows-projects:

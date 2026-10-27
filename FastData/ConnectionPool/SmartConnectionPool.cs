@@ -282,9 +282,20 @@ namespace FastData.ConnectionPool
             {
                 _disposed = true;
                 if (disposing)
+                {
                     _pool.ReturnConnection(this);
+                }
                 else
-                    Connection.Dispose();
+                {
+                    // 走到终结器说明调用方没有 Dispose：连接没有归还池，
+                    // 对应的信号量许可也永远不会释放（池会逐渐假性耗尽）。
+                    // 终结器线程里不能安全地把连接还给池（_pool 可能已被回收），
+                    // 只能直接释放底层连接并留下可发现的痕迹。
+                    System.Diagnostics.Trace.TraceWarning(string.Format(
+                        "PooledConnection {0} 未归还即被终结：调用方遗漏了 Dispose，连接池许可已泄漏。",
+                        Id));
+                    try { Connection?.Dispose(); } catch { }
+                }
             }
         }
     }
@@ -794,11 +805,16 @@ namespace FastData.ConnectionPool
                 }
                 connection.Connection?.Close();
                 connection.Connection?.Dispose();
-                Interlocked.Decrement(ref _totalCount);
             }
             catch (Exception ex)
             {
                 Log(string.Format("连接池 {0} 销毁连接失败: {1}", _name, ex.Message));
+            }
+            finally
+            {
+                // 计数递减必须放在 finally：Close()/Dispose() 抛异常时若跳过递减，
+                // _totalCount 会永久漂移，池会逐渐「假性满员」。
+                Interlocked.Decrement(ref _totalCount);
             }
         }
 

@@ -145,8 +145,10 @@ namespace FastData.Base
             }
             catch (Exception ex)
             {
-                // 记录到调试日志，但不影响主流程
-                DbLog.LogException(false, DataDbType.SqlServer, ex, "GetIdentityValue", "");
+                // 原来是 LogException(false, DataDbType.SqlServer, ...)：
+                // 第一个参数把日志关死（失败永远不可见），第二个参数把库类型硬编码成 SqlServer
+                // （MySQL/PG 的失败会被记到错误的分类下）。两处都按实际参数修正。
+                DbLog.LogException(true, dbType, ex, "GetIdentityValue", "");
             }
             return 0L;
         }
@@ -217,7 +219,7 @@ namespace FastData.Base
             }
             catch (Exception ex)
             {
-                DbLog.LogException(false, DataDbType.SqlServer, ex, "GetIdentityValueAsync", "");
+                DbLog.LogException(true, dbType, ex, "GetIdentityValueAsync", "");
             }
             return 0L;
         }

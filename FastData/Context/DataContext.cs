@@ -138,7 +138,19 @@ namespace FastData.Context
                     result = result
                 };
 
-                FastMap.fastAop.After(context);
+                // AOP 的 After 回调是横切通知，不能改变业务结果。
+                // 调用点通常在事务提交之后触发它：若回调抛异常，会走进外层 catch
+                // 执行 RollbackTrans（此时事务已提交，回滚无效），
+                // 结果变成「数据已提交但返回失败」，调用方重试就会重复写入。
+                try
+                {
+                    FastMap.fastAop.After(context);
+                }
+                catch (Exception aopEx)
+                {
+                    System.Diagnostics.Trace.TraceWarning(string.Format(
+                        "AOP After 回调抛出异常，已忽略（业务结果不受影响）：{0}", aopEx));
+                }
             }
         }
 
@@ -366,7 +378,14 @@ namespace FastData.Context
         public void CommitTransaction()
         {
             if (_transaction == null)
+            {
+                // 不抛异常以保持既有契约，但必须留痕：
+                // 「没有事务却调用提交」通常意味着调用方以为自己在事务里，
+                // 静默返回会让它误以为写入已被原子提交。
+                System.Diagnostics.Trace.TraceWarning(
+                    "CommitTransaction 在无活动事务时被调用（未执行任何提交）。");
                 return;
+            }
 
             try
             {
