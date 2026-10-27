@@ -153,9 +153,15 @@ namespace FastData.DevTools
                     {
                         response.Data = JsonSerializer.Deserialize<T>(content);
                     }
-                    catch
+                    catch (Exception deserializeEx)
                     {
-                        // 反序列化失败，返回原始内容
+                        // 反序列化失败不能保持 IsSuccess=true：
+                        // 否则调用方看到「HTTP 200 + Data=null」，会把「响应格式不符」
+                        // 误当成「服务端返回了空数据」。这里显式标记失败并给出原因。
+                        response.IsSuccess = false;
+                        response.Error = string.Format("响应反序列化失败（目标类型 {0}）：{1}",
+                            typeof(T).Name, deserializeEx.Message);
+                        response.Content = content;
                     }
                 }
             }

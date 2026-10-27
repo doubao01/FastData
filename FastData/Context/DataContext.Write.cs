@@ -1014,6 +1014,7 @@ namespace FastData.Context
         {
             var result = new DataReturn();
             var stopwatch = Stopwatch.StartNew();
+            var updatedRows = 0;
 
             try
             {
@@ -1056,10 +1057,18 @@ namespace FastData.Context
 
                     var updateSql = string.Format("UPDATE {0} SET {1} WHERE {2}", tableName, setClause, whereClause);
                     cmd.CommandText = updateSql;
-                    cmd.ExecuteNonQuery();
+
+                    // 逐行更新时必须累加受影响行数：原来直接丢弃返回值，
+                    // 最后无条件 IsSuccess=true，调用方无法知道到底更新了几行。
+                    // 注意 UPDATE 命中 0 行是合法结果（记录已存在且值相同），
+                    // 因此不据此判定失败，只把实际行数交给调用方判断。
+                    var rowCount = cmd.ExecuteNonQuery();
+                    if (rowCount < 0) updatedRows = -1; else if (updatedRows >= 0) updatedRows += rowCount;
                 }
 
-                result.Sql = string.Format("UPDATE {0} SET {1} WHERE {2} (x{3})", tableName, setClause, whereClause, list.Count);
+                result.Sql = string.Format("UPDATE {0} SET {1} WHERE {2} (x{3}, affected:{4})",
+                    tableName, setClause, whereClause, list.Count,
+                    updatedRows < 0 ? "unknown" : updatedRows.ToString());
                 if (isLog)
                     DbLog.LogSql(true, result.Sql, config.DbType, 0);
 

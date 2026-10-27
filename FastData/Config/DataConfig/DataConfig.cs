@@ -1075,11 +1075,15 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
             };
         }
 
-        private static string MaskConnStr(string connStr)
+        internal static string MaskConnStr(string connStr)
         {
             if (string.IsNullOrEmpty(connStr)) return "";
+            // 只遮蔽 pwd/password 会漏掉 uid、user id、access key、token 等凭据字段，
+            // 脱敏结果被贴进 issue/日志时仍然泄漏账号与密钥。
             return System.Text.RegularExpressions.Regex.Replace(
-                connStr, @"(?i)(pwd|password)=[^;]*", "$1=***");
+                connStr,
+                @"(?i)(pwd|password|uid|user\s*id|userid|username|access\s*key|accesskey|accountkey|sharedaccesskey|token|secret|apikey|api_key)=[^;]*",
+                "$1=***");
         }
 
         /// <summary>

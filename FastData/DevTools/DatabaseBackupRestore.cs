@@ -606,7 +606,12 @@ namespace FastData.DevTools
                     tables.Add(reader[0].ToString());
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // 不能吞掉：读不到数据时上层会写出一个「空但成功」的备份文件。
+                // 抛出让 BackupXxx 的 catch 统一置 Success=false 并给出原因。
+                throw new InvalidOperationException(string.Format("读取表清单失败：{0}", ex.Message), ex);
+            }
 
             return tables;
         }
@@ -645,7 +650,12 @@ namespace FastData.DevTools
                 schema.AppendLine(string.Join(",\n", columns));
                 schema.AppendLine(");");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // 不能吞掉：读不到数据时上层会写出一个「空但成功」的备份文件。
+                // 抛出让 BackupXxx 的 catch 统一置 Success=false 并给出原因。
+                throw new InvalidOperationException(string.Format("读取表结构失败：{0}", ex.Message), ex);
+            }
 
             return schema.ToString();
         }
@@ -694,7 +704,12 @@ namespace FastData.DevTools
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // 不能吞掉：读不到数据时上层会写出一个「空但成功」的备份文件。
+                // 抛出让 BackupXxx 的 catch 统一置 Success=false 并给出原因。
+                throw new InvalidOperationException(string.Format("读取表数据失败：{0}", ex.Message), ex);
+            }
 
             return data.ToString();
         }

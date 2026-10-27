@@ -1,3 +1,4 @@
+using System;
 using FastData.Migrations;
 
 namespace FastData.Migrations.Examples
@@ -154,7 +155,17 @@ namespace FastData.Migrations.Examples
         /// </summary>
         public void Example()
         {
-            var connectionString = "Server=localhost;Database=MyDb;User Id=sa;Password=123;";
+            // 不要把真实口令写进示例代码：本文件会编入 FastData 主程序集，
+            // 字符串会进入 IL/PDB。从环境变量读取，缺失时抛异常而不是静默用弱口令。
+            var connectionString = Environment.GetEnvironmentVariable("FASTDATA_MIGRATION_CONNSTR");
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "示例需要环境变量 FASTDATA_MIGRATION_CONNSTR（例如 " +
+                    "Server=localhost;Database=MyDb;User Id=sa;Password=<你的口令>;）。" +
+                    "示例代码不再内置数据库口令。");
+            }
+
             var migrationManager = new MigrationManager(connectionString);
             
             // 添加迁移
