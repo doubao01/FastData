@@ -134,6 +134,10 @@ namespace FastData.Context
                 else
                     result.PageResult.list = new List<T>();
 
+                // 把实际执行的 SQL 带回去：分页返回空列表时，仅看 list 无法区分
+                // 「条件本来就无匹配」与「SQL 生成错误」，两者都表现为 0 行。
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
+
                 result.PageResult.pModel = pModel;
             }
             catch (Exception ex)
@@ -204,6 +208,10 @@ namespace FastData.Context
                 }
                 else
                     result.PageResult.list = new List<Dictionary<string, object>>();
+
+                // 把实际执行的 SQL 带回去：分页返回空列表时，仅看 list 无法区分
+                // 「条件本来就无匹配」与「SQL 生成错误」，两者都表现为 0 行。
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
 
                 result.PageResult.pModel = pModel;
             }
@@ -280,6 +288,10 @@ namespace FastData.Context
                 else
                     result.PageResult.list = new List<Dictionary<string, object>>();
 
+                // 把实际执行的 SQL 带回去：分页返回空列表时，仅看 list 无法区分
+                // 「条件本来就无匹配」与「SQL 生成错误」，两者都表现为 0 行。
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
+
                 result.PageResult.pModel = pModel;
             }
             catch (Exception ex)
@@ -352,6 +364,10 @@ namespace FastData.Context
                     if (isAop)
                         AopAfter(null, sql.ToString(), param?.ToList(), config, true, AopType.Query_Page_Lambda_Model, result.PageResult.list);
                 }
+
+                // 把实际执行的 SQL 带回去：分页返回空列表时，仅看 list 无法区分
+                // 「条件本来就无匹配」与「SQL 生成错误」，两者都表现为 0 行。
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
 
                 result.PageResult.pModel = pModel;
             }
@@ -1245,6 +1261,10 @@ namespace FastData.Context
                 else
                     result.PageResult.list = new List<T>();
 
+                // 把实际执行的 SQL 带回去：分页返回空列表时，仅看 list 无法区分
+                // 「条件本来就无匹配」与「SQL 生成错误」，两者都表现为 0 行。
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
+
                 result.PageResult.pModel = pModel;
             }
             catch (Exception ex)
@@ -1310,6 +1330,10 @@ namespace FastData.Context
                 }
                 else
                     result.PageResult.list = new List<Dictionary<string, object>>();
+
+                // 把实际执行的 SQL 带回去：分页返回空列表时，仅看 list 无法区分
+                // 「条件本来就无匹配」与「SQL 生成错误」，两者都表现为 0 行。
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
 
                 result.PageResult.pModel = pModel;
             }

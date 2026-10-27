@@ -110,7 +110,11 @@ namespace FastData.Tests.Integration
                 .ToPage<PerfUser>(new PageModel { PageId = 1, PageSize = 5 });
 
             Assert.NotNull(page);
-            Assert.Equal(5, page.list.Count);
+            // 失败时把实际 SQL 与总数一起报出来：分页返回 0 行既可能是条件无匹配，
+            // 也可能是 SQL 生成错误（如 LIMIT 位置、row_number 派生表别名问题）。
+            Assert.True(page.list.Count == 5,
+                string.Format("{0} 分页应返回 5 行，实际 {1} 行；TotalRecord={2}；SQL: {3}",
+                    dbName, page.list.Count, page.pModel.TotalRecord, page.Sql));
             Assert.Equal(15, page.pModel.TotalRecord);
             Assert.Equal(3, page.pModel.TotalPage);
 

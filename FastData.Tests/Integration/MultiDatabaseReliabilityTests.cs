@@ -135,19 +135,23 @@ namespace FastData.Tests.Integration
             var query = FastRead.Use(dbName).Query<PerfUser>(u => u.UserName.Contains(tag));
             Assert.Equal(5, query.ToCount());
 
-            var take = FastRead.Use(dbName)
+            var takeQuery = FastRead.Use(dbName)
                 .Query<PerfUser>(u => u.UserName.Contains(tag))
                 .OrderBy<PerfUser>(u => u.Id)
-                .Take(2)
-                .ToList<PerfUser>();
-            Assert.Equal(2, take.Count);
+                .Take(2);
+            var take = takeQuery.ToList<PerfUser>();
+            Assert.True(take.Count == 2,
+                string.Format("{0} Take(2) 应返回 2 行，实际 {1} 行（TotalCount={2}）",
+                    dbName, take.Count, query.ToCount()));
 
             var page = FastRead.Use(dbName)
                 .Query<PerfUser>(u => u.UserName.Contains(tag))
                 .OrderBy<PerfUser>(u => u.Id)
                 .ToPage<PerfUser>(new PageModel { PageId = 2, PageSize = 2 });
             Assert.NotNull(page.list);
-            Assert.Equal(2, page.list.Count);
+            Assert.True(page.list.Count == 2,
+                string.Format("{0} 第 2 页应返回 2 行，实际 {1} 行；TotalRecord={2}；SQL: {3}",
+                    dbName, page.list.Count, page.pModel.TotalRecord, page.Sql));
             Assert.True(page.pModel.TotalRecord >= 5);
 
             var empty = FastRead.Use(dbName).Query<PerfUser>(u => u.UserName == $"missing_{tag}").ToList<PerfUser>();
