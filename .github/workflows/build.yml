@@ -145,6 +145,40 @@ jobs:
           docker logs "$CID" 2>&1 | tail -20
           exit 1
 
+      # 集成测试假定库里已有 perf_users 表（实体见 DatabaseIntegrationTests.PerfUser），
+      # 而仓库里只为 SQLite 建过表。三个容器各自补一份，否则测试全挂在
+      # "Table 'FastDataTest.perf_users' doesn't exist"。
+      - name: Bootstrap test schema
+        run: |
+          set -e
+          MY=$(docker ps --filter "ancestor=mysql:8.0" --format "{{.ID}}" | head -1)
+          PG=$(docker ps --filter "ancestor=postgres:16" --format "{{.ID}}" | head -1)
+          MS=$(docker ps --filter "ancestor=mcr.microsoft.com/mssql/server:2022-latest" --format "{{.ID}}" | head -1)
+
+          echo "mysql=$MY postgres=$PG mssql=$MS"
+
+          for i in $(seq 1 30); do
+            if docker exec "$MY" mysql -uroot -p'FastData@Test123' FastDataTest -e \
+              "CREATE TABLE IF NOT EXISTS perf_users (Id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, UserName VARCHAR(200) NULL, Email VARCHAR(200) NULL, Age INT NOT NULL DEFAULT 0, IsActive TINYINT(1) NOT NULL DEFAULT 0, CreatedAt DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6))" 2>/dev/null; then
+              echo "MySQL perf_users ready"; break
+            fi
+            sleep 2
+          done
+
+          for i in $(seq 1 30); do
+            if docker exec "$PG" psql -U postgres -d fastdatatest -c \
+              "CREATE TABLE IF NOT EXISTS perf_users (id SERIAL PRIMARY KEY, username VARCHAR(200), email VARCHAR(200), age INTEGER NOT NULL DEFAULT 0, isactive BOOLEAN NOT NULL DEFAULT false, createdat TIMESTAMP NOT NULL DEFAULT now())" 2>/dev/null; then
+              echo "PostgreSQL perf_users ready"; break
+            fi
+            sleep 2
+          done
+
+          docker exec "$MS" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'FastData@Test123' -C -d FastDataTest -Q \
+            "IF OBJECT_ID('dbo.perf_users','U') IS NULL CREATE TABLE dbo.perf_users (Id INT IDENTITY(1,1) PRIMARY KEY, UserName NVARCHAR(200) NULL, Email NVARCHAR(200) NULL, Age INT NOT NULL DEFAULT 0, IsActive BIT NOT NULL DEFAULT 0, CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME())" \
+            || docker exec "$MS" /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'FastData@Test123' -d FastDataTest -Q \
+            "IF OBJECT_ID('dbo.perf_users','U') IS NULL CREATE TABLE dbo.perf_users (Id INT IDENTITY(1,1) PRIMARY KEY, UserName NVARCHAR(200) NULL, Email NVARCHAR(200) NULL, Age INT NOT NULL DEFAULT 0, IsActive BIT NOT NULL DEFAULT 0, CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME())"
+          echo "SQL Server perf_users ready"
+
       - name: Run integration tests
         env:
           FASTDATA_RUN_DB_INTEGRATION: "true"
