@@ -321,9 +321,51 @@ namespace FastData
         /// <summary>
         /// 执行sql asy
         /// </summary>
-        public static Task<List<T>> QueryAsync<T>(string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false) where T : class, new()
+        public static async Task<List<T>> QueryAsync<T>(string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false) where T : class, new()
         {
-            return AsyncHelper.RunAsync(() => Query<T>(name, param, db, key, isOutSql));
+            key = key == null ? MapDb(name) : key;
+            var config = db == null ? DataConfig.GetConfig(key) : db.config;
+            if (config.IsUpdateCache)
+                InstanceMap(config.Key);
+
+            if (DbCache.Exists(config.CacheType, name.ToLower()))
+            {
+                var sql = MapXml.GetMapSql(name, ref param, db, key);
+                isOutSql = isOutSql || IsMapLog(name);
+
+                AopMapBefore(name, sql, param, config, AopType.Map_List_Model);
+
+                // 走真正的异步 I/O，而不是把同步查询丢进线程池：
+                // 原实现用 AsyncHelper.RunAsync 包装同步 Query，
+                // 那只是换了个线程阻塞，连接与命令仍在同步等待。
+                var result = await FastRead.ExecuteSqlAsync<T>(sql, param, db, key, isOutSql).ConfigureAwait(false);
+
+                if (MapXml.MapIsForEach(name, config))
+                {
+                    if (db == null)
+                    {
+                        using (var tempDb = new DataContext(key))
+                        {
+                            for (var i = 1; i <= MapXml.MapForEachCount(name, config); i++)
+                            {
+                                result = MapXml.MapForEach<T>(result, name, tempDb, config, i);
+                            }
+                        }
+                    }
+                    else
+                        result = MapXml.MapForEach<T>(result, name, db, config);
+                }
+
+                AopMapAfter(name, sql, param, config, AopType.Map_List_Model, result);
+                return result;
+            }
+            else
+            {
+                AopMapBefore(name, "", param, config, AopType.Map_List_Model);
+                var data = new List<T>();
+                AopMapAfter(name, "", param, config, AopType.Map_List_Model, data);
+                return data;
+            }
         }
 
         /// <summary>
@@ -380,9 +422,32 @@ namespace FastData
         /// <param name="key">配置键</param>
         /// <param name="isOutSql">是否输出SQL</param>
         /// <returns>写入返回对象任务</returns>
-        public static Task<WriteReturn> WriteAsync(string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
+        public static async Task<WriteReturn> WriteAsync(string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
         {
-            return AsyncHelper.RunAsync(() => Write(name, param, db, key, isOutSql));
+            key = key == null ? MapDb(name) : key;
+            var config = db == null ? DataConfig.GetConfig(key) : db.config;
+            if (config.IsUpdateCache)
+                InstanceMap(config.Key);
+
+            if (DbCache.Exists(config.CacheType, name.ToLower()))
+            {
+                var sql = MapXml.GetMapSql(name, ref param, db, key);
+                isOutSql = isOutSql || IsMapLog(name);
+
+                AopMapBefore(name, sql, param, config, AopType.Map_Write);
+
+                // 走真正的异步写入，而不是把同步 Write 丢进线程池
+                var result = await FastWrite.ExecuteSqlAsync(sql, param, db, key, isOutSql).ConfigureAwait(false);
+                AopMapAfter(name, sql, param, config, AopType.Map_Write, result.IsSuccess);
+                return result;
+            }
+            else
+            {
+                AopMapBefore(name, "", param, config, AopType.Map_Write);
+                var data = new WriteReturn();
+                AopMapAfter(name, "", param, config, AopType.Map_Write, data.IsSuccess);
+                return data;
+            }
         }
 
         /// <summary>
@@ -444,9 +509,49 @@ namespace FastData
         /// <summary>
         /// 执行sql List<Dictionary<string, object>> asy
         /// </summary>
-        public static Task<List<Dictionary<string, object>>> QueryAsync(string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
+        public static async Task<List<Dictionary<string, object>>> QueryAsync(string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
         {
-            return AsyncHelper.RunAsync(() => Query(name, param, db, key, isOutSql));
+            key = key == null ? MapDb(name) : key;
+            var config = db == null ? DataConfig.GetConfig(key) : db.config;
+            if (config.IsUpdateCache)
+                InstanceMap(config.Key);
+
+            if (DbCache.Exists(config.CacheType, name.ToLower()))
+            {
+                var sql = MapXml.GetMapSql(name, ref param, db, key);
+                isOutSql = isOutSql || IsMapLog(name);
+
+                AopMapBefore(name, sql, param, config, AopType.Map_List_Dic);
+
+                // 走真正的异步 I/O
+                var result = await FastRead.ExecuteSqlAsync(sql, param, db, key, isOutSql).ConfigureAwait(false);
+
+                if (MapXml.MapIsForEach(name, config))
+                {
+                    if (db == null)
+                    {
+                        using (var tempDb = new DataContext(key))
+                        {
+                            for (var i = 1; i <= MapXml.MapForEachCount(name, config); i++)
+                            {
+                                result = MapXml.MapForEach(result, name, tempDb, key, config, i);
+                            }
+                        }
+                    }
+                    else
+                        result = MapXml.MapForEach(result, name, db, key, config);
+                }
+
+                AopMapAfter(name, sql, param, config, AopType.Map_List_Dic, result);
+                return result;
+            }
+            else
+            {
+                AopMapBefore(name, "", param, config, AopType.Map_List_Dic);
+                var data = new List<Dictionary<string, object>>();
+                AopMapAfter(name, "", param, config, AopType.Map_List_Dic, data);
+                return data;
+            }
         }
 
         /// <summary>
@@ -545,6 +650,10 @@ namespace FastData
         /// </summary>
         public static Task<PageResult> QueryPageAsync(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
         {
+            // 注意：QueryPage 目前仍是同步实现 —— DataContext.GetPageSql 没有异步版本，
+            // 要真正异步化需要先实现异步分页 SQL 执行器（见 issue #4 的遗留部分）。
+            // 这里保留 AsyncHelper 包装，是为了不改变「返回 Task」的公开契约，
+            // 但它并不提供 I/O 异步，只是把同步调用移出调用线程。
             return AsyncHelper.RunAsync(() => QueryPage(pModel, name, param, db, key, isOutSql));
         }
 
@@ -644,6 +753,7 @@ namespace FastData
         /// </summary>
         public static Task<PageResult<T>> QueryPageAsync<T>(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false) where T : class, new()
         {
+            // 同 QueryPage：底层 GetPageSql<T> 无异步版本，保留包装以维持公开契约。
             return AsyncHelper.RunAsync(() => QueryPage<T>(pModel, name, param, db, key, isOutSql));
         }
 
