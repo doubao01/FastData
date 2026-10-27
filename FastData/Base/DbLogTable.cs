@@ -31,7 +31,20 @@ namespace FastData.Base
         /// <param name="sql">SQL语句</param>
         public static void LogException(ConfigModel config, Exception ex, string CurrentMethod, string sql)
         {
-            SaveToDb(config, ex, CurrentMethod, sql, "");
+            // 记日志本身绝不能抛异常：它是在处理「已经出错」的场景下被调用的。
+            // 之前的实现在这里再 new DataContext，连接池耗尽或库不可达时会再抛一次，
+            // 把原始异常顶掉（堆栈表现为 DataContext → LogException → DataContext 的递归），
+            // 调用方看到的错误和真正的故障原因对不上。
+            try
+            {
+                SaveToDb(config, ex, CurrentMethod, sql, "");
+            }
+            catch (Exception logEx)
+            {
+                System.Diagnostics.Trace.TraceError(
+                    string.Format("记录数据库错误日志失败（原始错误：{0}: {1}）：{2}",
+                        ex.GetType().Name, ex.Message, logEx));
+            }
         }
 
         /// <summary>
