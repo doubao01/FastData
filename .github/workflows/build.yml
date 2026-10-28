@@ -273,6 +273,19 @@ jobs:
           dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net8.0 --no-restore
           dotnet build FastData/FastData.csproj -c Release -f net8.0 --no-restore
 
+      # net452 此前只编译、从不运行测试 ——「声明支持却不验证」。
+      # Windows runner 起不了 service container，所以只跑不依赖数据库的那批用例。
+      - name: Run net452 tests
+        run: |
+          dotnet build FastData.Tests.Net452/FastData.Tests.Net452.csproj -c Release -nologo
+
+          nuget install xunit.runner.console -Version 2.6.2 -OutputDirectory tools\xunit -NonInteractive
+          $runner = "tools\xunit\xunit.runner.console.2.6.2\tools\net452\xunit.console.exe"
+          if (!(Test-Path $runner)) { throw "找不到 xunit.console.exe: $runner" }
+
+          & $runner FastData.Tests.Net452\bin\Release\net452\FastData.Tests.dll -nologo -noshadow
+          if ($LASTEXITCODE -ne 0) { throw "net452 测试失败，退出码 $LASTEXITCODE" }
+
   # ---- 安全扫描 ----
   security-scan:
     name: Security Scan
