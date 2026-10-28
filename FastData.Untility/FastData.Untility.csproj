@@ -84,11 +84,6 @@
     <PackageReference Include="NewLife.Redis" Version="6.5.2026.601" />
   </ItemGroup>
 
-  <!-- BasePdf.cs 依赖 SelectPdf，暂不包含 -->
-  <ItemGroup>
-    <Compile Remove="Base\BasePdf.cs" />
-  </ItemGroup>
-
   <!-- 排除 net452 专用文件（.NET 6+ 不编译） -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net452'">
     <Compile Remove="RedisInfo.cs" />
