@@ -79,9 +79,35 @@ namespace FastData.Tests.Integration
             var inserted = await FastRead.Use(dbName)
                 .Query<PerfUser>(u => u.UserName == tag)
                 .ToItemAsync<PerfUser>();
-            Assert.True(inserted != null,
-                string.Format("{0} AddAsy 后按 UserName={1} 查不到刚插入的行（异步读取返回 null）",
-                    dbName, tag));
+
+            if (inserted == null)
+            {
+                // 区分「数据没写进去」与「写进去了但 ORM 查不到」：
+                // 后者是查询/映射问题，前者是写入/事务问题，两者的修法完全不同。
+                var nativeCount = -1;
+                try
+                {
+                    using (var probe = new DataContext(dbName))
+                    {
+                        probe.cmd.CommandText = "select count(1) from perf_users where UserName = @p_tag";
+                        probe.cmd.Parameters.Clear();
+                        var p = probe.cmd.CreateParameter();
+                        p.ParameterName = "@p_tag";
+                        p.Value = tag;
+                        probe.cmd.Parameters.Add(p);
+                        nativeCount = Convert.ToInt32(probe.cmd.ExecuteScalar());
+                    }
+                }
+                catch (Exception probeEx)
+                {
+                    nativeCount = -2;
+                    Console.WriteLine("原生 COUNT 探测失败: " + probeEx.Message);
+                }
+
+                Assert.True(false,
+                    string.Format("{0} AddAsy 后查不到 UserName={1}；原生 COUNT={2}（0=数据未落库，>0=ORM 查询/映射问题，-1/-2=探测本身失败）",
+                        dbName, tag, nativeCount));
+            }
 
             var updatedEmail = $"updated_{tag}@example.com";
             var updateResult = await FastWrite.UpdateAsy(
