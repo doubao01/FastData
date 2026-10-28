@@ -49,6 +49,18 @@
 
   <ItemGroup>
     <!--
+      配置文件必须复制到输出目录：DataConfig 从 AppDomain.BaseDirectory 找 db.config。
+      有些用例（表达式解析、SQL 生成）虽然不连库，但需要配置对象才能构造 SQL，
+      缺文件会抛「数据库配置 Key 不存在」。
+    -->
+    <None Include="..\FastData.Tests\db.config" Link="db.config" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FastData.Tests\db.dev.config" Link="db.dev.config" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FastData.Tests\db.pro.config" Link="db.pro.config" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FastData.Tests\db.duplicate-test.config" Link="db.duplicate-test.config" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       链接进来的测试源文件：只挑不碰数据库的那些。
       加文件之前先确认它在 net452 下能编译（net452 目标会排除部分源文件，
       引用了被排除类型的测试在这里会编译失败）。
