@@ -35,7 +35,6 @@ var (items, total) = FastRead.Read.Query<User>()
 
 - 📖 [现代 ORM 特性详解](./FastData/MODERN_ORM_FEATURES.md)
 - 📋 [CHANGELOG](./CHANGELOG.md)
-- 🧠 [用户指令记忆](./.monkeycode/MEMORY.md)
 
 ---
 
@@ -103,14 +102,18 @@ var (items, total) = FastRead.Read.Query<User>()
 
 ## 文档导航
 
-### 项目文档
-- [🧠 用户指令记忆](./.monkeycode/MEMORY.md)
-- [ CHANGELOG](./CHANGELOG.md)
+### 核心文档
+- [FastData 核心库](./FastData/README.md)
+- [现代 ORM 特性详解](./FastData/MODERN_ORM_FEATURES.md)
+- [CHANGELOG](./CHANGELOG.md)
+
+### 专题文档
+- [ORM 最佳实践](./FastData/docs/ORM_BEST_PRACTICES.md)
+- [条件构造器](./FastData/docs/CONDITION_BUILDER.md)
+- [数据库提供程序自动注册](./FastData/docs/AUTO_PROVIDER_REGISTRATION.md)
 
 ### 子项目文档
-- [FastData 核心库](./FastData/README.md)
 - [FastData.Untility 工具库](./FastData.Untility/README.md)
-- [现代 ORM 特性详解](./FastData/MODERN_ORM_FEATURES.md)
 - [FastData.Tests 测试项目](./FastData.Tests/README.md)
 - [FastData.Demo Web API 示例](./FastData.Demo/README.md)
 - [FastData.Example 控制台示例](./FastData.Example/README.md)

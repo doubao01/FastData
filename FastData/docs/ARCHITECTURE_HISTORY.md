@@ -1,6 +1,10 @@
-# FastData 架构优化报告
+# FastData 架构优化报告（历史归档）
 
 > 版本: v2.5.0 | 日期: 2026-06-09 | 状态: 已完成
+>
+> **这是历史归档，不是当前架构说明。**
+> 当前的分层、调用链与已知问题请看 [FastData/README.md](../README.md)；
+> 后续修复记录见 [CHANGELOG.md](../../CHANGELOG.md)。
 
 ---
 
