@@ -68,11 +68,7 @@
     <Compile Include="..\FastData.Tests\EncryptionTests.cs" Link="Linked\EncryptionTests.cs" />
     <Compile Include="..\FastData.Tests\Security\SensitiveDataTests.cs" Link="Linked\SensitiveDataTests.cs" />
     <Compile Include="..\FastData.Tests\TestConfig.cs" Link="Linked\TestConfig.cs" />
-    <Compile Include="..\FastData.Tests\ExpressionParsingTests.cs" Link="Linked\ExpressionParsingTests.cs" />
-    <Compile Include="..\FastData.Tests\AopTests.cs" Link="Linked\AopTests.cs" />
     <Compile Include="..\FastData.Tests\ExceptionManagerTests.cs" Link="Linked\ExceptionManagerTests.cs" />
-    <Compile Include="..\FastData.Tests\PaginationTests.cs" Link="Linked\PaginationTests.cs" />
-    <Compile Include="..\FastData.Tests\ConfigParsingTests.cs" Link="Linked\ConfigParsingTests.cs" />
     <Compile Include="..\FastData.Tests\Abstractions\DateTimeProviderTests.cs" Link="Linked\DateTimeProviderTests.cs" />
     <Compile Include="..\FastData.Tests\Config\DataSyncOptionsTests.cs" Link="Linked\DataSyncOptionsTests.cs" />
   </ItemGroup>
