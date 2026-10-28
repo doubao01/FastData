@@ -655,7 +655,12 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
                 if (string.Equals(dbFile, "web.config", StringComparison.OrdinalIgnoreCase))
                     return (DataConfig)ConfigurationManager.GetSection("DataConfig");
 
-                var configPath = string.Format("{0}{1}", AppDomain.CurrentDomain.BaseDirectory, dbFile);
+                // 必须用 Path.Combine，不能字符串拼接：
+                // AppDomain.BaseDirectory 是否带结尾分隔符依环境而异，
+                // 拼接会得到 "...\net452db.config" 这种错误路径，
+                // File.Exists 返回 false 后静默 return null —— 表现为「配置里一个 Key 都没有」。
+                // net452 + xunit.console 的 BaseDirectory 不带结尾反斜杠，正是如此（issue #18）。
+                var configPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dbFile);
                 if (!File.Exists(configPath))
                     return null;
 

@@ -39,7 +39,8 @@ namespace FastData.Config
             {
                 var key = "FastData.Config.SqlMap";
                 var exeConfig = new ExeConfigurationFileMap();
-                exeConfig.ExeConfigFilename = string.Format("{0}{1}", AppDomain.CurrentDomain.BaseDirectory,mapFile);
+                // 同 DataConfig：BaseDirectory 的结尾分隔符不保证存在，拼接会拼出错误路径
+                exeConfig.ExeConfigFilename = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, mapFile);
                 var info = new FileInfo(exeConfig.ExeConfigFilename);
                 
                 if (!DbCache.Exists(CacheType.Web, key))
@@ -81,7 +82,8 @@ namespace FastData.Config
             {
                 foreach (var temp in item.SqlMap)
                 {
-                    var path = string.Format("{0}{1}", AppDomain.CurrentDomain.BaseDirectory, (temp as MapElement).File.Replace("/", "\\"));
+                    var path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                        (temp as MapElement).File.Replace("/", "\\"));
                     if (File.Exists(path))
                         result.Path.Add(path);
                 }
