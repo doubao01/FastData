@@ -172,7 +172,14 @@ public static class DbProviderAutoRegistrar
                     return true;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // 内层的 Assembly.Load 探测失败是预期情况，保持静默；
+            // 但走到这里的异常不是「找不到程序集」，而是注册过程中出了别的问题，
+            // 完全吞掉会让调用方只看到「注册失败」而无法排查。
+            System.Diagnostics.Trace.TraceWarning(string.Format(
+                "DbProviderAutoRegistrar 按已加载程序集注册 {0} 失败：{1}", invariantName, ex));
+        }
 
         return false;
     }
@@ -204,7 +211,11 @@ public static class DbProviderAutoRegistrar
 
             return TryRegisterFromAssembly(assembly, factoryTypeName, invariantName);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceWarning(string.Format(
+                "DbProviderAutoRegistrar 按程序集名注册 {0} 失败：{1}", invariantName, ex));
+        }
 
         return false;
     }
