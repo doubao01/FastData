@@ -754,10 +754,20 @@ namespace FastData.Context
                 sql.Append(item.Take);
                 sql.Append(" ");
             }
-            for (int i = 0; i < item.Field.Count; i++)
+            // 字段列表为空时（调用方没有显式 Select）必须用 *，否则会拼出
+            // `select top 1  from perf_users ...` 这种空列清单的语法错误，
+            // 异常被上层 catch 吞掉后表现为「ToJson 返回空」。
+            if (item.Field.Count == 0)
             {
-                if (i > 0) sql.Append(",");
-                sql.Append(item.Field[i]);
+                sql.Append("* ");
+            }
+            else
+            {
+                for (int i = 0; i < item.Field.Count; i++)
+                {
+                    if (i > 0) sql.Append(",");
+                    sql.Append(item.Field[i]);
+                }
             }
             sql.Append(" from ");
             sql.Append(item.Table[0]);

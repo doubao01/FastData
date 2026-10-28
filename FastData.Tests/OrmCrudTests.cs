@@ -131,7 +131,13 @@ namespace FastData.Tests
             }
 
             var template = new PerfUser { IsActive = false };
-            var updateResult = FastWrite.Update(template, u => u.UserName.Contains(string.Format("orm_test_{0}", tag)), key: _key);
+            // 用模板对象做整体更新会把未赋值字段（如 CreatedAt=DateTime.MinValue）一起写回，
+            // 而 CreatedAt 是非空列，必然失败。这里显式指定只更新 IsActive，
+            // 与测试意图（验证按条件批量更新）一致。
+            var updateResult = FastWrite.Update(template,
+                u => u.UserName.Contains(string.Format("orm_test_{0}", tag)),
+                u => new { u.IsActive },
+                key: _key);
             Console.WriteLine("Update by predicate: IsSuccess={0}, Message={1}", updateResult.IsSuccess, updateResult.Message);
             Assert.True(updateResult.IsSuccess, string.Format("Update by predicate failed: {0}", updateResult.Message));
 
