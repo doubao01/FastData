@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>FastData.Samples.QuickStart</RootNamespace>
+    <AssemblyName>QuickStart</AssemblyName>
+    <!-- 示例项目不参与包发布 -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FastData\FastData.csproj" />
+    <ProjectReference Include="..\..\FastData.Untility\FastData.Untility.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 配置从 AppDomain.BaseDirectory 读取，必须复制到输出目录 -->
+    <None Update="db.config" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -68,6 +68,9 @@ namespace FastData.Base
             {
                 LogException(config, ex, "UpdateToSql<T>", result.Sql);
                 result.IsSuccess = false;
+                // 原本只写日志、不回填 Message：调用方拿到 IsSuccess=false 且 Message 为空，
+                // 只能去翻日志文件才能知道为什么更新失败。
+                result.Message = string.Format("{0}: {1}", ex.GetType().Name, ex.Message);
                 return result;
             }
         }

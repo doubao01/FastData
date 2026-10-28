@@ -4,36 +4,49 @@
 [![NuGet](https://img.shields.io/badge/NuGet-Fast.Data-blue.svg)](https://www.nuget.org/packages/Fast.Data/)
 [![.NET](https://img.shields.io/badge/.NET-4.5.2%20%7C%208.0%20%7C%2010.0-blueviolet)]()
 
-**FastData** 是一个企业级 ORM 框架，支持 .NET Framework 4.5.2 至 .NET 10，提供 Lambda 查询、XML Map SQL、Code First、Db First、AOP、智能连接池、Redis 缓存、消息队列和数据同步等功能。
+**FastData** 是一个同时支持 **Lambda 表达式**与 **XML 映射 SQL** 两种查询写法的 .NET ORM，
+从 .NET Framework 4.5.2 到 .NET 10 共用一套 API。
+
+如果你的项目还跑在 .NET Framework 上，又想要 `u => u.Age > 18` 这样的强类型查询，
+或者需要把 SQL 抽到 XML 里交给 DBA 维护——这是它存在的理由。
+新项目请直接用 EF Core 或 Dapper，它们更成熟。
+
+支持的数据库：SQL Server、MySQL、PostgreSQL、SQLite、Oracle、DB2。
 
 ---
 
-## 快速开始
+## 先跑起来
 
-### 安装
+不需要装数据库、不需要改配置，SQLite 直接落盘：
 
 ```bash
-Install-Package Fast.Data
+git clone https://github.com/doubao01/FastData.git
+cd FastData/samples/QuickStart
+dotnet run
 ```
 
-### 快速上手
+完整的创建表 → 插入 → 查询 → 更新 → 删除，见 [samples/QuickStart](samples/QuickStart/)。
+这个示例在 CI 里每次构建都会实际运行，不会烂在文档里。
+
+---
+
+## 代码长这样
 
 ```csharp
-// 查询所有用户
-var users = FastRead.Read.Query<User>(u => u.IsActive == true).ToList();
+// Lambda：强类型，编译期检查
+var adults = FastRead.Query<User>(u => u.Age > 18)
+    .OrderBy<User>(u => u.Id)
+    .Take(10)
+    .ToList<User>();
 
-// 添加用户
-var user = new User { Name = "张三", Email = "zhangsan@example.com" };
-FastRead.Write.Add(user);
-
-// 分页查询
-var (items, total) = FastRead.Read.Query<User>()
-    .ToPage(new PageModel { PageId = 1, PageSize = 20 });
+// XML Map：SQL 与代码分离，DBA 可维护
+var users = FastMap.Query<User>("selectUserById", new[] { param });
 ```
 
 ### 详细文档
 
 - 📖 [现代 ORM 特性详解](./FastData/MODERN_ORM_FEATURES.md)
+- 🐞 [已知问题与修复状态](./FastData/docs/KNOWN_ISSUES.md)
 - 📋 [CHANGELOG](./CHANGELOG.md)
 
 ---

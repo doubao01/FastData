@@ -226,6 +226,12 @@ namespace FastData.Context
                 if (isTrans)
                     BeginTrans();
 
+                // UpdateToSql 要读主键元数据，必须已有打开的连接。
+                // 原实现在这里没开连接，而把 conn.Open() 放在了真正执行 SQL 之前，
+                // 于是「新建 DataContext 后第一次调用 Update」必然抛
+                // "ExecuteReader can only be called when the connection is open."
+                EnsureConnectionOpen();
+
                 update = BaseModel.UpdateToSql<T>(model, config, field, cmd);
 
                 if (update.IsSuccess)
@@ -257,7 +263,14 @@ namespace FastData.Context
                         result.WriteReturn.IsSuccess = BaseExecute.ToBool(cmd, sql);
                     }
                     else
+                    {
+                        // 原来这里只置失败、不给原因：调用方拿到 IsSuccess=false 且 Message 为空，
+                        // 无法判断是条件表达式解析失败还是数据库拒绝。
                         result.WriteReturn.IsSuccess = false;
+                        result.WriteReturn.Message = string.Format(
+                            "更新条件表达式解析失败，已阻止执行（解析出的条件：{0}）",
+                            string.IsNullOrEmpty(visitModel.Where) ? "空" : visitModel.Where);
+                    }
                 }
                 else
                 {
@@ -302,9 +315,12 @@ namespace FastData.Context
             try
             {
 
-                update = BaseModel.UpdateToSql<T>(cmd, model, config, field);
+                // 同 Update(model, predicate, field)：先保证连接可用，再读主键元数据。
                 if (isTrans)
                     BeginTrans();
+                EnsureConnectionOpen();
+
+                update = BaseModel.UpdateToSql<T>(cmd, model, config, field);
                 if (update.IsSuccess)
                 {
                     SetCommandParameters(update.Param);
@@ -1316,6 +1332,9 @@ namespace FastData.Context
                 if (isTrans)
                     BeginTrans();
 
+                // UpdateToSql 要读主键元数据，必须已有打开的连接（同同步版的修复）。
+                EnsureConnectionOpen();
+
                 update = BaseModel.UpdateToSql<T>(model, config, field, cmd);
 
                 if (update.IsSuccess)
@@ -1383,9 +1402,11 @@ namespace FastData.Context
             var tableName = new List<string>();
             try
             {
-                update = BaseModel.UpdateToSql<T>(cmd, model, config, field);
                 if (isTrans)
                     BeginTrans();
+                EnsureConnectionOpen();
+
+                update = BaseModel.UpdateToSql<T>(cmd, model, config, field);
                 if (update.IsSuccess)
                 {
                     SetCommandParameters(update.Param);

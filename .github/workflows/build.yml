@@ -44,6 +44,13 @@ jobs:
           dotnet build FastData/FastData.csproj -c Release -f ${{ matrix.framework }} --no-restore
           dotnet build FastData.Tests/FastData.Tests.csproj -c Release -f ${{ matrix.framework }} --no-restore
 
+      # 示例必须真的能跑：README 里的「5 分钟上手」若失效，
+      # 开源项目的第一个 issue 就会是环境问题而不是功能问题。
+      - name: Run QuickStart sample
+        if: matrix.framework == 'net8.0'
+        run: |
+          dotnet run --project samples/QuickStart/QuickStart.csproj -c Release
+
       - name: Run Tests (non-integration)
         run: >
           dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build
@@ -292,23 +299,44 @@ jobs:
             8.0.x
             10.0.x
 
-      - name: Restore
+      # 包必须包含全部声明的目标框架。
+      # 此前这里用 BuildPlatform=cross（排除 net452）且 pack 时写死 TargetFrameworks=net8.0，
+      # 于是 README 宣称支持 net452 / net8 / net10，实际发出去的包只有 net8.0。
+      - name: Restore (all target frameworks)
         run: |
-          dotnet restore FastData/FastData.csproj -p:BuildPlatform=cross
-          dotnet restore FastData.Untility/FastData.Untility.csproj -p:BuildPlatform=cross
+          dotnet restore FastData/FastData.csproj -p:BuildPlatform=windows
+          dotnet restore FastData.Untility/FastData.Untility.csproj -p:BuildPlatform=windows
 
-      - name: Build
+      - name: Build (all target frameworks)
         run: |
-          dotnet build FastData/FastData.csproj -c Release -f net8.0 --no-restore
-          dotnet build FastData.Untility/FastData.Untility.csproj -c Release -f net8.0 --no-restore
-          # 多 TFM 项目 pack 时 MSBuild 会按 TargetFrameworks 列表最后一个（net10.0）找输出，
-          # 显式把列表改写为单 TFM，使 pack 的输出查找与 build 产物一致
-          dotnet pack FastData/FastData.csproj -c Release --no-build -p:TargetFrameworks=net8.0 -o artifacts
-          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -p:TargetFrameworks=net8.0 -o artifacts
+          dotnet build FastData/FastData.csproj -c Release --no-restore -p:BuildPlatform=windows
+          dotnet build FastData.Untility/FastData.Untility.csproj -c Release --no-restore -p:BuildPlatform=windows
+
+      - name: Pack
+        run: |
+          # 版本号：master 上的持续构建用 CI 预发布号，避免与已发布版本冲突。
+          # 正式发布走 release.yml（tag 触发），版本取 tag。
+          $version = "1.0.0-ci.${{ github.run_number }}"
+          Write-Host "packing version $version"
+          dotnet pack FastData/FastData.csproj -c Release --no-build -p:BuildPlatform=windows -p:Version=$version -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -p:BuildPlatform=windows -p:Version=$version -p:IncludeSymbols=true -p:SymbolPackageFormat=snupkg -o artifacts
+
+      # 把包内容打印出来，避免「打包成功但内容不对」再次发生
+      - name: Inspect package contents
+        run: |
+          Get-ChildItem artifacts/*.nupkg | ForEach-Object {
+            Write-Host "=== $($_.Name) ==="
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $zip = [System.IO.Compression.ZipFile]::OpenRead($_.FullName)
+            $zip.Entries | Where-Object { $_.FullName -like "lib/*" } | ForEach-Object { Write-Host "  $($_.FullName)" }
+            $zip.Dispose()
+          }
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
-          path: artifacts/*.nupkg
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
           retention-days: 30
