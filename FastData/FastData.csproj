@@ -52,8 +52,8 @@
       它会把高 TFM 的包版本钉进 net452 的还原图导致 NU1202，
       因此在这里用 VersionOverride 显式提升。
     -->
-    <PackageReference Include="System.Security.Cryptography.Xml" VersionOverride="8.0.5" />
-    <PackageReference Include="System.Security.Cryptography.Pkcs" VersionOverride="8.0.2" />
+    <PackageReference Include="System.Security.Cryptography.Xml" VersionOverride="9.0.22" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" VersionOverride="9.0.22" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
     <PackageReference Include="System.CodeDom" />
     <PackageReference Include="System.Runtime.Caching" />

@@ -21,9 +21,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Data.SqlClient" />
-    <!-- 安全钉版：SqlClient / ConfigurationManager 传递引入的旧版本带高危公告 -->
-    <PackageReference Include="System.Security.Cryptography.Xml" VersionOverride="8.0.5" />
-    <PackageReference Include="System.Security.Cryptography.Pkcs" VersionOverride="8.0.2" />
     <PackageReference Include="MySql.Data" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
