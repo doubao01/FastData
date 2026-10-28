@@ -662,8 +662,16 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
                 var content = File.ReadAllText(configPath);
                 return ParseXmlConfig(content);
             }
-            catch
+            catch (Exception ex)
             {
+                // 原来这里是裸 catch { return null; }：配置文件读到了、路径也对，
+                // 但解析中途抛的异常被完全吞掉，调用方只能看到「可用 Key 为空」，
+                // 无法区分「文件不存在」「XML 格式错」「配置节机制不兼容」。
+                // issue #18 就是被这行藏住的（net452 下表现与 net8 不同）。
+                // 这里只加可观测性，不改变返回值语义：失败仍返回 null。
+                System.Diagnostics.Trace.TraceWarning(string.Format(
+                    "DataConfig.TryLoadConfig 加载 {0} 失败：{1}: {2}",
+                    dbFile, ex.GetType().Name, ex.Message));
                 return null;
             }
         }
@@ -997,8 +1005,14 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
 
                 return config;
             }
-            catch
+            catch (Exception ex)
             {
+                // 同 TryLoadConfig：不改变返回值语义（仍返回 null），但必须让失败可见。
+                // 这一层更容易出问题——它内部的 config["Active"] 等语句依赖
+                // ConfigurationSection 的索引器，该写法在不同目标框架下行为不一致（issue #18）。
+                System.Diagnostics.Trace.TraceWarning(string.Format(
+                    "DataConfig.ParseXmlConfig 解析失败：{0}: {1}",
+                    ex.GetType().Name, ex.Message));
                 return null;
             }
         }

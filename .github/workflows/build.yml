@@ -283,7 +283,7 @@ jobs:
           $runner = "tools\xunit\xunit.runner.console.2.6.2\tools\net452\xunit.console.exe"
           if (!(Test-Path $runner)) { throw "找不到 xunit.console.exe: $runner" }
 
-          & $runner FastData.Tests.Net452\bin\Release\net452\FastData.Tests.dll -nologo -noshadow
+          & $runner FastData.Tests.Net452\bin\Release\net452\FastData.Tests.dll -nologo -noshadow -verbose
           if ($LASTEXITCODE -ne 0) { throw "net452 测试失败，退出码 $LASTEXITCODE" }
 
   # ---- 安全扫描 ----
