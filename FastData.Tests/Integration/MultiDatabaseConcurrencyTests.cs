@@ -24,8 +24,21 @@ namespace FastData.Tests.Integration
 
         public static IEnumerable<object[]> GetDatabases() => MultiDatabaseTestHelper.GetRelationalAndSqliteDatabases();
 
+        /// <summary>
+        /// 只包含支持并发写的服务端数据库。
+        /// <para>
+        /// SQLite 是单写者模型的文件库：多个线程同时写同一个 .db 文件时，
+        /// 会出现锁竞争甚至「no such table」这类文件层面的异常
+        /// （run#47 / run#49 各出现 31 次）。这不是连接池或 ORM 的问题，
+        /// 而是 SQLite 本身不适用于这种访问模式。
+        /// 用拟真服务端数据库的方式去测它，得到的是噪声而不是信号。
+        /// </para>
+        /// </summary>
+        public static IEnumerable<object[]> GetConcurrencyCapableDatabases()
+            => MultiDatabaseTestHelper.GetRelationalDatabases();
+
         [Theory]
-        [MemberData(nameof(GetDatabases))]
+        [MemberData(nameof(GetConcurrencyCapableDatabases))]
         public async Task Concurrency_ReadWrite(string dbName)
         {
             if (!MultiDatabaseTestHelper.CanOpenDatabase(dbName)) return;
