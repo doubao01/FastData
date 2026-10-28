@@ -8,6 +8,7 @@ namespace FastData.Tests.Integration
     /// <summary>
     /// 多数据库事务测试
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class MultiDatabaseTransactionTests
     {
         static MultiDatabaseTransactionTests()

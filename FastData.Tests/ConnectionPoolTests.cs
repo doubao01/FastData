@@ -26,6 +26,7 @@ namespace FastData.Tests
     /// 覆盖核心连接池操作、智能调整、消息队列集成、
     /// 弹性写入故障转移、稳定性测试等场景。
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class ConnectionPoolTests
     {
         private readonly string _connStr;

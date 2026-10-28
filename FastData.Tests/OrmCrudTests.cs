@@ -15,6 +15,7 @@ namespace FastData.Tests
     /// ORM CRUD 功能覆盖率测试
     /// 覆盖之前未测试的核心 ORM 操作
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class OrmCrudTests : IDisposable
     {
         private readonly string _key = "SqlServer";

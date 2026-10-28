@@ -9,6 +9,7 @@ namespace FastData.Tests.Integration
     /// <summary>
     /// 多数据库边界测试
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class MultiDatabaseEdgeTests
     {
         static MultiDatabaseEdgeTests()

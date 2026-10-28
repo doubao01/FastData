@@ -19,6 +19,7 @@ namespace FastData.Tests.Integration
     /// 性能测试用户实体
     /// </summary>
     [Table(Name = "perf_users")]
+    [Collection(SharedDatabaseCollection.Name)]
     public class PerfUser
     {
         /// <summary>

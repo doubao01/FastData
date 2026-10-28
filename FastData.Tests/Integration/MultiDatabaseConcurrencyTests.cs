@@ -14,6 +14,7 @@ namespace FastData.Tests.Integration
     /// <summary>
     /// 多数据库并发测试
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class MultiDatabaseConcurrencyTests
     {
         static MultiDatabaseConcurrencyTests()

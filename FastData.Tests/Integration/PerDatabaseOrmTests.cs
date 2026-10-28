@@ -20,6 +20,7 @@ namespace FastData.Tests.Integration
     /// 每个数据库完整 ORM 功能测试
     /// 覆盖：CRUD、Lambda 查询、链式查询、分页、事务、批量插入、AOP、多数据库表名映射
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class PerDatabaseOrmTests
     {
         private static readonly object _lockObj = new object();

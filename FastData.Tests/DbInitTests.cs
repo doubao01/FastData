@@ -12,6 +12,7 @@ namespace FastData.Tests
     /// <summary>
     /// 数据库初始化测试
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class DbInitTests
     {
         private readonly ITestOutputHelper _output;

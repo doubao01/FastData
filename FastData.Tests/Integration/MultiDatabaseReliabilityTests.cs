@@ -13,6 +13,7 @@ namespace FastData.Tests.Integration
     /// Multi-database reliability tests for features that are expected to behave the same
     /// across SqlServer, MySql, and PostgreSql. Avoids raw SQL dialects and provider-specific parameters.
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class MultiDatabaseReliabilityTests
     {
         private static readonly string[] Databases = { "SqlServer", "MySql", "PostgreSql" };

@@ -26,6 +26,7 @@ namespace FastData.Tests
     /// 4. PropertyCache 反射缓存性能
     /// 5. 数据映射性能（DataReader → Model）
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class OrmPerformanceTests : IDisposable
     {
         private readonly string _key = "Sqlite";

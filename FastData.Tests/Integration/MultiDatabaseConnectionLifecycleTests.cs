@@ -19,6 +19,7 @@ namespace FastData.Tests.Integration
     /// 多数据库连接生命周期测试
     /// 覆盖 SqlServer/MySql/PostgreSql/SQLite 的连接创建、复用、健康检查、故障恢复等场景
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class MultiDatabaseConnectionLifecycleTests
     {
         private static readonly string[] Databases = { "SqlServer", "MySql", "PostgreSql", "Sqlite" };

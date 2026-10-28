@@ -23,6 +23,7 @@ namespace FastData.Tests
     /// 高并发压测
     /// 从各角度对 FastData 进行压力测试
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class StressTests
     {
         private static int _successCount;
