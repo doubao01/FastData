@@ -40,13 +40,13 @@
     
     <!-- ===== 数据库驱动包 ===== -->
     <!-- SQL Server -->
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <!-- MySQL -->
     <PackageVersion Include="MySql.Data" Version="9.1.0" />
     <!-- PostgreSQL -->
     <PackageVersion Include="Npgsql" Version="8.0.3" />
     <!-- SQLite (现代 .NET 推荐，纯托管跨平台) - 升级到 10.0.8 -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <!-- SQLite (传统 .NET Framework) -->
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.119" />
     

@@ -293,11 +293,15 @@ jobs:
           dotnet restore FastData/FastData.csproj -p:BuildPlatform=cross
           dotnet restore FastData.Tests/FastData.Tests.csproj -p:BuildPlatform=cross
 
+      # `dotnet list package --vulnerable` 只打印、退出码恒为 0，
+      # 原来的写法加上 continue-on-error，等于「扫了但永远不会拦」。
+      # 改为解析输出并显式判定。
       - name: Check for vulnerable packages
         run: |
-          dotnet list FastData/FastData.csproj package --vulnerable --include-transitive
-          dotnet list FastData.Tests/FastData.Tests.csproj package --vulnerable --include-transitive
-        continue-on-error: true
+          python3 tools/check-vulnerabilities.py \
+            FastData/FastData.csproj \
+            FastData.Untility/FastData.Untility.csproj \
+            FastData.Tests/FastData.Tests.csproj
 
       - name: Build with analyzers
         run: |

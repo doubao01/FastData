@@ -45,6 +45,15 @@
   <!-- .NET 8/10 专用包引用 -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net452'">
     <PackageReference Include="System.Configuration.ConfigurationManager" />
+    <!--
+      安全钉版：ConfigurationManager 间接引入了这两个包的低版本，
+      8.0.1 / 8.0.2 带多个高危公告（GHSA-846f-f764-76mx 等）。
+      全局传递钉定（CentralPackageTransitivePinningEnabled）在本仓库不可用——
+      它会把高 TFM 的包版本钉进 net452 的还原图导致 NU1202，
+      因此在这里用 VersionOverride 显式提升。
+    -->
+    <PackageReference Include="System.Security.Cryptography.Xml" VersionOverride="8.0.5" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" VersionOverride="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
     <PackageReference Include="System.CodeDom" />
     <PackageReference Include="System.Runtime.Caching" />
