@@ -14,6 +14,7 @@ namespace FastData.Tests
     /// <summary>
     /// 验证应用侧无需手动注册 DbProviderFactory 即可使用 ORM。
     /// </summary>
+    [Collection(SharedDatabaseCollection.Name)]
     public class ProviderAutoRegistrationTests
     {
         [Table(Name = "ProviderAutoRegistrationEntity")]

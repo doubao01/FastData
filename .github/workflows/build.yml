@@ -277,7 +277,7 @@ jobs:
       # Windows runner 起不了 service container，所以只跑不依赖数据库的那批用例。
       - name: Run net452 tests
         run: |
-          dotnet build FastData.Tests.Net452/FastData.Tests.Net452.csproj -c Release -nologo
+          dotnet build FastData.Tests.Net452/FastData.Tests.Net452.csproj -c Release -p:BuildPlatform=windows -nologo
 
           nuget install xunit.runner.console -Version 2.6.2 -OutputDirectory tools\xunit -NonInteractive
           $runner = "tools\xunit\xunit.runner.console.2.6.2\tools\net452\xunit.console.exe"
