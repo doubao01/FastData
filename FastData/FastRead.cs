@@ -464,6 +464,7 @@ namespace FastData
         public static DataQuery Take(this DataQuery item, int i)
         {
             item.Take = i;
+            item.HasTake = true;
             return item;
         }
 
@@ -537,7 +538,7 @@ namespace FastData
                 () => item.Predicate.Exists(a => a.IsSuccess == false),
                 r => r.Item,
                 r => r.Sql,
-                () => item.Take = 1);
+                () => { item.Take = 1; item.HasTake = true; });
         }
 
         /// <summary>返回单个实体（异步）</summary>
@@ -549,7 +550,7 @@ namespace FastData
                 () => item.Predicate.Exists(a => a.IsSuccess == false),
                 r => r.Item,
                 r => r.Sql,
-                () => item.Take = 1,
+                () => { item.Take = 1; item.HasTake = true; },
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -795,7 +796,7 @@ namespace FastData
                 () => item.Predicate.Exists(a => a.IsSuccess == false),
                 r => r.Dic,
                 r => r.Sql,
-                () => item.Take = 1);
+                () => { item.Take = 1; item.HasTake = true; });
         }
 
         /// <summary>返回单个字典（异步）</summary>
@@ -807,7 +808,7 @@ namespace FastData
                 () => item.Predicate.Exists(a => a.IsSuccess == false),
                 r => r.Dic,
                 r => r.Sql,
-                () => item.Take = 1,
+                () => { item.Take = 1; item.HasTake = true; },
                 cancellationToken).ConfigureAwait(false);
         }
 

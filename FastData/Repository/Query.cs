@@ -121,6 +121,7 @@ namespace FastData.Repository
         public override IQuery Take(int i)
         {
             this.Data.Take = i;
+            this.Data.HasTake = true;
             return this;
         }
 

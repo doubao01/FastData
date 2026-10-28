@@ -41,6 +41,15 @@ namespace FastData.Model
         internal int Take { get; set; }
 
         /// <summary>
+        /// 是否显式调用过 Take(...)。
+        /// <para>
+        /// <see cref="Take"/> 的默认值是 0，无法区分「没设置」与「显式取 0 条」。
+        /// 前者应返回全部结果，后者应返回空集合。这里单独记一个标志位。
+        /// </para>
+        /// </summary>
+        internal bool HasTake { get; set; }
+
+        /// <summary>
         /// 数据库键
         /// </summary>
         internal string Key { get; set; }

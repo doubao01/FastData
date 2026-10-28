@@ -159,8 +159,10 @@ namespace FastData.Base
 
                     var propertyValue = entityGetter.GetValue(entity, property.Name, config.IsPropertyCache);
                     var parameter = factory.CreateParameter();
-                    parameter.ParameterName = property.Name;
-                    parameter.Value = propertyValue ?? (object)DBNull.Value;
+                    // 与 SET/WHERE 一致：参数名必须带数据库前缀，否则 SqlClient 报
+                    // "Specified parameter name 'X' is not valid"。
+                    parameter.ParameterName = config.Flag + property.Name;
+                    parameter.Value = NormalizeValue(propertyValue);
                     result.Param.Add(parameter);
                 }
 
@@ -455,6 +457,26 @@ namespace FastData.Base
         /// <summary>
         /// 构建 UPDATE SET 子句（字段名=参数名）
         /// </summary>
+        /// <summary>
+        /// 把 .NET 的默认值规整为数据库可接受的值。
+        /// <para>
+        /// DateTime.MinValue（0001-01-01）超出 SQL Server datetime 的下限（1753-01-01），
+        /// 直接绑定会抛 "SqlDateTime overflow"。用模板对象做部分更新时，
+        /// 未赋值的日期字段就是 MinValue —— 这几乎总是「没填」而不是「要存公元 1 年」，
+        /// 因此规整为 DBNull。
+        /// </para>
+        /// </summary>
+        private static object NormalizeValue(object value)
+        {
+            if (value == null)
+                return DBNull.Value;
+
+            if (value is DateTime dt && dt == DateTime.MinValue)
+                return DBNull.Value;
+
+            return value;
+        }
+
         private static void BuildSetClause<T>(StringBuilder sqlBuilder, T entity, ConfigModel config,
             Expression<Func<T, object>> fieldSelector, Property.DynamicGet<T> entityGetter,
             DbProviderFactory factory, OptionModel result) where T : class
@@ -474,7 +496,7 @@ namespace FastData.Base
                     // SQL 里写的是 {Flag}{列名}（如 @Age），参数名必须带同样前缀，
                     // 否则 SqlClient 会抛 "Specified parameter name 'Age' is not valid"。
                     parameter.ParameterName = config.Flag + property.Name;
-                    parameter.Value = entityGetter.GetValue(entity, property.Name, config.IsPropertyCache) ?? (object)DBNull.Value;
+                    parameter.Value = NormalizeValue(entityGetter.GetValue(entity, property.Name, config.IsPropertyCache));
                     result.Param.Add(parameter);
                 }
             }
@@ -488,7 +510,7 @@ namespace FastData.Base
                     sqlBuilder.AppendFormat(" {0}={1}{0},", memberName, config.Flag);
                     var parameter = factory.CreateParameter();
                     parameter.ParameterName = config.Flag + memberName;
-                    parameter.Value = entityGetter.GetValue(entity, memberName, config.IsPropertyCache) ?? (object)DBNull.Value;
+                    parameter.Value = NormalizeValue(entityGetter.GetValue(entity, memberName, config.IsPropertyCache));
                     result.Param.Add(parameter);
                 }
             }

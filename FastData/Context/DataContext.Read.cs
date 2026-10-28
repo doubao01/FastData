@@ -50,16 +50,13 @@ namespace FastData.Context
 
                 using (var dr = BaseExecute.ToDataReader(cmd, sql.ToString()))
                 {
-                    if (item.Take == 1)
-                    {
-                        result.Item = BaseDataReader.ToList<T>(dr, item.Config, item.Field).FirstOrDefault<T>();
-                        data = result.Item;
-                    }
-                    else
-                    {
-                        result.List = BaseDataReader.ToList<T>(dr, item.Config, item.Field);
-                        data = result.List;
-                    }
+                    // Take(1) 只是「只查一条」的优化提示，不代表调用方要的是 Item。
+                    // 原来该分支只填 Item、不填 List，导致 Take(1).ToList() / Take(1).ToJson()
+                    // 拿到空集合（测试 ToJson_ShouldReturnJsonString / ToListAsync_ShouldReturnResults 复现）。
+                    var items = BaseDataReader.ToList<T>(dr, item.Config, item.Field);
+                    result.List = items;
+                    result.Item = items.FirstOrDefault<T>();
+                    data = item.Take == 1 ? (object)result.Item : (object)items;
                 }
 
                 AopAfter(item.Table, sql.ToString(), param, config, true, AopType.Query_List_Lambda, data);
@@ -645,7 +642,7 @@ namespace FastData.Context
             try
             {
                 // SQL Server TOP 特殊处理
-                if (item.Config.DbType == DataDbType.SqlServer && item.Take != 0)
+                if (item.Config.DbType == DataDbType.SqlServer && (item.Take != 0 || item.HasTake))
                     sql.AppendFormat("select top {2} {0} from {1}", string.Join(",", item.Field), item.Table[0], item.Take);
                 
                 BuildBaseSelectQuery(item, param, sql);
@@ -663,16 +660,11 @@ namespace FastData.Context
                     conn.Open();
                 using (var dr = BaseExecute.ToDataReader(cmd, sql.ToString()))
                 {
-                    if (item.Take == 1)
-                    {
-                        result.Dic = BaseJson.DataReaderToDic(dr, config.DbType == DataDbType.Oracle).FirstOrDefault() ?? new Dictionary<string, object>();
-                        data = result.Dic;
-                    }
-                    else
-                    {
-                        result.DicList = BaseJson.DataReaderToDic(dr, config.DbType == DataDbType.Oracle);
-                        data = result.DicList;
-                    }
+                    // 同实体版：Take(1) 时也要填 DicList，否则 Take(1).ToList() 拿到空集合。
+                    var dicList = BaseJson.DataReaderToDic(dr, config.DbType == DataDbType.Oracle);
+                    result.DicList = dicList;
+                    result.Dic = dicList.FirstOrDefault() ?? new Dictionary<string, object>();
+                    data = item.Take == 1 ? (object)result.Dic : (object)dicList;
                 }
 
                 AopAfter(item.Table, sql.ToString(), param, config, true, AopType.Query_Dic_Lambda, data);
@@ -707,7 +699,7 @@ namespace FastData.Context
             try
             {
                 // SQL Server TOP 特殊处理
-                if (item.Config.DbType == DataDbType.SqlServer && item.Take != 0)
+                if (item.Config.DbType == DataDbType.SqlServer && (item.Take != 0 || item.HasTake))
                     sql.AppendFormat("select top {2} {0} from {1}", string.Join(",", item.Field), item.Table[0], item.Take);
                 
                 BuildBaseSelectQuery(item, param, sql);
@@ -756,7 +748,7 @@ namespace FastData.Context
         private void BuildBaseSelectQuery(DataQuery item, List<DbParameter> param, StringBuilder sql)
         {
             sql.Append("select ");
-            if (item.Config.DbType == DataDbType.SqlServer && item.Take != 0)
+            if (item.Config.DbType == DataDbType.SqlServer && (item.Take != 0 || item.HasTake))
             {
                 sql.Append("top ");
                 sql.Append(item.Take);
@@ -816,7 +808,9 @@ namespace FastData.Context
         /// <param name="sql">SQL构建器</param>
         private void AppendTakeClause(DataQuery item, StringBuilder sql)
         {
-            if (item.Take == 0)
+            // Take 的默认值是 0，若仅凭 0 就 return，会把「显式 Take(0)」当成「不限制」，
+            // 于是 Take(0) 返回全表。用 HasTake 区分两种语义。
+            if (item.Take == 0 && !item.HasTake)
                 return;
 
             if (item.Config.DbType == DataDbType.SqlServer)
@@ -883,16 +877,13 @@ namespace FastData.Context
 
                 using (var dr = await BaseExecute.ToDataReaderAsync(cmd, sql.ToString()).ConfigureAwait(false))
                 {
-                    if (item.Take == 1)
-                    {
-                        result.Item = BaseDataReader.ToList<T>(dr, item.Config, item.Field).FirstOrDefault<T>();
-                        data = result.Item;
-                    }
-                    else
-                    {
-                        result.List = BaseDataReader.ToList<T>(dr, item.Config, item.Field);
-                        data = result.List;
-                    }
+                    // Take(1) 只是「只查一条」的优化提示，不代表调用方要的是 Item。
+                    // 原来该分支只填 Item、不填 List，导致 Take(1).ToList() / Take(1).ToJson()
+                    // 拿到空集合（测试 ToJson_ShouldReturnJsonString / ToListAsync_ShouldReturnResults 复现）。
+                    var items = BaseDataReader.ToList<T>(dr, item.Config, item.Field);
+                    result.List = items;
+                    result.Item = items.FirstOrDefault<T>();
+                    data = item.Take == 1 ? (object)result.Item : (object)items;
                 }
 
                 AopAfter(item.Table, sql.ToString(), param, config, true, AopType.Query_List_Lambda, data);
@@ -1027,16 +1018,11 @@ namespace FastData.Context
                 await EnsureConnectionOpenReadAsync(cancellationToken).ConfigureAwait(false);
                 using (var dr = await BaseExecute.ToDataReaderAsync(cmd, sql.ToString()).ConfigureAwait(false))
                 {
-                    if (item.Take == 1)
-                    {
-                        result.Dic = BaseJson.DataReaderToDic(dr, config.DbType == DataDbType.Oracle).FirstOrDefault() ?? new Dictionary<string, object>();
-                        data = result.Dic;
-                    }
-                    else
-                    {
-                        result.DicList = BaseJson.DataReaderToDic(dr, config.DbType == DataDbType.Oracle);
-                        data = result.DicList;
-                    }
+                    // 同实体版：Take(1) 时也要填 DicList，否则 Take(1).ToList() 拿到空集合。
+                    var dicList = BaseJson.DataReaderToDic(dr, config.DbType == DataDbType.Oracle);
+                    result.DicList = dicList;
+                    result.Dic = dicList.FirstOrDefault() ?? new Dictionary<string, object>();
+                    data = item.Take == 1 ? (object)result.Dic : (object)dicList;
                 }
 
                 AopAfter(item.Table, sql.ToString(), param, config, true, AopType.Query_Dic_Lambda, data);
