@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ApiBaseline</AssemblyName>
+    <RootNamespace>FastData.Tools.ApiBaseline</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- 本工具只是为了枚举公开 API，不需要 XML 文档 -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FastData\FastData.csproj" />
+    <ProjectReference Include="..\..\FastData.Untility\FastData.Untility.csproj" />
+  </ItemGroup>
+
+</Project>
