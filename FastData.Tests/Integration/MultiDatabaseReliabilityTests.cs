@@ -30,6 +30,40 @@ namespace FastData.Tests.Integration
                 yield return new object[] { db };
         }
 
+        /// <summary>
+        /// 重复执行「异步插入后立即查询」以暴露间歇性可见性问题（issue #17）。
+        /// <para>
+        /// 原用例单次执行，失败概率低，重跑就过，无法定位。这里把同一路径连跑多次，
+        /// 把「偶发」放大成「大概率复现」，并在失败时带上实际 SQL 便于定位。
+        /// </para>
+        /// </summary>
+        [Theory]
+        [MemberData(nameof(GetDatabases))]
+        public async Task AsyncCrud_Repeated_ShouldAlwaysSeeInsertedRow(string dbName)
+        {
+            if (!ShouldRunDbIntegration()) return;
+
+            const int rounds = 30;
+
+            for (var i = 0; i < rounds; i++)
+            {
+                var tag = NewTag("loop");
+                var addResult = await FastWrite.AddAsy(CreateUser(tag, 20 + (i % 10)), key: dbName);
+
+                Assert.True(addResult.IsSuccess,
+                    string.Format("{0} 第 {1}/{2} 次 AddAsy 失败（UserName={3}）：{4}",
+                        dbName, i + 1, rounds, tag, addResult.Message));
+
+                var row = await FastRead.Use(dbName)
+                    .Query<PerfUser>(u => u.UserName == tag)
+                    .ToItemAsync<PerfUser>();
+
+                Assert.True(row != null,
+                    string.Format("{0} 第 {1}/{2} 次插入后立即查询不到 UserName={3}（插入返回成功，Message={4}）",
+                        dbName, i + 1, rounds, tag, addResult.Message));
+            }
+        }
+
         [Theory]
         [MemberData(nameof(GetDatabases))]
         public async Task AsyncCrud_ByPredicate_WorksAcrossDatabases(string dbName)

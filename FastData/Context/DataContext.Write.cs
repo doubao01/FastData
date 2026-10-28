@@ -1464,8 +1464,19 @@ namespace FastData.Context
 
                     return result;
                 }
-                else
-                    return result;
+
+                // 与同步版 Add 保持一致：InsertToSql 失败时必须显式失败，
+                // 否则返回的是默认 DataReturn（无异常、无 Message），调用方无法判断。
+                result.WriteReturn.IsSuccess = false;
+                result.WriteReturn.Message = string.Format("生成插入语句失败（{0}）：{1}",
+                    typeof(T).Name,
+                    string.IsNullOrEmpty(insert.Message) ? "未提供原因" : insert.Message);
+
+                if (isTrans)
+                    RollbackTrans();
+
+                AopAfter(tableName, insert.Sql, insert.Param, config, false, AopType.Add, false);
+                return result;
             }
             catch (Exception ex)
             {
