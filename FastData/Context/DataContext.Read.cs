@@ -408,9 +408,10 @@ namespace FastData.Context
                 // SQL Server TOP 特殊处理
                 BuildBaseSelectQuery(item, param, sql);
 
-                if (item.Predicate[0].Param.Count != 0)
-                    param.AddRange(item.Predicate[0].Param);
-
+                // BuildBaseSelectQuery 内部已通过 WhereBuilder.BuildWhereClause(item, ref param)
+                // 把 WHERE 参数收进 param，这里再按 Predicate[0].Param 添加一次会重复绑定同名参数，
+                // SQL Server 直接报参数重复；MySQL/PG 则可能静默错位。
+                // 原来还带一个隐患：Predicate 为空时 Predicate[0] 直接越界。
                 result.Sql = ParameterToSql.ObjectParamToSql(param, sql.ToString(), item.Config);
 
                 cmd.Parameters.Clear();
@@ -1389,7 +1390,9 @@ namespace FastData.Context
                         param.AddRange(item.Predicate[i].Param);
                 }
 
-                if (item.Predicate[0].Param.Count != 0)
+                // 这里是自己拼 WHERE 的分页实现（不走 WhereBuilder），所以需要手动补参数；
+                // 但 Predicate 为空时 Predicate[0] 会越界，先判空。
+                if (item.Predicate.Count > 0 && item.Predicate[0].Param.Count != 0)
                     param.AddRange(item.Predicate[0].Param);
 
                 if (item.Config.DbType == DataDbType.SqlServer)
