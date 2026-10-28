@@ -85,8 +85,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -121,8 +125,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -156,8 +164,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -185,8 +197,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -225,8 +241,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -256,8 +276,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -290,8 +314,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -327,8 +355,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -348,8 +380,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var result = FastRead.Query<PerfUser>(u => u.UserName == "nonexistent_user_xyz_12345", key: _key)
@@ -368,8 +404,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -390,8 +430,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var count = FastRead.Query<PerfUser>(u => u.UserName == "nonexistent_count_xyz", key: _key)
@@ -410,8 +454,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -442,8 +490,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -476,8 +528,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -497,8 +553,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var json = FastRead.Query<PerfUser>(u => u.UserName == "nonexistent_json_xyz", key: _key)
@@ -562,8 +622,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -586,8 +650,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var results = FastRead.Query<PerfUser>(u => u.IsActive, key: _key)
@@ -607,8 +675,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -636,8 +708,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -668,8 +744,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -710,8 +790,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -735,8 +819,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -759,8 +847,12 @@ namespace FastData.Tests
         {
             if (!_dbAvailable)
             {
-                Console.WriteLine("SKIP: database unavailable");
-                return;
+                // 本类所有用例的意义就是验证真实数据库行为。
+                // 原来这里 Console.WriteLine + return，xUnit 会记为 Passed ——
+                // 报告上「通过」，实际什么都没验证，是典型假绿。
+                // 库不可用属于环境问题，应当显式失败而不是静默通过。
+                Assert.Fail("数据库不可用：本用例需要真实数据库。"
+                    + "请确认 FASTDATA_RUN_DB_INTEGRATION=true 且目标库已就绪。");
             }
 
             var tag = Guid.NewGuid().ToString("N").Substring(0, 8);

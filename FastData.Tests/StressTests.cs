@@ -862,7 +862,7 @@ namespace FastData.Tests
                 foreach (var error in _errors.Take(5))
                     Console.WriteLine("  - {0}", error);
             }
-            Assert.True(result.SuccessRate > 0.5, string.Format("30线程并发测试失败: {0}", result.Details));
+            Assert.True(result.SuccessRate >= 0.99, string.Format("30线程并发测试失败: {0}", result.Details));
         }
 
         /// <summary>
@@ -879,8 +879,7 @@ namespace FastData.Tests
                 foreach (var error in _errors.Take(5))
                     Console.WriteLine("  - {0}", error);
             }
-            // MySql 允许部分失败（连接池限制）
-            Assert.True(result.SuccessRate > 0.3, string.Format("30线程并发测试失败: {0}", result.Details));
+            Assert.True(result.SuccessRate >= 0.99, string.Format("30线程并发测试失败: {0}", result.Details));
         }
 
         /// <summary>
@@ -908,7 +907,7 @@ namespace FastData.Tests
         {
             var result = await TestConcurrentReadWrite("SqlServer", 100, 5);
             // 100线程允许部分失败（连接池限制）
-            Assert.True(result.SuccessRate > 0.3, string.Format("100线程并发测试失败: {0}", result.Details));
+            Assert.True(result.SuccessRate >= 0.99, string.Format("100线程并发测试失败: {0}", result.Details));
             Console.WriteLine("SqlServer 100线程并发: {0}", result.Details);
         }
 
@@ -920,7 +919,7 @@ namespace FastData.Tests
         {
             var result = await TestConcurrentReadWrite("MySql", 100, 5);
             // 100线程允许部分失败（连接池限制）
-            Assert.True(result.SuccessRate > 0.3, string.Format("100线程并发测试失败: {0}", result.Details));
+            Assert.True(result.SuccessRate >= 0.99, string.Format("100线程并发测试失败: {0}", result.Details));
             Console.WriteLine("MySql 100线程并发: {0}", result.Details);
         }
 
@@ -932,7 +931,7 @@ namespace FastData.Tests
         {
             var result = await TestConcurrentReadWrite("PostgreSql", 100, 5);
             // 100线程允许部分失败（连接池限制）
-            Assert.True(result.SuccessRate > 0.3, string.Format("100线程并发测试失败: {0}", result.Details));
+            Assert.True(result.SuccessRate >= 0.99, string.Format("100线程并发测试失败: {0}", result.Details));
             Console.WriteLine("PostgreSql 100线程并发: {0}", result.Details);
         }
 
@@ -944,8 +943,7 @@ namespace FastData.Tests
         {
             var dbName = "PostgreSql";
             var result = await TestMixedOperations(dbName, 50, 10);
-            // 混合操作允许部分失败
-            Assert.True(result.SuccessRate > 0.5, string.Format("混合操作并发测试失败: {0}", result.Details));
+            Assert.True(result.SuccessRate >= 0.99, string.Format("混合操作并发测试失败: {0}", result.Details));
             Console.WriteLine("{0} 混合操作并发: {1}", dbName, result.Details);
         }
 
@@ -953,7 +951,11 @@ namespace FastData.Tests
         {
             if (!IsDatabaseConfigured(dbName))
             {
-                Console.WriteLine("{0} 配置不可用，跳过并发读写压测", dbName);
+                // 不能返回 Skipped：它的 SuccessRate=1，调用处的断言照样通过，
+                // 报告上「通过」但压测根本没跑。库没配好属于环境问题，应当显式失败。
+                Assert.Fail(string.Format(
+                    "{0} 未配置：并发压测需要真实数据库。请确认 FASTDATA_RUN_DB_INTEGRATION=true 且库已就绪。",
+                    dbName));
                 return TestResult.Skipped;
             }
 
@@ -1038,7 +1040,11 @@ namespace FastData.Tests
         {
             if (!IsDatabaseConfigured(dbName))
             {
-                Console.WriteLine("{0} 配置不可用，跳过混合操作压测", dbName);
+                // 不能返回 Skipped：它的 SuccessRate=1，调用处的断言照样通过，
+                // 报告上「通过」但压测根本没跑。库没配好属于环境问题，应当显式失败。
+                Assert.Fail(string.Format(
+                    "{0} 未配置：并发压测需要真实数据库。请确认 FASTDATA_RUN_DB_INTEGRATION=true 且库已就绪。",
+                    dbName));
                 return TestResult.Skipped;
             }
 
