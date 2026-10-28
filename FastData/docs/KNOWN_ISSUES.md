@@ -114,6 +114,7 @@
 | Issue | 内容 |
 |---|---|
 | [#17](https://github.com/doubao01/FastData/issues/17) | `AsyncCrud_ByPredicate` 在 SQL Server 上间歇失败（AddAsy 后查不到刚插入的行）。run#24-27 通过、#33 失败、#35 重跑通过、#37/#38 失败、#41 通过。可疑点：连接池事务残留、`GetIdentityValueAsync` 改写 cmd 的时序。 |
+| [#18](https://github.com/doubao01/FastData/issues/18) | **net452 下 `DataConfig` 解析失败**：配置文件存在、路径正确，但读不到任何连接（`可用 Key` 为空）。`ParseXmlConfig` 里 `new DataConfig()` 后访问 `ConfigurationSection` 索引器，该写法在 .NET Framework 下要求实例已被配置系统关联，异常被 `catch { return null; }` 吞掉。影响：net452 目标下所有依赖 `db.config` 的用法都不可用，**包括最基础的门面 API**。 |
 
 ---
 
@@ -121,6 +122,10 @@
 
 集成测试覆盖 MySQL / PostgreSQL / SQL Server 三种真实数据库，
 CI 中 `integration-test` job 起 service container 并创建 `perf_users` 表。
+
+**net452 测试**：`FastData.Tests.Net452` 在 Windows runner 上用 `xunit.console.exe` 运行，
+覆盖不依赖数据库的子集（加密、脱敏、异常管理、DateTimeProvider、数据同步选项）。
+数据库往返无法在 net452 上测（GitHub 的 Windows runner 不支持 service container）。
 
 本地 `dotnet test` 在部分环境（PRoot/容器）无法启动 testhost，
 需要以 CI 结果为准。
