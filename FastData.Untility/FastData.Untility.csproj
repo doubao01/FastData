@@ -81,6 +81,9 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.8" />
+    <!-- 安全钉版：ConfigurationManager 间引入的旧版本带多条高危公告 -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.5" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
     <PackageReference Include="NewLife.Redis" Version="6.5.2026.601" />
   </ItemGroup>
 
