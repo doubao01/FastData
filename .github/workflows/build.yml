@@ -315,9 +315,13 @@ jobs:
 
       - name: Run benchmarks
         run: |
+          # 必须显式传 --filter：BenchmarkSwitcher 在无参数时会进入交互式选择，
+          # CI 里没有 stdin，会直接结束且不产出任何结果（job 绿了但什么都没跑）。
           dotnet run -c Release \
             --project benchmarks/FastData.Benchmarks/FastData.Benchmarks.csproj \
-            -p:TargetFrameworks=net8.0
+            -p:TargetFrameworks=net8.0 \
+            -- --filter '*'
+          ls -la benchmarks/FastData.Benchmarks/BenchmarkDotNet.Artifacts/results/
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

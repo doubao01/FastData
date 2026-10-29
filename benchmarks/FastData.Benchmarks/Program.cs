@@ -19,6 +19,11 @@ namespace FastData.Benchmarks
     {
         public static void Main(string[] args)
         {
+            // 无参数时 BenchmarkSwitcher 会进入交互式选择，CI 里没有 stdin 就直接结束、
+            // 不产出任何结果 —— 表现为「job 绿了但没跑」。这里默认跑全部。
+            if (args == null || args.Length == 0)
+                args = new[] { "--filter", "*" };
+
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         }
     }
