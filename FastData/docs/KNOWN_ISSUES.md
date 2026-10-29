@@ -55,6 +55,12 @@
 | `FastData.Demo/*.config` | 明文数据库口令（改为 `CHANGE_ME` 占位符） |
 | `.monkeycode/` | 内部工作笔记提交进公开仓库（已移除并入 gitignore） |
 
+### 配置加载
+
+| 位置 | 问题 |
+|---|---|
+| `DataConfig.TryLoadConfig`、`MapConfig`（3 处） | 用字符串拼接 `BaseDirectory + 文件名`。`AppDomain.BaseDirectory` 是否带结尾分隔符依环境而异，拼出 `...\net452db.config` 这种错误路径 → `File.Exists` 为 false → 静默返回 null → 表现为「配置里一个 Key 都没有」。改为 `Path.Combine`。**任何 BaseDirectory 不带尾斜杠的宿主都会中招，不只是 net452。** |
+
 ### 资源与并发
 
 | 位置 | 问题 |
@@ -114,7 +120,6 @@
 | Issue | 内容 |
 |---|---|
 | [#17](https://github.com/doubao01/FastData/issues/17) | `AsyncCrud_ByPredicate` 在 SQL Server 上间歇失败（AddAsy 后查不到刚插入的行）。run#24-27 通过、#33 失败、#35 重跑通过、#37/#38 失败、#41 通过。可疑点：连接池事务残留、`GetIdentityValueAsync` 改写 cmd 的时序。 |
-| [#18](https://github.com/doubao01/FastData/issues/18) | **net452 下 `DataConfig` 解析失败**：配置文件存在、路径正确，但读不到任何连接（`可用 Key` 为空）。`ParseXmlConfig` 里 `new DataConfig()` 后访问 `ConfigurationSection` 索引器，该写法在 .NET Framework 下要求实例已被配置系统关联，异常被 `catch { return null; }` 吞掉。影响：net452 目标下所有依赖 `db.config` 的用法都不可用，**包括最基础的门面 API**。 |
 
 ---
 
