@@ -803,7 +803,9 @@ M:FastData.DevTools.QueryMetrics.ctor()
 M:FastData.DevTools.QueryOptimizationResult.ctor()
 M:FastData.DevTools.QueryOptimizer.AnalyzePerformance(System.String,System.Double,System.Int32) [static] -> FastData.DevTools.QueryPerformanceAnalysis
 M:FastData.DevTools.QueryOptimizer.DetectIssues(System.String) [static] -> System.Collections.Generic.List<FastData.DevTools.QueryIssue>
+M:FastData.DevTools.QueryOptimizer.LoadTableColumns(FastData.Context.DataContext,System.Collections.Generic.IEnumerable<System.String>) [static] -> System.Collections.Generic.IDictionary<System.String,System.Collections.Generic.IList<System.String>>
 M:FastData.DevTools.QueryOptimizer.Optimize(System.String,FastData.DevTools.OptimizationOptions) [static] -> FastData.DevTools.QueryOptimizationResult
+M:FastData.DevTools.QueryOptimizer.OptimizeWithSchema(System.String,FastData.DevTools.OptimizationOptions,System.Collections.Generic.IDictionary<System.String,System.Collections.Generic.IList<System.String>>) [static] -> FastData.DevTools.QueryOptimizationResult
 M:FastData.DevTools.QueryOptimizer.SuggestExecutionPlan(System.String) [static] -> FastData.DevTools.ExecutionPlanSuggestions
 M:FastData.DevTools.QueryOptimizer.SuggestIndexes(System.String,System.String) [static] -> System.Collections.Generic.List<FastData.DevTools.IndexSuggestion>
 M:FastData.DevTools.QueryPerformanceAnalysis.ctor()
@@ -2582,6 +2584,7 @@ P:FastData.DevTools.MonitoringSession.SlowestQuery
 P:FastData.DevTools.MonitoringSession.StartTime
 P:FastData.DevTools.MonitoringSession.TotalDuration
 P:FastData.DevTools.MonitoringSession.TotalQueries
+P:FastData.DevTools.OptimizationOptions.AllowSqlRewrite
 P:FastData.DevTools.OptimizationOptions.Default
 P:FastData.DevTools.OptimizationOptions.OptimizeColumns
 P:FastData.DevTools.OptimizationOptions.OptimizeJoins
