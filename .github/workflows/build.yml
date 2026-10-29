@@ -15,10 +15,17 @@ jobs:
   build-core:
     name: Build Core (${{ matrix.os }}, ${{ matrix.framework }})
     runs-on: ${{ matrix.os }}
+    # 卡住时要「失败」而不是「被取消」：
+    # 被取消的 job 日志会被清掉（查询时返回 BlobNotFound），步骤级信息也为空，
+    # 事后完全无法定位。设了超时至少能在超时时保留日志。
+    timeout-minutes: 20
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         framework: [net8.0, net10.0]
+      # macOS runner 并发配额小，6 个任务同时抢会把 macos 的排队拉长。
+      # 限制并行度，让 macos 的两个任务更快轮到。
+      max-parallel: 4
       fail-fast: false
 
     steps:
