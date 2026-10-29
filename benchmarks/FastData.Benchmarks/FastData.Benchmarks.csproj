@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>FastData.Benchmarks</RootNamespace>
+    <AssemblyName>FastData.Benchmarks</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <!-- BenchmarkDotNet 生成的代码会触发大量警告 -->
+    <NoWarn>$(NoWarn);CS1591;CS8618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\FastData\FastData.csproj" />
+    <ProjectReference Include="..\..\FastData.Untility\FastData.Untility.csproj" />
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+</Project>
