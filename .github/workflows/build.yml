@@ -294,6 +294,38 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "net452 测试失败，退出码 $LASTEXITCODE" }
 
   # ---- 安全扫描 ----
+  # ---- 性能基准 ----
+  # 只跑纯 CPU 的 SQL 生成层：输入固定、结果确定，不受 runner 负载影响。
+  # 不做阈值判定 —— 单次结果波动足以造成误报，阈值需要长期趋势才能定。
+  # 产物（markdown + json）归档，供人工比对与后续建趋势。
+  benchmark:
+    name: Benchmark (SQL generation)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Run benchmarks
+        run: |
+          dotnet run -c Release \
+            --project benchmarks/FastData.Benchmarks/FastData.Benchmarks.csproj \
+            -p:TargetFrameworks=net8.0
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmarks/FastData.Benchmarks/BenchmarkDotNet.Artifacts/
+          if-no-files-found: error
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
