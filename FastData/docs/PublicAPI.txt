@@ -551,9 +551,13 @@ M:FastData.DevTools.CacheReport.ctor()
 M:FastData.DevTools.CacheStatistics.ctor()
 M:FastData.DevTools.CacheStats.ctor()
 M:FastData.DevTools.CircuitBreakerOptions.ctor()
+M:FastData.DevTools.CodeGenerator+ColumnMetadata.ctor()
+M:FastData.DevTools.CodeGenerator.GenerateEntity(System.Collections.Generic.IList<FastData.DevTools.CodeGenerator+ColumnMetadata>,System.String,System.String) [static] -> System.String
 M:FastData.DevTools.CodeGenerator.GenerateEntityFromTable(System.String,System.String) [static] -> System.String
+M:FastData.DevTools.CodeGenerator.GenerateEntityFromTable(System.String,System.String,System.String) [static] -> System.String
 M:FastData.DevTools.CodeGenerator.GenerateRepositoryCode(System.String,System.String) [static] -> System.String
 M:FastData.DevTools.CodeGenerator.GenerateServiceCode(System.String,System.String) [static] -> System.String
+M:FastData.DevTools.CodeGenerator.GetTableColumns(System.String,System.String) [static] -> System.Collections.Generic.IList<FastData.DevTools.CodeGenerator+ColumnMetadata>
 M:FastData.DevTools.ColumnDifference.ctor()
 M:FastData.DevTools.CommonEvents+EntityCreatedEvent.ctor()
 M:FastData.DevTools.CommonEvents+EntityDeletedEvent.ctor()
@@ -2437,6 +2441,12 @@ P:FastData.DevTools.CircuitBreakerOptions.Default
 P:FastData.DevTools.CircuitBreakerOptions.FailureThreshold
 P:FastData.DevTools.CircuitBreakerOptions.Name
 P:FastData.DevTools.CircuitBreakerOptions.ResetTimeout
+P:FastData.DevTools.CodeGenerator+ColumnMetadata.ColumnName
+P:FastData.DevTools.CodeGenerator+ColumnMetadata.DataType
+P:FastData.DevTools.CodeGenerator+ColumnMetadata.IsIdentity
+P:FastData.DevTools.CodeGenerator+ColumnMetadata.IsNullable
+P:FastData.DevTools.CodeGenerator+ColumnMetadata.IsPrimaryKey
+P:FastData.DevTools.CodeGenerator+ColumnMetadata.MaxLength
 P:FastData.DevTools.ColumnDifference.Action
 P:FastData.DevTools.ColumnDifference.ColumnName
 P:FastData.DevTools.ColumnDifference.DataType
@@ -3370,6 +3380,7 @@ T:FastData.DevTools.CacheStats
 T:FastData.DevTools.CacheStrategy
 T:FastData.DevTools.CircuitBreakerOptions
 T:FastData.DevTools.CodeGenerator
+T:FastData.DevTools.CodeGenerator+ColumnMetadata
 T:FastData.DevTools.ColumnDifference
 T:FastData.DevTools.CommonEvents
 T:FastData.DevTools.CommonEvents+EntityCreatedEvent
