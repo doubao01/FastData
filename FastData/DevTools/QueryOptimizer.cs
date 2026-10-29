@@ -16,8 +16,47 @@ namespace FastData.DevTools
         /// <summary>
         /// 优化 SQL 查询
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <b>默认只给建议，不改写 SQL。</b><see cref="QueryOptimizationResult.OptimizedSql"/> 与输入相同。
+        /// </para>
+        /// <para>
+        /// 需要真正改写时，必须显式设置 <see cref="OptimizationOptions.AllowSqlRewrite"/> = true，
+        /// 并且要为涉及 SELECT * 的查询提供真实表结构（见
+        /// <see cref="OptimizeWithSchema"/>）。本方法拿不到表结构，
+        /// 强行改写只能靠猜列名 —— 那样产出的 SQL 会直接执行失败。
+        /// </para>
+        /// </remarks>
         public static QueryOptimizationResult Optimize(string sql, OptimizationOptions options = null)
         {
+            return OptimizeCore(sql, options, null);
+        }
+
+        /// <summary>
+        /// 带表结构的优化：可以安全地把 <c>SELECT *</c> 展开成真实列名。
+        /// </summary>
+        /// <param name="sql">待分析的 SQL</param>
+        /// <param name="options">选项；需要改写时置 <see cref="OptimizationOptions.AllowSqlRewrite"/> = true</param>
+        /// <param name="tableColumns">表名 → 列名清单。缺失的表不会被展开。</param>
+        public static QueryOptimizationResult OptimizeWithSchema(
+            string sql,
+            OptimizationOptions options,
+            IDictionary<string, IList<string>> tableColumns)
+        {
+            if (tableColumns == null)
+                throw new ArgumentNullException(nameof(tableColumns));
+
+            return OptimizeCore(sql, options, tableColumns);
+        }
+
+        private static QueryOptimizationResult OptimizeCore(
+            string sql,
+            OptimizationOptions options,
+            IDictionary<string, IList<string>> tableColumns)
+        {
+            if (sql == null)
+                throw new ArgumentNullException(nameof(sql));
+
             options = options ?? OptimizationOptions.Default;
             var result = new QueryOptimizationResult
             {
@@ -27,15 +66,24 @@ namespace FastData.DevTools
                 EstimatedImprovement = 0
             };
 
-            // 检查并优化 SELECT *
+            // 检查 SELECT *
             if (sql.ToUpper().Contains("SELECT *"))
             {
-                result.OptimizedSql = ReplaceSelectStar(result.OptimizedSql);
+                // 默认不改写。原来这里无条件调用 ReplaceSelectStar，
+                // 而那个实现是把 SELECT * 换成写死的 "id, name, created_at" ——
+                // 对任何列名不同的表都会生成执行失败的 SQL。
+                if (options.AllowSqlRewrite && options.OptimizeColumns)
+                {
+                    result.OptimizedSql = ReplaceSelectStar(result.OptimizedSql, tableColumns);
+                }
+
                 result.Optimizations.Add(new OptimizationSuggestion
                 {
                     Type = OptimizationType.ColumnSelection,
                     Priority = OptimizationPriority.High,
-                    Description = "SELECT * 替换为具体列名，减少数据传输",
+                    Description = tableColumns == null
+                        ? "SELECT * 建议替换为具体列名（未提供表结构，不做自动改写）"
+                        : "SELECT * 替换为具体列名，减少数据传输",
                     EstimatedImprovement = "20-30%"
                 });
             }
@@ -71,12 +119,15 @@ namespace FastData.DevTools
                 var subqueryPattern = new Regex(@"\(\s*SELECT", RegexOptions.IgnoreCase);
                 if (subqueryPattern.IsMatch(sql))
                 {
-                    result.OptimizedSql = ReplaceSubqueries(result.OptimizedSql);
+                    // 默认不改写：原来无条件调用 ReplaceSubqueries，
+                    // 而它用正则把 `IN (SELECT x FROM t)` 替换成 `JOIN t ON x = t.id` ——
+                    // 既不是合法 SQL，也丢掉了原查询的过滤语义。
+                    // 子查询改 JOIN 需要完整的语法树与语义分析，正则做不到。
                     result.Optimizations.Add(new OptimizationSuggestion
                     {
                         Type = OptimizationType.Subquery,
                         Priority = OptimizationPriority.Medium,
-                        Description = "子查询替换为 JOIN，提升性能",
+                        Description = "存在子查询，可评估改为 JOIN（需人工确认语义等价）",
                         EstimatedImprovement = "15-35%"
                     });
                 }
@@ -357,23 +408,123 @@ namespace FastData.DevTools
 
         #region 私有辅助方法
 
-        private static string ReplaceSelectStar(string sql)
+        /// <summary>
+        /// 从数据库读取指定表的列名，供 <see cref="OptimizeWithSchema"/> 使用。
+        /// </summary>
+        /// <param name="db">已配置好的数据上下文</param>
+        /// <param name="tableNames">表名清单</param>
+        /// <returns>表名 → 列名清单。读不到的表不会出现在结果里（调用方据此回退到「只给建议」）。</returns>
+        /// <remarks>
+        /// 依赖 INFORMATION_SCHEMA（SQL Server / MySQL / PostgreSQL / SQLite 均支持）。
+        /// Oracle 等不支持的数据库会返回空字典，而不是抛异常 —— 优化建议本身不该因为
+        /// 取表结构失败而中断。
+        /// </remarks>
+        public static IDictionary<string, IList<string>> LoadTableColumns(
+            DataContext db, IEnumerable<string> tableNames)
         {
-            var tableMatch = Regex.Match(sql, @"FROM\s+(\w+)", RegexOptions.IgnoreCase);
-            if (tableMatch.Success)
+            if (db == null)
+                throw new ArgumentNullException(nameof(db));
+            if (tableNames == null)
+                throw new ArgumentNullException(nameof(tableNames));
+
+            var result = new Dictionary<string, IList<string>>(StringComparer.OrdinalIgnoreCase);
+
+            try
             {
-                var tableName = tableMatch.Groups[1].Value;
-                // 实际应用中应该查询表结构，这里只是示例
-                return sql.Replace("SELECT *", "SELECT id, name, created_at");
+                db.EnsureConnectionOpen();
+
+                foreach (var table in tableNames)
+                {
+                    if (string.IsNullOrWhiteSpace(table))
+                        continue;
+
+                    // 表名是标识符，无法参数化。只允许字母/数字/下划线，
+                    // 挡掉拼接注入；不匹配的跳过，不报错。
+                    if (!Regex.IsMatch(table, @"^[A-Za-z_][A-Za-z0-9_$]*$"))
+                        continue;
+
+                    var columns = new List<string>();
+
+                    // 注意：不要 Dispose db.cmd —— 它是 DataContext 持有的共享命令对象。
+                    db.cmd.Parameters.Clear();
+                    db.cmd.CommandText =
+                        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " +
+                        "WHERE TABLE_NAME = @p_table ORDER BY ORDINAL_POSITION";
+
+                    var param = db.cmd.CreateParameter();
+                    param.ParameterName = "@p_table";
+                    param.Value = table;
+                    db.cmd.Parameters.Add(param);
+
+                    using (var reader = db.cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            if (!reader.IsDBNull(0))
+                                columns.Add(Convert.ToString(reader.GetValue(0)));
+                        }
+                    }
+
+                    if (columns.Count > 0)
+                        result[table] = columns;
+                }
             }
-            return sql;
+            catch (Exception ex)
+            {
+                // 取表结构失败（如 Oracle 无 INFORMATION_SCHEMA）不应让优化建议功能不可用。
+                System.Diagnostics.Trace.TraceWarning(string.Format(
+                    "QueryOptimizer.LoadTableColumns 读取表结构失败，将回退为只给建议：{0}: {1}",
+                    ex.GetType().Name, ex.Message));
+            }
+
+            return result;
         }
 
-        private static string ReplaceSubqueries(string sql)
+        /// <summary>
+        /// 把 <c>SELECT *</c> 展开为真实列名。
+        /// <para>
+        /// 拿不到表结构时原样返回 —— 绝不猜列名。
+        /// 原实现不管什么表都替换成写死的 "id, name, created_at"，
+        /// 对列名不同的表会生成执行失败的 SQL。
+        /// </para>
+        /// </summary>
+        private static string ReplaceSelectStar(string sql, IDictionary<string, IList<string>> tableColumns)
         {
-            // 简单示例：将 IN (SELECT ...) 替换为 JOIN
-            return Regex.Replace(sql, @"IN\s*\(\s*SELECT\s+(\w+)\s+FROM\s+(\w+)\)", "JOIN $2 ON $1 = $2.id", RegexOptions.IgnoreCase);
+            if (tableColumns == null || tableColumns.Count == 0)
+                return sql;
+
+            var tableMatch = Regex.Match(sql, @"FROM\s+(\w+)", RegexOptions.IgnoreCase);
+            if (!tableMatch.Success)
+                return sql;
+
+            var tableName = tableMatch.Groups[1].Value;
+
+            IList<string> columns = null;
+            if (!tableColumns.TryGetValue(tableName, out columns))
+            {
+                // 大小写不敏感匹配一次（不同数据库对标识符大小写处理不同）
+                foreach (var pair in tableColumns)
+                {
+                    if (string.Equals(pair.Key, tableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        columns = pair.Value;
+                        break;
+                    }
+                }
+            }
+
+            if (columns == null || columns.Count == 0)
+                return sql;
+
+            var columnList = string.Join(", ", columns);
+            return Regex.Replace(sql, @"SELECT\s+\*", "SELECT " + columnList, RegexOptions.IgnoreCase);
         }
+
+        // 原 ReplaceSubqueries 已删除。
+        // 它用正则把 `IN (SELECT x FROM t)` 替换成 `JOIN t ON x = t.id`：
+        // 语法不成立（缺 ON 上下文与表别名），语义也被破坏（原 WHERE 过滤丢失）。
+        // 子查询改 JOIN 需要完整语法树与语义等价性分析，正则做不到，
+        // 因此只产出建议、由人工判断。
 
         private static string ExtractTableName(string sql)
         {
@@ -957,6 +1108,19 @@ namespace FastData.DevTools
         /// 是否优化排序
         /// </summary>
         public bool OptimizeSorting { get; set; } = true;
+
+        /// <summary>
+        /// 是否允许改写 SQL（默认 <c>false</c>）。
+        /// <para>
+        /// 关闭时 <see cref="QueryOptimizationResult.OptimizedSql"/> 始终等于输入 SQL，
+        /// 只产出建议。这是安全默认值。
+        /// </para>
+        /// <para>
+        /// 开启后仍需要调用方提供真实表结构（<see cref="QueryOptimizer.OptimizeWithSchema"/>），
+        /// 否则缺少列信息时不会展开 <c>SELECT *</c>，只保留建议。
+        /// </para>
+        /// </summary>
+        public bool AllowSqlRewrite { get; set; } = false;
 
         /// <summary>
         /// 默认选项
