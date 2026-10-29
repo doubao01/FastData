@@ -122,6 +122,7 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 ### 专题文档
 - [已知问题与修复状态](./FastData/docs/KNOWN_ISSUES.md)
+- [性能基线](./FastData/docs/PERFORMANCE.md)
 - [ORM 最佳实践](./FastData/docs/ORM_BEST_PRACTICES.md)
 - [条件构造器](./FastData/docs/CONDITION_BUILDER.md)
 - [数据库提供程序自动注册](./FastData/docs/AUTO_PROVIDER_REGISTRATION.md)

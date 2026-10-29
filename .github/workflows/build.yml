@@ -321,13 +321,14 @@ jobs:
             --project benchmarks/FastData.Benchmarks/FastData.Benchmarks.csproj \
             -p:TargetFrameworks=net8.0 \
             -- --filter '*'
-          ls -la benchmarks/FastData.Benchmarks/BenchmarkDotNet.Artifacts/results/
+          # 产物落在工作目录（仓库根），不是项目目录
+          ls -la BenchmarkDotNet.Artifacts/results/
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: benchmarks/FastData.Benchmarks/BenchmarkDotNet.Artifacts/
+          path: BenchmarkDotNet.Artifacts/
           if-no-files-found: error
 
   security-scan:
