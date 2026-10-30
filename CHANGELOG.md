@@ -2,6 +2,16 @@
 
 本文档记录 FastData 的所有重要变更。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
+## [Unreleased]
+
+### Added
+
+- **运维面板（`FastData.Monitoring.OperationsPanel`）**
+  - 把服务器监控、连接池指标、Redis 状态、接口探测、性能统计、异常通知六套分散能力聚合为一次快照
+  - `CollectAsync` 并发采集，单部分失败不影响其他部分；`Render` 输出文本（问题项置顶），`ToJson` 输出可直接作为 `/health` 响应体的 JSON
+  - `RunAsync` 在状态变差时推送 QQ 告警，同等级不重复推；恢复时补发通知
+  - 不依赖 ASP.NET Core，暴露方式由宿主决定；兼容 net452，无新增三方依赖
+
 ## [2.8.1] - 2026-10-18
 
 ### Fixed
