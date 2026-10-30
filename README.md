@@ -35,7 +35,7 @@ dotnet run
 ```csharp
 // Lambda：强类型，编译期检查
 var adults = FastRead.Query<User>(u => u.Age > 18)
-    .OrderBy<User>(u => u.Id)
+    .OrderBy(u => u.Id)
     .Take(10)
     .ToList<User>();
 
@@ -45,7 +45,7 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 ### 详细文档
 
-- 📖 [现代 ORM 特性详解](./FastData/MODERN_ORM_FEATURES.md)
+- 📖 [现代 ORM 特性详解](./FastData/docs/MODERN_ORM_FEATURES.md)
 - 🐞 [已知问题与修复状态](./FastData/docs/KNOWN_ISSUES.md)
 - 📋 [CHANGELOG](./CHANGELOG.md)
 
@@ -95,13 +95,13 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 **高级工具（5 个）**：
 - ConnectionPoolManager - 连接池管理器
-- DistributedTransactionManager - 分布式事务管理器
+- ⚠️ DistributedTransactionManager - **不是真分布式事务**，不做补偿、不做崩溃恢复，已标 `[Obsolete]`
 - QueryOptimizer - 查询优化器
 - ResultCache - 结果缓存工具
 - ApiTester - API 测试与数据库监控工具（含 DatabaseMonitor）
 
 **企业级工具（6 个）**：
-- DistributedLockManager - 分布式锁管理器
+- ⚠️ DistributedLockManager - **仅同进程内有效**，多实例部署下不提供互斥保证，已标 `[Obsolete]`
 - ApiClient - API 客户端工具
 - LogAggregator - 日志聚合器
 - EventBus - 事件总线
@@ -117,16 +117,20 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 ### 核心文档
 - [FastData 核心库](./FastData/README.md)
-- [现代 ORM 特性详解](./FastData/MODERN_ORM_FEATURES.md)
+- [现代 ORM 特性详解](./FastData/docs/MODERN_ORM_FEATURES.md)
 - [CHANGELOG](./CHANGELOG.md)
 
 ### 专题文档
-- [配置说明](./FastData/docs/CONFIGURATION.md)
-- [已知问题与修复状态](./FastData/docs/KNOWN_ISSUES.md)
-- [性能基线](./FastData/docs/PERFORMANCE.md)
-- [ORM 最佳实践](./FastData/docs/ORM_BEST_PRACTICES.md)
-- [条件构造器](./FastData/docs/CONDITION_BUILDER.md)
+- [配置说明](./FastData/docs/CONFIGURATION.md) — 配置文件结构、全部属性
+- [条件构造器](./FastData/docs/CONDITION_BUILDER.md) — 对象化 WHERE 拼接
+- [缓存](./FastData/docs/CACHING.md) — 两种模式、键设计、降级
+- [消息队列](./FastData/docs/MESSAGE_QUEUE.md) — 削峰、降级、多方推送
+- [连接池调优](./FastData/docs/POOL_TUNING.md) — 参数行为与误判点
+- [ORM 最佳实践](./FastData/docs/ORM_BEST_PRACTICES.md) — 推荐用法、API 迁移
 - [数据库提供程序自动注册](./FastData/docs/AUTO_PROVIDER_REGISTRATION.md)
+- [性能基线](./FastData/docs/PERFORMANCE.md)
+- [已知问题与修复状态](./FastData/docs/KNOWN_ISSUES.md)
+- [架构演进历史](./FastData/docs/ARCHITECTURE_HISTORY.md) — 历史归档
 
 ### 子项目文档
 - [FastData.Untility 工具库](./FastData.Untility/README.md)
@@ -156,18 +160,17 @@ dotnet build -p:BuildPlatform=windows
 
 ## 版本信息
 
-**当前版本**：v2.8.1  
-**发布日期**：2026-10-18  
-**生产就绪**：✅ 是  
-**企业级就绪**：✅ 是
+**当前版本**：v2.8.1（2026-10-18 发布）
+
+仓库 HEAD 已包含下一版本的未发布改动（运维面板、连接池重建等），详见 [CHANGELOG](./CHANGELOG.md) 的 Unreleased 一节。
+
+**框架目标**：net452 / net8.0 / net10.0
 
 ---
 
 ## 技术支持
 
-- 🐛 报告问题：GitHub Issues
-- 💬 技术讨论：GitHub Discussions
-- 📧 邮件支持：support@fastdata.com
+- 🐛 报告问题：[GitHub Issues](https://github.com/doubao01/FastData/issues)
 
 ---
 

@@ -1,250 +1,207 @@
 # FastData.Untility
 
-FastData.Untility 是 FastData 生态系统的通用工具库，提供日志、加密、HTTP、Excel、Redis、缓存等功能。
+FastData 生态的**通用工具包**。名字叫 Untility（历史上的拼写错误，包名沿用至今），
+实际装的是三套命名空间：
 
-**最新更新 (2026-05-31)**:
-- ✅ 新增 `Base/DateHelper.cs` - 日期时间工具类
-- ✅ 新增 `Base/CollectionHelper.cs` - 集合扩展工具类
-- ✅ 新增 `Page/ApiResponse.cs` - 统一 API 响应格式
-- ✅ 新增 `Page/Result.cs` - 统一结果类型
+| 命名空间 | 内容 |
+|----------|------|
+| `FastUntility.*` | 基础工具：日志、JSON/XML、Excel、HTTP、缓存、加密、日期、集合、分页结果 |
+| `FastRedis.*` | Redis 门面（`RedisInfo`）、可靠队列 / Stream 生产消费 |
+| `FastData.Tooling.*` | 数据库元数据读取、代码生成、数据同步、远程指令 |
+
+所以 `using FastUntility.Base;` 和 `using FastData.Tooling.Sync;` 来自同一个程序集，不是两个包。
 
 ## 目标框架
 
-| 框架 | 说明 |
-|------|------|
-| `net452` | .NET Framework 4.5.2 |
-| `net8.0` / `net10.0` | Modern .NET |
+`net452;net8.0;net10.0`。**net452 与现代目标不是同一套 API**，这是本库最容易踩的坑：
+
+| 能力 | net452 | net8.0 / net10.0 |
+|------|--------|------------------|
+| Redis 客户端 | `NServiceKit.Redis` | `NewLife.Redis`（`FullRedis`） |
+| `RedisInfo` 实现 | `RedisInfo.cs` | `RedisInfo.NewLife.cs` |
+| Redis 仓储 | `Repository/RedisRepository.cs` | `Repository/RedisRepository.NewLife.cs` |
+| 消息队列（可靠队列 / Stream） | **不存在**（整文件 `#if !NETFRAMEWORK`） | 可用 |
+| `BaseSession` / `BaseCookie` | 有（System.Web） | **移除** |
+| WCF / Web API 宿主、Windows 服务宿主 | 有 | **移除** |
+
+`Messaging/` 下五个文件整体被 `#if !NETFRAMEWORK` 包住；`BaseSession`、`BaseCookie`、
+`Host/*`、`WinService/*`、`RedisInfo.cs`、`RedisRepository.cs` 则在 csproj 里对非 net452 直接
+`<Compile Remove>`。写跨框架代码时不要假设这些类型存在。
 
 ## 安装
 
 ```bash
-dotnet add package FastUntility
+dotnet add package FastData.Untility     # 注意包名，不是 FastUntility
 ```
 
-## 功能模块
+包内自带本 README（`PackageReadmeFile`），`InternalsVisibleTo` 给了 `FastData.Tests`。
 
-### Redis 缓存
+## 模块与入口类型
 
-分布式缓存和消息队列：
+| 目录 | 真实类型 | 说明 |
+|------|----------|------|
+| `Base/` | `BaseLog`、`BaseJson`、`BaseXml`、`BaseMap`、`BaseDic`、`BaseRegular`、`BaseCode`、`BaseExcel`、`BaseUrl`、`BaseSymmetric`、`Compression`、`DateHelper`、`CollectionHelper`、`LogManager`、`FrameworkCompat` | 见下 |
+| `Security/` | `AesHelper`、`RsaHelper`、`HmacHelper`、`ApiKeyHelper`、`JwtHelper`、`ServerMonitor` | 注意：**没有 `CryptoHelper` 这个类**，加密算法分散在四个 Helper 里，同处 `CryptoHelper.cs` 文件 |
+| `Cache/` | `BaseCache`（MemoryCache 封装） | net452 另有 `BaseSession` / `BaseCookie` |
+| `Messaging/` | `MessageQueueFactory`、`IMessageProducer` / `IMessageConsumer`、`MessageQueueOptions`、`MessageQueueType` | 仅现代目标 |
+| `Repository/` | `IRedisRepository`、`RedisRepository` | 双实现，按目标框架切换 |
+| `Monitor/` | `ExceptionManager`、`MessageSender` / `QQBotMessageSender`、`MonitorConfig`、`RemoteCommandManager` | QQ 机器人远程运维指令 |
+| `Database/` | `IDatabaseMetadataReader`、`ProviderMetadataReader`、`MetadataReaderFactory`、`DatabaseTable` / `DatabaseColumn` / `DatabaseConnectionOptions` | 读表结构与列 |
+| `CodeGeneration/` | `ModelCodeGenerator`、`EnhancedCodeGenerator`、`ApiClientGenerator`、`JsonToModelConverter`、`XmlMapSqlGenerator` | 生成实体 / 客户端 / SQL 映射 |
+| `Sync/` | `SyncConfigManager`、`TimeRangeCalculator`、`SyncTaskConfig`、`TableSyncConfig`、`TablePrimaryKeyConfig`、`TableSyncStatus`、`SyncResult`、`SyncDataType`、`SyncLogLevel` | 增量同步（命名空间 `FastData.Tooling.Sync`） |
+| `Page/` | `ApiResponse` / `ApiResponse<T>`、`Result` / `Result<T>`、`PageModel`、`PageResult`、`PaginationRequest`、`PaginationResult` | 统一响应与分页 |
+| `Builder/` | `LambdaBuilder` | 动态拼表达式树 |
+| `Abstractions/` | `IDataSyncService` | 同步服务契约 |
+| `Attributes/` | `RemarkAttribute` | 字段备注 |
 
-```csharp
-// 设置缓存
-RedisInfo.Set("user:1", user, 3600);
-
-// 获取缓存
-var cached = RedisInfo.Get<User>("user:1");
-
-// 删除缓存
-RedisInfo.Remove("user:1");
-
-// 缓存穿透防护
-var user = RedisInfo.GetOrAdd("user:1", () => db.FindUser(1), hours: 24);
-```
-
-### 消息队列
-
-支持 ReliableQueue 和 Stream：
-
-```csharp
-// 创建工厂
-var factory = new MessageQueueFactory(redis);
-
-// ReliableQueue（单消费，削峰）
-var producer = factory.CreateReliableProducer("fastdata");
-producer.Publish("topic:sensor", data);
-
-// Stream（多消费组，解耦）
-var streamProducer = factory.CreateStreamProducer("fastdata");
-streamProducer.Publish("topic:realtime", data);
-```
+## 用法（签名均取自源码）
 
 ### 日志
 
 ```csharp
-// 文件日志
-LogHelper.Info("User created", "UserService");
-LogHelper.Error("Database error", exception, "UserService");
-
-// 数据库日志
-LogHelper.DbInfo("SQL executed", sql, parameters);
+BaseLog.SaveLog("用户已创建", "user-service.log");        // 追加写文件
+await BaseLog.SaveLogAsync("批量完成", "job.log");
 ```
+
+没有 `LogHelper.Info/Error` 这类分级 API —— 分级日志走 `LogManager` 或各子模块自己的日志类型。
+
+### JSON / XML
+
+```csharp
+string json = BaseJson.ObjectToJson(user);
+var u = BaseJson.JsonToObject<AppUser>(json);
+List<AppUser> list = BaseJson.JsonToList<AppUser>(json);
+var rows = BaseJson.DataReaderToDictionaryList(reader);   // DataReader → 字典列表
+```
+
+底层是 Newtonsoft.Json；现代目标同时引了 `System.Text.Json` 供内部使用。
+
+### HTTP
+
+```csharp
+string body = await BaseUrl.GetUrlAsync("https://api.example.com/users/1");
+string created = BaseUrl.PostUrl("https://api.example.com/users", dic);
+string soap = BaseUrl.PostSoap(url, "GetUser", param);
+```
+
+`GetUrl` / `PostUrl` / `PostContent` / `PutUrl` / `DeleteUrl` / `PostSoap` 各有同步与 `*Async` 两份，
+内部走 RestSharp，`TryAddWithoutValidation` 式的请求头累积问题已修（见 `BaseUrlSingletonTests`）。
+
+### 缓存（进程内）
+
+```csharp
+BaseCache.Set("user:1", user, Hours: 24);
+var cached = BaseCache.Get<AppUser>("user:1");
+BaseCache.Remove("user:1");
+bool hit = BaseCache.Exists("user:1");
+```
+
+`BaseCache` 是 `MemoryCache` 封装，**不是分布式缓存**；需要 Redis 走 `RedisInfo`。
+
+### Redis
+
+```csharp
+RedisInfo.Init("db.config", "FastData.Demo");   // 从 XML 配置加载连接
+RedisInfo.Set("user:1", user, hours: 1);
+var u = RedisInfo.Get<AppUser>("user:1");
+bool ok = await RedisInfo.SetAsync("user:2", user, hours: 24);
+```
+
+`RedisInfo.Init` 读的是 `db.config` 系列 XML，与 FastData 主库共用同一份配置来源。
+
+### 消息队列（仅 net8 / net10）
+
+```csharp
+var factory = new MessageQueueFactory(RedisInfo.Redis);   // 需要 NewLife 的 FullRedis
+
+var producer = factory.CreateReliableProducer("fastdata");      // 削峰，单消费
+await producer.PublishAsync("topic:sensor", payload);
+
+var stream = factory.CreateStreamProducer("fastdata");
+await stream.PublishAsync("topic:realtime", payload);
+var consumer = factory.CreateStreamConsumer("group-a", "fastdata");
+```
+
+`MessageQueueType` 区分 Reliable 与 Stream；消费端接口是 `IMessageConsumer`，
+批量写用 `PublishBatchAsync`。
 
 ### 加密
 
 ```csharp
-// MD5
-var hash = CryptoHelper.MD5("password");
+string enc = AesHelper.Encrypt(plain, key);              // 不传 iv 时 IV 前置写入密文
+string dec = AesHelper.Decrypt(enc, key);
+string enc2 = AesHelper.EncryptWithIV(plain, key);       // 显式模式，密钥按字节派生
 
-// AES
-var encrypted = CryptoHelper.AES.Encrypt(data, key);
-var decrypted = CryptoHelper.AES.Decrypt(encrypted, key);
+var (pub, pri) = RsaHelper.GenerateKeyPair(2048);
+string sig = RsaHelper.Sign(data, pri);
+bool ok = RsaHelper.Verify(data, sig, pub);
 
-// RSA
-var (publicKey, privateKey) = RSAHelper.GenerateKeys(2048);
-var signature = RSAHelper.Sign(data, privateKey);
-var isValid = RSAHelper.Verify(data, signature, publicKey);
+string mac = HmacHelper.HmacSha256(payload, secret);
+string jwt = JwtHelper.GenerateToken(payload, secret);
 ```
 
-### HTTP 客户端
+AES 密钥按字节派生（中文密钥不会因 UTF-16 编码错位），非 ASCII 密钥的旧 bug 已修。
+RSA 的默认摘要算法是 SHA256，可传 `hashAlgorithm` 改；HMAC 家族是
+`HmacSha256` / `HmacSha384` / `HmacSha512` / `HmacMd5`，配套 `VerifyHmac` 做常量时间比对。
+
+### Excel
 
 ```csharp
-// GET
-var response = await HttpHelper.GetAsync<User>("https://api.example.com/users/1");
-
-// POST
-var user = new User { Name = "张三" };
-var result = await HttpHelper.PostAsync<User>("https://api.example.com/users", user);
+var model = BaseExcel.Init("用户导出", headerDict, titleDict);
+BaseExcel.FillContent(rows, model, excludeColumns);
+byte[] xlsx = BaseExcel.Result(model, titleDict);
 ```
 
-### Excel 操作
+基于 NPOI，走「表头定义 → 填内容 → 出字节流」三步，不直接接收实体列表。
+
+### 日期 / 集合
 
 ```csharp
-// 导出
-ExcelHelper.Export(users, "users.xlsx");
+long ts = DateHelper.GetTimestamp();
+DateTime start = DateHelper.GetMonthStart(DateTime.Now);
+string ago = DateHelper.GetRelativeTime(DateTime.Now.AddMinutes(-5));   // "5 分钟前"
 
-// 导入
-var data = ExcelHelper.Import<User>("users.xlsx");
-```
-
-### 缓存工具类
-
-提供 CacheHelper 和 CacheKey 工具：
-
-```csharp
-// 使用 CacheKey 生成器
-var cacheKey = CacheKey.ForEntity<User>(1);
-var cacheKey = CacheKey.ForList<User>(u => u.IsActive);
-var cacheKey = CacheKey.ForCount<User>(u => u.Age > 18);
-
-// 使用 CacheHelper
-CacheHelper.GetOrSet(cacheKey, () => db.FindUser(1), 300);
-CacheHelper.Remove(cacheKey);
-```
-
-### 日期时间工具 (新增)
-
-```csharp
-// 时间戳转换
-var ts = DateHelper.GetTimestamp();
-var tsMs = DateHelper.GetTimestampMs();
-var dt = DateHelper.FromTimestamp(ts);
-
-// 相对时间
-var ago = DateHelper.GetRelativeTime(DateTime.Now.AddMinutes(-5)); // "5 分钟前"
-var future = DateHelper.GetRelativeTimeFuture(DateTime.Now.AddHours(2)); // "2 小时后"
-
-// 日期计算
-var dayStart = DateHelper.GetDayStart(DateTime.Now);
-var weekStart = DateHelper.GetWeekStart(DateTime.Now);
-var monthStart = DateHelper.GetMonthStart(DateTime.Now);
-var quarterStart = DateHelper.GetQuarterStart(DateTime.Now);
-var yearStart = DateHelper.GetYearStart(DateTime.Now);
-
-// 格式化
-var chineseDate = DateHelper.ToChineseDate(DateTime.Now);
-var friendlyTime = DateHelper.ToFriendlyDateTime(DateTime.Now);
-```
-
-### 集合工具 (新增)
-
-```csharp
-// 空值安全
-list.IsNullOrEmpty(); // true/false
-list.HasValue(); // true/false
-
-// 安全遍历
-list.ForEachSafe(item => Console.WriteLine(item));
-list.ForEachSafe((item, index) => Console.WriteLine($"{index}: {item}"));
-
-// 分页
+if (list.IsNullOrEmpty()) return;                 // 扩展方法，null 安全
 var page = list.Page(pageIndex: 1, pageSize: 10);
 var (data, total) = list.PageWithTotal(1, 10);
-
-// 去重与分组
-var distinct = list.DistinctBy(x => x.Id);
-var grouped = list.GroupToDictionary(x => x.Category);
-
-// 批量操作
-list.Batch(100).ForEach(batch => ProcessBatch(batch));
-list.BatchExecute(100, batch => SaveBatch(batch));
-
-// 统计
-var sum = list.SumSafe(x => x.Amount);
-var max = list.MaxSafe(x => x.Price, defaultValue: 0);
-var avg = list.AverageSafe(x => x.Quantity);
-
-// 随机
-var shuffled = list.Shuffle();
-var randomItem = list.Random();
-var randomItems = list.Random(5);
+list.ForEachSafe((item, i) => Console.WriteLine($"{i}: {item}"));
+var byCategory = list.GroupToDictionary(x => x.Category);
+list.BatchExecute(100, batch => Save(batch));
 ```
 
-### 统一 API 响应 (新增)
+### 统一响应
 
 ```csharp
-// 成功响应
-ApiResponse.Ok(data, "操作成功");
-ApiResponse<T>.Ok(data, "操作成功");
+return ApiResponse<AppUser>.Ok(user);
+return ApiResponse.Fail("参数错误", code: 400);
+return ApiResponse.NotFound();
 
-// 失败响应
-ApiResponse.Fail("错误信息");
-ApiResponse<T>.Fail("错误信息", code: -1);
-
-// 快捷响应
-ApiResponse.NotFound("数据不存在");
-ApiResponse.Unauthorized("未授权");
-ApiResponse.Forbidden("禁止访问");
+Result r = Result.Ok("完成");
+Result<AppUser> rf = Result<AppUser>.Fail(ex, errorCode: "E001");
 ```
 
-### 统一结果类型 (新增)
+### 远程运维指令
 
-```csharp
-// 成功
-Result.Ok("操作成功");
-Result<T>.Ok(data, "操作成功");
+`RemoteCommandManager` 注册 12 条文本指令，通过 QQ 机器人（`QQBotMessageSender`）下发：
+`help` / `status` / `memory` / `cpu` / `disk` / `process` / `dbstatus` / `dbclose` /
+`dbrestart` / `gc` / `version` / `time`。所有指令都走 `IRemoteCommandHandler`，
+`FastData.FastIM` 的门面方法会自动注册全部 12 条。
 
-// 失败
-Result.Fail("错误信息", errorCode: "CODE_001");
-Result<T>.Fail(ex, errorCode: "CODE_002");
-
-// 转换
-result.ToResult(data); // 转为带数据的结果
-result.ToApiResponse(); // 转为 ApiResponse
-```
-
-## 命名空间
-
-| 命名空间 | 用途 |
-|----------|------|
-| `FastUntility` | 顶层入口（RedisInfo, LogHelper） |
-| `FastUntility.Base` | 基础工具类 |
-| `FastUntility.Cache` | 缓存工具（CacheHelper, CacheKey） |
-| `FastUntility.Redis` | Redis 配置和操作 |
-| `FastUntility.Security` | 加密和安全 |
-| `FastUntility.Services` | 服务类 |
-| `FastUntility.Repository` | Repository 模式 |
-| `FastUntility.CodeGeneration` | 代码生成 |
-| `FastUntility.Database` | 数据库元数据 |
-| `FastUntility.Sync` | 数据同步 |
-| `FastUntility.Messaging` | 消息队列 |
-
-## 支持的数据库
-
-| 数据库 | Provider Name |
-|--------|---------------|
-| SQL Server | `System.Data.SqlClient` |
-| MySQL | `MySql.Data.MySqlClient` |
-| SQLite | `System.Data.SQLite` |
-| Oracle | `Oracle.ManagedDataAccess.Client` |
-| DB2 | `IBM.Data.DB2.iSeries` |
-| PostgreSQL | `Npgsql` |
+`dbrestart` 的语义是**按原参数重建连接池并预热**（依赖 `IConnectionPoolReopenProvider`）；
+实现方不支持重建时如实返回「已关闭，按需重建」，不会把关闭说成重启。
 
 ## 依赖
 
-- Newtonsoft.Json 13.0.3
-- NPOI 2.5.6 / 2.7.0
-- NServiceKit.Redis 1.0.17 (net452)
-- NewLife.Redis 6.0.2024.1006 (net6.0+)
+net452 组：RestSharp 106.15.0、NPOI 2.5.6、Newtonsoft.Json 13.0.4、
+Microsoft.AspNet.WebApi.* 5.2.9、NServiceKit.Redis 1.0.17、System.ValueTuple 4.5.0。
+
+net8/net10 组：RestSharp 114.0.0、NPOI 2.8.0、Newtonsoft.Json 13.0.4、System.Text.Json 10.0.8、
+Microsoft.Extensions.Caching.Memory 10.0.8、System.Configuration.ConfigurationManager 10.0.8、
+NewLife.Redis 6.5.2026.601，以及钉版的 System.Security.Cryptography.Xml / Pkcs 9.0.22
+（ConfigurationManager 传递引入的旧版本带高危公告）。
+
+**本项目不引用任何数据库驱动**（SqlClient / MySql / Npgsql / SQLite 都不在其中）。
+驱动注册是宿主的事，`FastData.Demo` 里就是在 `Program.cs` 手工 `DbProviderFactories.RegisterFactory`。
 
 ## 许可证
 
