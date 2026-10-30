@@ -142,7 +142,15 @@ namespace FastData.DevTools
                 response.Content = content;
 
                 response.Headers = new Dictionary<string, string>();
+                // 必须同时收集响应头与内容头。
+                // Content-Type / Content-Length / Content-Encoding 这些都在 Content.Headers 里，
+                // 只看 httpResponse.Headers 会漏掉它们 ——
+                // 调用方拿不到 Content-Type，就无法判断实际返回的是 JSON 还是 HTML 错误页。
                 foreach (var header in httpResponse.Headers)
+                {
+                    response.Headers[header.Key] = string.Join(", ", header.Value);
+                }
+                foreach (var header in httpResponse.Content.Headers)
                 {
                     response.Headers[header.Key] = string.Join(", ", header.Value);
                 }
