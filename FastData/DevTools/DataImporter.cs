@@ -17,6 +17,79 @@ namespace FastData.DevTools
     public static class DataImporter
     {
         /// <summary>
+        /// 解析一行 CSV，支持引号包裹的字段。
+        /// </summary>
+        /// <param name="line">CSV 行</param>
+        /// <returns>字段列表</returns>
+        /// <remarks>
+        /// 原实现用 <c>line.Split(',')</c>：字段里含逗号（如 <c>"Smith, John"</c>）会被拆成两列，
+        /// 导致后续列全部错位 —— 而且不报错，静默把数据写错。
+        /// <para>
+        /// 支持：引号包裹、引号内逗号、双引号转义（<c>""</c> → <c>"</c>）。
+        /// 不支持：跨行字段（CSV 里合法，但 <see cref="File.ReadAllLines"/> 已按行切开，
+        /// 要支持得改整个读取流程；这里明确不做，而不是假装支持）。
+        /// </para>
+        /// </remarks>
+        public static List<string> ParseCsvLine(string line)
+        {
+            var fields = new List<string>();
+
+            if (string.IsNullOrEmpty(line))
+            {
+                fields.Add(string.Empty);
+                return fields;
+            }
+
+            var current = new System.Text.StringBuilder();
+            var inQuotes = false;
+
+            for (var i = 0; i < line.Length; i++)
+            {
+                var c = line[i];
+
+                if (inQuotes)
+                {
+                    if (c == '"')
+                    {
+                        // 双引号转义："" 表示一个字面引号
+                        if (i + 1 < line.Length && line[i + 1] == '"')
+                        {
+                            current.Append('"');
+                            i++;
+                        }
+                        else
+                        {
+                            inQuotes = false;
+                        }
+                    }
+                    else
+                    {
+                        current.Append(c);
+                    }
+                }
+                else
+                {
+                    if (c == '"')
+                    {
+                        inQuotes = true;
+                    }
+                    else if (c == ',')
+                    {
+                        fields.Add(current.ToString());
+                        current.Clear();
+                    }
+                    else
+                    {
+                        current.Append(c);
+                    }
+                }
+            }
+
+            fields.Add(current.ToString());
+            return fields;
+        }
+
+        /// <summary>
         /// 从CSV文件导入数据
         /// </summary>
         public static (int success, int failed) ImportFromCSV<T>(string filePath, string dbKey = null) where T : class, new()
@@ -32,14 +105,15 @@ namespace FastData.DevTools
                     return (0, 0);
                 }
 
-                var headers = lines[0].Split(',');
+                // 用 ParseCsvLine 而不是 Split(',')：字段含逗号时不会错位
+                var headers = ParseCsvLine(lines[0]).ToArray();
                 var properties = PropertyCache.GetPropertiesCached<T>();
 
                 for (int i = 1; i < lines.Length; i++)
                 {
                     try
                     {
-                        var values = lines[i].Split(',');
+                        var values = ParseCsvLine(lines[i]).ToArray();
                         var entity = new T();
 
                         for (int j = 0; j < Math.Min(headers.Length, values.Length); j++)

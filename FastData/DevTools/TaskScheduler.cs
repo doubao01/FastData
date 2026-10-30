@@ -226,26 +226,52 @@ namespace FastData.DevTools
 
         private static TimeSpan ParseSimpleCron(string cronExpression)
         {
-            // 简化的 Cron 解析，仅支持基本格式
-            // 格式：秒 分 时
-            var parts = cronExpression.Split(' ');
-            if (parts.Length == 3)
+            // 仅支持「秒 分 时」三段式，不是标准五段 cron。
+            if (string.IsNullOrWhiteSpace(cronExpression))
             {
-                try
-                {
-                    var seconds = int.Parse(parts[0]);
-                    var minutes = int.Parse(parts[1]);
-                    var hours = int.Parse(parts[2]);
-
-                    return new TimeSpan(hours, minutes, seconds);
-                }
-                catch
-                {
-                    // 忽略解析错误
-                }
+                throw new ArgumentException(
+                    "Cron 表达式不能为空。本库仅支持「秒 分 时」三段式（如 \"30 0 0\" 表示 30 秒），" +
+                    "不支持标准五段 cron。需要完整 cron 请改用 Quartz.NET 等专用库。",
+                    nameof(cronExpression));
             }
 
-            return TimeSpan.FromMinutes(1);
+            var parts = cronExpression.Split(' ');
+
+            if (parts.Length != 3)
+            {
+                throw new ArgumentException(string.Format(
+                    "无法解析 Cron 表达式 \"{0}\"：本库仅支持「秒 分 时」三段式（如 \"30 0 0\"），" +
+                    "不支持标准五段 cron。需要完整 cron 请改用 Quartz.NET 等专用库。",
+                    cronExpression), nameof(cronExpression));
+            }
+
+            int seconds, minutes, hours;
+            if (!int.TryParse(parts[0], out seconds) ||
+                !int.TryParse(parts[1], out minutes) ||
+                !int.TryParse(parts[2], out hours))
+            {
+                throw new ArgumentException(string.Format(
+                    "无法解析 Cron 表达式 \"{0}\"：三段都必须是整数（秒 分 时）。",
+                    cronExpression), nameof(cronExpression));
+            }
+
+            if (seconds < 0 || minutes < 0 || hours < 0)
+            {
+                throw new ArgumentException(string.Format(
+                    "无法解析 Cron 表达式 \"{0}\"：时间分量不能为负。", cronExpression), nameof(cronExpression));
+            }
+
+            var delay = new TimeSpan(hours, minutes, seconds);
+
+            // 全零表示「立即重复」，会变成忙循环，必须拦下
+            if (delay == TimeSpan.Zero)
+            {
+                throw new ArgumentException(string.Format(
+                    "Cron 表达式 \"{0}\" 解析为 0 间隔，会导致忙循环。请指定至少 1 秒。",
+                    cronExpression), nameof(cronExpression));
+            }
+
+            return delay;
         }
     }
 
