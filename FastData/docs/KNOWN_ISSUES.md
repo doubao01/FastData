@@ -98,19 +98,33 @@
 未删除是因为它们仍是公开 API。（`error: true` 不可用：CS0619 无法被 pragma 抑制，
 类内部自引用会直接编译失败。）
 
-**剩余约 45 处空 catch**
-逐处核对后确认绝大多数属于合理降级：`Dispose` 路径（释放失败不应影响正确性）、
-探测式 `Assembly.Load`（失败即试下一个）、可选探测（缓存/驱动/环境信息）。
-无差别改成抛异常会把库打崩。危险的那几处（备份、恢复、分页、ApiClient）已单独修复。
+**剩余 37 处空 catch（核心库）**
+复核计数（脚本扫全仓 `.cs`，排除 `bin`/`obj`）：空块 41、只有注释 34、只有 `return/continue/break` 11，
+合计 **86** 处；全仓 catch 总数 830。按项目分布：核心库 **37**、测试项目 41、Demo 3、Example 3、Untility 2。
+测试项目那 41 处几乎全在集成测试 fixture 的清理路径（连接池/Redis teardown），不属生产风险。
+核心库这 37 处逐处核对后确认绝大多数属于合理降级：`Dispose` 路径（释放失败不应影响正确性）、
+探测式 `Assembly.Load` / `DbProviderFactory` 反射（失败即试下一个）、可选探测（缓存/驱动/环境信息）。
+无差别改成抛异常会把库打崩 —— 一个失败的缓存探测不该让查询失败。
+危险的那几处（备份、恢复、分页、ApiClient、日志递归）已单独修复并补了契约测试。
 
-**`FastMap.QueryPage` / `QueryPage<T>` 仍为伪异步**
-底层 `DataContext.GetPageSql` 没有异步版本。真正异步化需要先实现异步分页 SQL 执行器，
-属于新功能而非缺陷修复。已在代码注释中注明它不提供 I/O 异步。
+**`FastMap.QueryPageAsync` / `QueryPageAsync<T>` 仍为伪异步**（[#20](https://github.com/doubao01/FastData/issues/20)）
+`QueryPageAsync`(FastMap.cs:651) 与 `QueryPageAsync<T>`(754) 仍是
+`AsyncHelper.RunAsync(() => QueryPage(...))`，即同步分页 + 线程池包装，不提供 I/O 异步。
+底层 `DataContext.GetPageSql` 只有同步版本，真异步化需要新增异步分页执行器
+（并发取 `COUNT(*)` 与当前页，并覆盖 MySQL/PostgreSQL/SQL Server/Oracle 四种方言），
+属于新功能而非缺陷修复。
+
+`FastMap.QueryAsync<T>` / `QueryAsync`(字典) / `WriteAsync` **已是真 I/O 异步**，
+走 `FastRead.ExecuteSqlAsync` / `FastWrite.ExecuteSqlAsync`（commit 21b43af1 起）。
 
 **改用 `Microsoft.Data.SqlClient`**
 `Microsoft.Data.SqlClient` 5.2.2 最低要求 net462，而核心库需支持 net452。
-代码里的 `using` 已按 `#if NET6_0_OR_GREATER` 条件编译走新驱动；
-`Provider.SqlServer` 常量值仍为 `"System.Data.SqlClient"`，改它有兼容风险。
+核心库不引用任何 SqlClient 包（靠 `DbProviderFactory` 反射加载），csproj 里也没有对应 `PackageReference`；
+全仓搜 `System.Data.SqlClient` 共 22 处，其中真正的 `using` 只有 1 处，位于
+`FastData.Example/Example/ShardingFullExample.cs:13` 的 `#else` 分支，而该项目只 target `net8.0;net10.0`
+—— 该分支永不参与编译。其余 21 处是 provider 名映射字符串、WinForms 下拉项、测试数据与文档，
+属对外配置契约：`Provider.SqlServer` 常量值仍为 `"System.Data.SqlClient"`，
+`DataConfig` 已同时识别新旧两个名字，改常量值只会让存量配置失配。
 
 **`StressTests` 的 0.3 / 0.5 成功率阈值**
 形同虚设（70% 失败也算通过），但提高阈值会让无数据库环境全红，
@@ -120,10 +134,14 @@
 
 ## 开放
 
-当前无开放缺陷。
+| Issue | 内容 | 为什么留着 |
+|---|---|---|
+| [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | 需新增异步分页执行器（含四方言），属新功能 |
 
-剩余 [#4](https://github.com/doubao01/FastData/issues/4)、[#5](https://github.com/doubao01/FastData/issues/5)、
-[#6](https://github.com/doubao01/FastData/issues/6) 属于「评估后不改」，已归入上一节。
+历史结论（均已关闭，归入上文「不修」一节）：
+[#4](https://github.com/doubao01/FastData/issues/4) 伪异步（已修 `QueryAsync`/`WriteAsync`，剩余部分转为 #20）、
+[#5](https://github.com/doubao01/FastData/issues/5) 空 catch（核心库 37 处，逐处核对后不动）、
+[#6](https://github.com/doubao01/FastData/issues/6) `System.Data.SqlClient`（核心库零依赖，仅 provider 名字符串）。
 
 ---
 
