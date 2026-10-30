@@ -93,7 +93,9 @@ namespace FastData.Tests
             Assert.Equal(3, poolConfig.ErrorShrinkThreshold);
             Assert.Equal(20, poolConfig.ErrorShrinkPercentage);
             Assert.False(poolConfig.EnableRedisCheck);
-            Assert.False(poolConfig.CircuitBreaker.Enabled);
+            // 熔断器默认开启 —— 数据库不可达时快速失败，是保护机制。
+            // 旧配置里显式写了 CircuitBreakerEnabled="false" 把它关掉，没有合理理由，已移除。
+            Assert.True(poolConfig.CircuitBreaker.Enabled);
             Assert.Equal(5, poolConfig.CircuitBreaker.FailureThreshold);
             Assert.Equal(30, poolConfig.CircuitBreaker.CircuitOpenDurationSec);
             Assert.Equal(3, poolConfig.CircuitBreaker.HalfOpenMaxRequests);
