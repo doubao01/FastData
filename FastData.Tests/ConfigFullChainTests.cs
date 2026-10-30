@@ -73,8 +73,10 @@ namespace FastData.Tests
             Assert.False(defaulted.IsUpdateCache);
 
             var poolConfig = FastDataConfig.GetConnectionPoolConfig();
-            Assert.Equal(20, poolConfig.MinPoolSize);
-            Assert.Equal(500, poolConfig.MaxPoolSize);
+            // 下面这些断言对应 FastData.Tests/db.dev.config 里的实际取值。
+            // 修改那个文件时需同步这里，否则断言会与配置脱节。
+            Assert.Equal(5, poolConfig.MinPoolSize);
+            Assert.Equal(50, poolConfig.MaxPoolSize);
             Assert.Equal(30, poolConfig.ConnectionTimeout);
             Assert.Equal(30, poolConfig.ConnectionLifetime);
             Assert.Equal(60, poolConfig.HealthCheckInterval);
