@@ -12,6 +12,7 @@ namespace FastData.Tests
     /// <summary>
     /// FastIM QQ 机器人门面测试。
     /// </summary>
+    [Collection(FastIMCollectionNames.StaticState)]
     public class FastIMTests
     {
         [Fact]

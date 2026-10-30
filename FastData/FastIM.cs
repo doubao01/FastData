@@ -11,7 +11,10 @@ namespace FastData
     public static class FastIM
     {
         private static readonly object LockObj = new object();
-        private static FastIMState _state;
+
+        // volatile：写发生在 lock 内，读却可能在无锁路径上（EnsureLoaded 的第一个判断）。
+        // 没有这一步，线程可能长期读到旧的 null 引用而重复走 Load()，把已有状态覆盖掉。
+        private static volatile FastIMState _state;
 
         /// <summary>
         /// 当前 QQ 机器人配置。

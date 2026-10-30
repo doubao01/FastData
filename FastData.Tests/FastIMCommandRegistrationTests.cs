@@ -15,6 +15,7 @@ namespace FastData.Tests
     /// 1. FastIM 门面必须注册全部内置指令（此前只注册 4 个，其余 8 个报「未知指令」）；
     /// 2. dbrestart 只有在提供者支持重建时才报告「已重启」，否则必须如实说明仅关闭、不预热。
     /// </summary>
+    [Collection(FastIMCollectionNames.StaticState)]
     public class FastIMCommandRegistrationTests
     {
         [Fact]
