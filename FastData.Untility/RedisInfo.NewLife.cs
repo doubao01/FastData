@@ -1,6 +1,7 @@
 #if !NETFRAMEWORK
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using NewLife.Caching;
 using Newtonsoft.Json;
@@ -77,7 +78,9 @@ namespace FastRedis
                 var previousDb = SwitchDatabase(db);
                 try
                 {
-                    return Redis.ContainsKey(key);
+                    var exists = Redis.ContainsKey(key);
+                    MarkSuccess();
+                    return exists;
                 }
                 finally
                 {
@@ -124,6 +127,7 @@ namespace FastRedis
                 try
                 {
                     Redis.Set(key, model, TimeSpan.FromHours(hours));
+                    MarkSuccess();
                     return true;
                 }
                 finally
@@ -239,7 +243,9 @@ namespace FastRedis
                 var previousDb = SwitchDatabase(db);
                 try
                 {
-                    return Redis.Get<string>(key);
+                    var value = Redis.Get<string>(key);
+                    MarkSuccess();
+                    return value;
                 }
                 finally
                 {
@@ -821,14 +827,102 @@ namespace FastRedis
         }
 
         #region 出错日志
+        /// <summary>
+        /// 最近一次成功操作的时间（用于判断 Redis 是否真的在工作）。
+        /// </summary>
+        private static long _lastSuccessTicks;
+
+        /// <summary>
+        /// 上次输出告警的时间，用于节流，避免 Redis 长时间不可用时刷屏。
+        /// </summary>
+        private static long _lastWarnTicks;
+
+        private static volatile bool _available = true;
+
+        /// <summary>
+        /// Redis 当前是否可用。
+        /// <para>
+        /// 缓存不可用时本库一律**降级**：读写失败只返回 false / 空值，不影响业务正确性。
+        /// 但降级必须可观测 —— 否则「配置了 Redis」与「Redis 真的在工作」无法区分，
+        /// 表现为缓存命中率恒为 0、每次请求都穿透到数据库，而日志里只有一堆没人看的堆栈。
+        /// </para>
+        /// <para>
+        /// 监控系统应定期检查这个属性；为 false 说明缓存层已经形同虚设。
+        /// </para>
+        /// </summary>
+        public static bool IsAvailable => _available;
+
+        /// <summary>
+        /// 最近一次失败的错误信息；从未失败则为 null。
+        /// </summary>
+        public static string LastError { get; private set; }
+
+        /// <summary>
+        /// 最近一次成功操作的时间；从未成功则为 null。
+        /// </summary>
+        public static DateTime? LastSuccessAt
+        {
+            get
+            {
+                var ticks = Interlocked.Read(ref _lastSuccessTicks);
+                return ticks == 0 ? (DateTime?)null : new DateTime(ticks, DateTimeKind.Utc);
+            }
+        }
+
+        /// <summary>
+        /// 把健康状态重置为「可用」。
+        /// Redis 恢复后、或调用方主动探活成功后调用。
+        /// </summary>
+        public static void ResetHealth()
+        {
+            _available = true;
+            LastError = null;
+        }
+
+        private static void MarkSuccess()
+        {
+            Interlocked.Exchange(ref _lastSuccessTicks, DateTime.UtcNow.Ticks);
+
+            if (!_available)
+                _available = true;
+        }
+
         private static void SaveLog<T>(Exception ex, string CurrentMethod)
         {
             LogManager.SaveLog(string.Format("方法：{0},对象：{1},出错详情：{2}", CurrentMethod, typeof(T).Name, ex.ToString()), "redis_exp");
+            MarkFailure(ex, CurrentMethod);
         }
 
         private static void SaveLog(Exception ex, string CurrentMethod, string key)
         {
             LogManager.SaveLog(string.Format("方法：{0},键：{1},出错详情：{2}", CurrentMethod, key, ex.ToString()), "redis_exp");
+            MarkFailure(ex, CurrentMethod);
+        }
+
+        /// <summary>
+        /// 标记 Redis 不可用，并**节流**输出一次可见告警。
+        /// </summary>
+        /// <remarks>
+        /// 节流是必要的：Redis 长时间不可用时每次缓存操作都会失败，
+        /// 若不节流，日志会被同一条错误刷满，反而掩盖其它问题。
+        /// 首次失败立即告警，之后每 60 秒最多一次。
+        /// </remarks>
+        private static void MarkFailure(Exception ex, string method)
+        {
+            _available = false;
+            LastError = string.Format("{0}: {1}", ex.GetType().Name, ex.Message);
+
+            var now = DateTime.UtcNow.Ticks;
+            var last = Interlocked.Read(ref _lastWarnTicks);
+            if (now - last < TimeSpan.FromSeconds(60).Ticks)
+                return;
+
+            if (Interlocked.CompareExchange(ref _lastWarnTicks, now, last) != last)
+                return;
+
+            System.Diagnostics.Trace.TraceError(string.Format(
+                "Redis 不可用，缓存已降级（不影响业务正确性，但命中率归零）：{0} @ {1}。详见 redis_exp 日志。",
+                LastError, method));
         }
         #endregion
     }
