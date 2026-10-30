@@ -81,6 +81,7 @@
 | `release.yml` 把 `NUGET_API_KEY` 写在 step env 却在同 step 的 `if` 里读 → 条件恒假，发布从未执行 |
 | `Directory.Build.props` 的 `TreatWarningsAsWarnings` 是不存在的属性，一直被静默忽略 |
 | README 项目矩阵与 csproj 实际 TFM 不符 |
+| 集成测试并行执行时 SQL Server 死锁：多个测试类共用 `perf_users`，各自开事务互踩，SQL Server 随机选牺牲者回滚，表现为「间歇失败、重跑就好、每次失败的用例不同」。归入同一 xUnit Collection 串行执行。 |
 
 ---
 
@@ -117,9 +118,10 @@
 
 ## 开放
 
-| Issue | 内容 |
-|---|---|
-| [#17](https://github.com/doubao01/FastData/issues/17) | `AsyncCrud_ByPredicate` 在 SQL Server 上间歇失败（AddAsy 后查不到刚插入的行）。run#24-27 通过、#33 失败、#35 重跑通过、#37/#38 失败、#41 通过。可疑点：连接池事务残留、`GetIdentityValueAsync` 改写 cmd 的时序。 |
+当前无开放缺陷。
+
+剩余 [#4](https://github.com/doubao01/FastData/issues/4)、[#5](https://github.com/doubao01/FastData/issues/5)、
+[#6](https://github.com/doubao01/FastData/issues/6) 属于「评估后不改」，已归入上一节。
 
 ---
 
