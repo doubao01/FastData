@@ -192,6 +192,10 @@ F:FastData.FastDataErrorCode.QueryTimeout
 F:FastData.FastDataErrorCode.TransactionFailed
 F:FastData.FastDataErrorCode.ValidationFailed
 F:FastData.FastDataErrorCode.value__
+F:FastData.Monitoring.HealthLevel.Critical
+F:FastData.Monitoring.HealthLevel.Ok
+F:FastData.Monitoring.HealthLevel.Warning
+F:FastData.Monitoring.HealthLevel.value__
 F:FastData.Monitoring.OperationMetrics.FailedOperations
 F:FastData.Monitoring.OperationMetrics.SuccessfulOperations
 F:FastData.Monitoring.OperationMetrics.TotalOperations
@@ -1286,7 +1290,19 @@ M:FastData.Model.Where.StartsWith(System.Linq.Expressions.Expression<System.Func
 M:FastData.Model.Where.ctor()
 M:FastData.Model.WriteReturn.ctor()
 M:FastData.Model.XmlModel.ctor()
+M:FastData.Monitoring.HealthItem.ctor()
 M:FastData.Monitoring.OperationMetrics.ctor()
+M:FastData.Monitoring.OperationsPanel.CollectAsync(System.Threading.CancellationToken) -> System.Threading.Tasks.Task<FastData.Monitoring.OperationsSnapshot>
+M:FastData.Monitoring.OperationsPanel.RunAsync(System.Threading.CancellationToken) -> System.Threading.Tasks.Task<FastData.Monitoring.OperationsSnapshot>
+M:FastData.Monitoring.OperationsPanel.WithAlertGroups(System.String[]) -> FastData.Monitoring.OperationsPanel
+M:FastData.Monitoring.OperationsPanel.WithAlertUsers(System.String[]) -> FastData.Monitoring.OperationsPanel
+M:FastData.Monitoring.OperationsPanel.WithSender(FastUntility.Monitor.IMessageSender) -> FastData.Monitoring.OperationsPanel
+M:FastData.Monitoring.OperationsPanel.ctor(FastData.Monitoring.OperationsPanelOptions)
+M:FastData.Monitoring.OperationsPanelOptions.ctor()
+M:FastData.Monitoring.OperationsSnapshot.LevelText(FastData.Monitoring.HealthLevel) [static] -> System.String
+M:FastData.Monitoring.OperationsSnapshot.Render() -> System.String
+M:FastData.Monitoring.OperationsSnapshot.ToJson() -> System.String
+M:FastData.Monitoring.OperationsSnapshot.ctor()
 M:FastData.Monitoring.PerformanceHelper.GetMonitor() [static] -> FastData.Monitoring.PerformanceMonitor
 M:FastData.Monitoring.PerformanceHelper.GetPerformanceReport() [static] -> System.String
 M:FastData.Monitoring.PerformanceHelper.MonitorOperation(System.String,System.String,System.Func<T>) [static] -> T
@@ -2793,6 +2809,10 @@ P:FastData.Model.XmlModel.parameName
 P:FastData.Model.XmlModel.sql
 P:FastData.Model.XmlModel.type
 P:FastData.Model.XmlModel.view
+P:FastData.Monitoring.HealthItem.Data
+P:FastData.Monitoring.HealthItem.Level
+P:FastData.Monitoring.HealthItem.Message
+P:FastData.Monitoring.HealthItem.Name
 P:FastData.Monitoring.OperationMetrics.AverageDuration
 P:FastData.Monitoring.OperationMetrics.FailureRate
 P:FastData.Monitoring.OperationMetrics.LastExecutionTime
@@ -2802,6 +2822,26 @@ P:FastData.Monitoring.OperationMetrics.OperationType
 P:FastData.Monitoring.OperationMetrics.RecentSqls
 P:FastData.Monitoring.OperationMetrics.SuccessRate
 P:FastData.Monitoring.OperationMetrics.TotalDuration
+P:FastData.Monitoring.OperationsPanelOptions.AlertOnlyOnWorsen
+P:FastData.Monitoring.OperationsPanelOptions.AlertThrottleSeconds
+P:FastData.Monitoring.OperationsPanelOptions.CollectConnectionPools
+P:FastData.Monitoring.OperationsPanelOptions.CollectPerformance
+P:FastData.Monitoring.OperationsPanelOptions.CollectRedis
+P:FastData.Monitoring.OperationsPanelOptions.CollectServer
+P:FastData.Monitoring.OperationsPanelOptions.CpuCriticalPercent
+P:FastData.Monitoring.OperationsPanelOptions.CpuWarnPercent
+P:FastData.Monitoring.OperationsPanelOptions.DiskCriticalPercent
+P:FastData.Monitoring.OperationsPanelOptions.DiskWarnPercent
+P:FastData.Monitoring.OperationsPanelOptions.MemoryCriticalPercent
+P:FastData.Monitoring.OperationsPanelOptions.MemoryWarnPercent
+P:FastData.Monitoring.OperationsPanelOptions.ProbeTimeoutSeconds
+P:FastData.Monitoring.OperationsPanelOptions.ProbeUrls
+P:FastData.Monitoring.OperationsPanelOptions.SlowQueryThresholdMs
+P:FastData.Monitoring.OperationsSnapshot.Duration
+P:FastData.Monitoring.OperationsSnapshot.IsHealthy
+P:FastData.Monitoring.OperationsSnapshot.Items
+P:FastData.Monitoring.OperationsSnapshot.Overall
+P:FastData.Monitoring.OperationsSnapshot.Timestamp
 P:FastData.Monitoring.PerformanceSummary.AverageDuration
 P:FastData.Monitoring.PerformanceSummary.FailureRate
 P:FastData.Monitoring.PerformanceSummary.LastExecutionTime
@@ -3541,7 +3581,12 @@ T:FastData.Model.VisitModel
 T:FastData.Model.Where
 T:FastData.Model.WriteReturn
 T:FastData.Model.XmlModel
+T:FastData.Monitoring.HealthItem
+T:FastData.Monitoring.HealthLevel
 T:FastData.Monitoring.OperationMetrics
+T:FastData.Monitoring.OperationsPanel
+T:FastData.Monitoring.OperationsPanelOptions
+T:FastData.Monitoring.OperationsSnapshot
 T:FastData.Monitoring.PerformanceHelper
 T:FastData.Monitoring.PerformanceMonitor
 T:FastData.Monitoring.PerformanceSummary
