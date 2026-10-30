@@ -73,9 +73,20 @@ namespace FastData.ConnectionPool
             if (MaxPoolSize < 0)
             {
                 MaxPoolSize = Math.Min(cpuBasedMax, memoryBasedMax);
-                // 限制范围
-                MaxPoolSize = Math.Max(MaxPoolSizeMinValue, Math.Min(MaxPoolSizeMaxValue, MaxPoolSize));
             }
+
+            // 无论来自自动计算还是显式配置，都限制在合理区间。
+            // 原实现只在「未配置」时做范围限制，显式写 500 会原样生效 ——
+            // 而 MySQL 默认 max_connections 是 151、SQL Server 也有上限，
+            // 配置成 500 只会在并发时把数据库连接打满，且报错信息与配置项对不上（很难查）。
+            if (MaxPoolSize > MaxPoolSizeMaxValue)
+            {
+                System.Diagnostics.Trace.TraceWarning(string.Format(
+                    "连接池 MaxPoolSize={0} 超过上限 {1}，已按上限生效。过大可能耗尽数据库连接数。",
+                    MaxPoolSize, MaxPoolSizeMaxValue));
+                MaxPoolSize = MaxPoolSizeMaxValue;
+            }
+            MaxPoolSize = Math.Max(MaxPoolSizeMinValue, MaxPoolSize);
 
             // 确保 MinPoolSize 不超过 MaxPoolSize
             MinPoolSize = Math.Min(MinPoolSize, MaxPoolSize);

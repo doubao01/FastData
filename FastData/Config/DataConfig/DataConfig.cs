@@ -155,6 +155,17 @@ namespace FastData.Config
         /// 连接池配置（内部存储为字典，由 ParseXmlConfig 填充）
         /// </summary>
         private Dictionary<string, int> _connectionPoolSettings = new Dictionary<string, int>();
+
+        /// <summary>
+        /// 配置文件里是否出现过 &lt;ConnectionPool&gt; 节点。
+        /// <para>
+        /// 用于区分「没写节点」与「写了节点但一个属性都没填」：
+        /// 前者表示不启用连接池，后者表示启用连接池并使用全部默认值。
+        /// 原来两者都返回 null（等于禁用连接池），
+        /// 而配置文件里写着「其他属性都有默认值」，用户的直觉是「不配就用默认」。
+        /// </para>
+        /// </summary>
+        private bool _hasConnectionPoolNode;
         private Dictionary<string, string> _connectionPoolStringSettings = new Dictionary<string, string>();
         private bool _usesUnifiedConnections;
 
@@ -954,11 +965,27 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
                 }
 
                 // Read Redis
-                var redisNode = dataConfigNode.SelectSingleNode("Redis");
+                // 节点名同时支持 Redis 与 RedisConfig：
+                // RedisInfo（真正的 Redis 客户端）读的是 <RedisConfig>，
+                // 而这里读的是 <Redis>（用于配置摘要/健康检查）。
+                // 两个名字各读各的，用户必须写两遍才两边都生效 —— 这不该是用户的问题。
+                // 现在优先读 <RedisConfig>，找不到再回退 <Redis>（保持向后兼容）。
+                var redisNode = dataConfigNode.SelectSingleNode("RedisConfig")
+                                ?? dataConfigNode.SelectSingleNode("Redis");
                 if (redisNode != null)
                 {
                     var redisElement = new RedisElement();
-                    redisElement.Server = redisNode.Attributes?["Server"]?.Value ?? "";
+
+                    // Server 优先取 Server 属性；RedisConfig 风格用 WriteServerList（逗号分隔，取第一个）
+                    var server = redisNode.Attributes?["Server"]?.Value;
+                    if (string.IsNullOrEmpty(server))
+                    {
+                        var writeList = redisNode.Attributes?["WriteServerList"]?.Value;
+                        if (!string.IsNullOrEmpty(writeList))
+                            server = writeList.Split(',')[0].Trim();
+                    }
+                    redisElement.Server = server ?? "";
+
                     redisElement.Db = int.TryParse(redisNode.Attributes?["Db"]?.Value, out var db) ? db : 0;
                     redisElement.Password = redisNode.Attributes?["Password"]?.Value ?? "";
                     redisElement.ConnectTimeout = int.TryParse(redisNode.Attributes?["ConnectTimeout"]?.Value, out var ct) ? ct : 5000;
@@ -998,6 +1025,7 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
                         }
                     }
 
+                    config._hasConnectionPoolNode = true;
                     config._connectionPoolSettings = poolSettings;
                     config._connectionPoolStringSettings = stringSettings;
                     if (boolSettings.TryGetValue("EnableSmartAdjustment", out var enableSmart))
@@ -1125,7 +1153,10 @@ var item = list.Find(a => string.Equals(a.Key, defaultKey, StringComparison.Ordi
             if (config == null)
                 config = baseConfig;
 
-            if (config == null || config._connectionPoolSettings.Count == 0)
+            // 只有「完全没写 <ConnectionPool> 节点」才表示不启用连接池。
+            // 写了节点但没填属性 = 启用连接池 + 全部默认值（原实现这里返回 null，
+            // 等于静默禁用连接池，与配置文件里「其他属性都有默认值」的说法矛盾）。
+            if (config == null || !config._hasConnectionPoolNode)
                 return null;
 
             return config.GetConnectionPoolConfig();
