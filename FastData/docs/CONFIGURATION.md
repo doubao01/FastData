@@ -111,8 +111,10 @@ FastRedis.RedisInfo.LastError     // 失败原因
 `MaxPoolSize` 超过 200 会被夹到 200 并输出警告——设再大也没用，
 因为数据库端的连接数上限通常更小（MySQL 默认 151）。
 
-完整的调优参数（健康检查间隔、负载阈值、扩缩容步长、熔断选项等）
-见 `FastData/Model/ConnectionPoolConfig.cs` 的属性定义，每一项都有中文注释。
+**要调其它参数之前先看 [连接池调优](./POOL_TUNING.md)。**
+那里面写清了每个参数的实际行为，包括两个容易误判的地方：
+真正应急扩容发生在取连接时（不受 `LoadThreshold` 控制），
+以及 `LeakDetectionThreshold` 只写日志、不回收连接。
 
 ## IM 平台节点（可选）
 
