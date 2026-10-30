@@ -80,6 +80,18 @@ jobs:
           fi
           echo "公开 API 与基线一致（$(grep -vc '^#' FastData/docs/PublicAPI.txt) 个符号）"
 
+      # 文档拼写检查：示例里写的库 API 名必须真实存在。
+      # 只查名字，不检查签名/类型 —— 真正能编译的示例见 FastData/docs/DOC_SAMPLES.md。
+      - name: Check docs API references
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0'
+        run: python3 tools/check-docs-api.py
+
+      # README 的每段代码示例都要能编译。文档写错参数名/漏泛型参数，这里会红。
+      # 测试项目里的实体与类型和文档示例不同，因此单独一个项目，不并入解决方案。
+      - name: Build docs samples
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0'
+        run: dotnet build tools/DocSamples/DocSamples.csproj -c Release -p:TargetFrameworks=net8.0 -v minimal
+
       - name: Run Tests (non-integration)
         run: >
           dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build

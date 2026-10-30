@@ -1,0 +1,17 @@
+# check-docs-api.py 允许清单
+#
+# 文档示例里出现的、属于“读者自己的业务代码”的调用名 —— 它们本来就不该出现在库里。
+# 每行一个名字，# 之后是注释。新增前先确认：这不是库 API 写错了名字。
+# 库自身 API 的拼写错误不要加进来，去改文档。
+
+# CACHING.md：示例里的业务仓储/服务方法
+GetUserById
+GetUserByIdSafe
+UpdateUser
+
+# MODERN_ORM_FEATURES.md：CodeFirst 迁移示例里的迁移类名
+AddUserDepartment_20260102_001
+InitialMigration_20260101_001
+
+# ORM_BEST_PRACTICES.md：示例里的 Web 控制器
+UserController
