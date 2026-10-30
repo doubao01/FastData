@@ -145,7 +145,7 @@ namespace FastData.DevTools
                     return;
                 }
 
-                await Task.Delay(100);
+                await Task.Delay(100).ConfigureAwait(false);
             }
         }
 
@@ -156,21 +156,36 @@ namespace FastData.DevTools
         {
             if (_scheduledTasks.TryGetValue(taskId, out var task))
             {
-                await RunTask(task, _cancellationTokens[taskId].Token, immediate: true);
+                await RunTask(task, _cancellationTokens[taskId].Token, immediate: true).ConfigureAwait(false);
             }
         }
 
+        /// <summary>
+        /// 执行调度循环。
+        /// </summary>
+        /// <remarks>
+        /// **所有 await 都必须 ConfigureAwait(false)。**
+        /// 原实现没有加：<c>await Task.Delay(...)</c> 会捕获调用方的
+        /// <c>SynchronizationContext</c>，而在 WPF / WinForms / ASP.NET 这类宿主里，
+        /// 该 context 只在其所属线程空闲时才会处理续体。
+        /// 结果是定时任务迟迟不执行、甚至永远不执行 —— 库声称的「定时」功能事实上不可用。
+        /// <para>
+        /// 这个问题是由 CI 上的测试暴露的：xUnit 自带 MaxConcurrencySyncContext，
+        /// 测试线程同步等待时续体排不上队，任务始终不跑。
+        /// 本地无 context 的 harness 里则是通过的。
+        /// </para>
+        /// </remarks>
         private static async Task RunTask(ScheduledTask task, CancellationToken cancellationToken, bool immediate = false)
         {
             if (immediate)
             {
-                await ExecuteTask(task, cancellationToken);
+                await ExecuteTask(task, cancellationToken).ConfigureAwait(false);
             }
             else
             {
                 try
                 {
-                    await Task.Delay(task.Delay, cancellationToken);
+                    await Task.Delay(task.Delay, cancellationToken).ConfigureAwait(false);
 
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -178,7 +193,7 @@ namespace FastData.DevTools
                         return;
                     }
 
-                    await ExecuteTask(task, cancellationToken);
+                    await ExecuteTask(task, cancellationToken).ConfigureAwait(false);
 
                     if (task.Repeat && !cancellationToken.IsCancellationRequested)
                     {
@@ -206,7 +221,7 @@ namespace FastData.DevTools
 
             try
             {
-                await task.Action();
+                await task.Action().ConfigureAwait(false);
 
                 task.Status = task.Repeat ? TaskStatus.Scheduled : TaskStatus.Completed;
                 task.LastError = null;
@@ -389,7 +404,7 @@ namespace FastData.DevTools
 
                 try
                 {
-                    await task.Action();
+                    await task.Action().ConfigureAwait(false);
                     task.Status = TaskState.Completed;
                     task.CompletedAt = DateTime.Now;
                 }
@@ -603,11 +618,11 @@ namespace FastData.DevTools
             {
                 var tasks = batch.Select(async item =>
                 {
-                    await semaphore.WaitAsync();
+                    await semaphore.WaitAsync().ConfigureAwait(false);
                     try
                     {
                         var startTime = DateTime.Now;
-                        await action(item);
+                        await action(item).ConfigureAwait(false);
                         var duration = DateTime.Now - startTime;
 
                         return new BatchTaskResult
@@ -633,7 +648,7 @@ namespace FastData.DevTools
                     }
                 });
 
-                var batchResults = await Task.WhenAll(tasks);
+                var batchResults = await Task.WhenAll(tasks).ConfigureAwait(false);
                 results.AddRange(batchResults);
             }
 
@@ -662,7 +677,7 @@ namespace FastData.DevTools
                     try
                     {
                         var startTime = DateTime.Now;
-                        await action(item);
+                        await action(item).ConfigureAwait(false);
                         result.Duration = DateTime.Now - startTime;
                         result.Success = true;
                         break;
@@ -677,7 +692,7 @@ namespace FastData.DevTools
                         }
                         else
                         {
-                            await Task.Delay(retryDelay.Value);
+                            await Task.Delay(retryDelay.Value).ConfigureAwait(false);
                         }
                     }
                 }
