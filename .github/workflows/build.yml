@@ -86,6 +86,14 @@ jobs:
           --framework ${{ matrix.framework }}
           --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~OrmCrudTests&FullyQualifiedName!~StressTests.Concurrent&FullyQualifiedName!~StressTests.MixedOperations" -v minimal
 
+      # 构建 / QuickStart / 测试跑完后，工作区不该留下 git 不认识的文件。
+      # 已经出过几次「产物差点进仓库」：BenchmarkDotNet.Artifacts 没被忽略、
+      # SQLite 恢复副本以时间戳结尾躲过 *.db。
+      - name: Verify workspace is clean
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0'
+        run: bash tools/check-workspace-clean.sh
+
+
   # ---- 集成测试：连真实数据库跑 ----
   # 背景（issue #3）：此前的测试步骤用 `--filter "FullyQualifiedName!~Integration"`
   # 把所有集成测试永久排除在外，MultiDatabase* / Sharding 系列从未在 CI 跑过。
@@ -323,6 +331,9 @@ jobs:
             -- --filter '*'
           # 产物落在工作目录（仓库根），不是项目目录
           ls -la BenchmarkDotNet.Artifacts/results/
+
+      - name: Verify workspace is clean after benchmark
+        run: bash tools/check-workspace-clean.sh
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

@@ -21,6 +21,8 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+# SQLite 恢复前留的副本：xxx.db.before-restore-20261030120000，后缀是时间戳，*.db 抓不到
+*.before-restore-*
 
 # 用户特定配置
 *.user
