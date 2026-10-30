@@ -613,6 +613,7 @@ M:FastData.DevTools.DataDifference.ctor()
 M:FastData.DevTools.DataImporter.BatchImport(System.Collections.Generic.IEnumerable<T>,System.Int32,System.String) [static] -> System.ValueTuple<System.Int32,System.Int32>
 M:FastData.DevTools.DataImporter.ExportToCSV(System.String,System.Linq.Expressions.Expression<System.Func<T,System.Boolean>>,System.String) [static] -> System.Void
 M:FastData.DevTools.DataImporter.ImportFromCSV(System.String,System.String) [static] -> System.ValueTuple<System.Int32,System.Int32>
+M:FastData.DevTools.DataImporter.ParseCsvLine(System.String) [static] -> System.Collections.Generic.List<System.String>
 M:FastData.DevTools.DataImporter.SyncData(System.Collections.Generic.IEnumerable<T>,System.Func<T,System.Object>,System.String) [static] -> System.ValueTuple<System.Int32,System.Int32,System.Int32>
 M:FastData.DevTools.DatabaseAuditLogger.Log(FastData.DevTools.AuditEntry) -> System.Void
 M:FastData.DevTools.DatabaseAuditLogger.LogAdd(T,System.String) -> System.Void
