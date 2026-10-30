@@ -67,3 +67,6 @@ __pycache__/
 
 # AI 助手的本地记忆文件，不应进公开仓库
 .monkeycode/
+
+# BenchmarkDotNet 产物：CI 每次跑基准都会生成，属构建产物
+BenchmarkDotNet.Artifacts/
