@@ -38,6 +38,8 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <!-- OperationsPanel 的接口探测用 HttpClient，net452 需显式引用 -->
+    <Reference Include="System.Net.Http" />
     <!-- 元组语法支持（net452 缺失） -->
     <PackageReference Include="System.ValueTuple" />
   </ItemGroup>
