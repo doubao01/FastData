@@ -1784,6 +1784,7 @@ M:FastRedis.RedisInfo.Remove(System.String,System.Int32) [static] -> System.Bool
 M:FastRedis.RedisInfo.RemoveAsync(System.String,System.Int32) [static] -> System.Threading.Tasks.Task<System.Boolean>
 M:FastRedis.RedisInfo.RemoveDic(System.String[],System.Int32) [static] -> System.Boolean
 M:FastRedis.RedisInfo.RemoveDicAsync(System.String[],System.Int32) [static] -> System.Threading.Tasks.Task<System.Boolean>
+M:FastRedis.RedisInfo.ResetHealth() [static] -> System.Void
 M:FastRedis.RedisInfo.Set(System.String,System.String,System.Double,System.Int32) [static] -> System.Boolean
 M:FastRedis.RedisInfo.Set(System.String,System.String,System.Int32,System.Int32) [static] -> System.Boolean
 M:FastRedis.RedisInfo.Set(System.String,T,System.Int32,System.Int32) [static] -> System.Boolean
@@ -3137,6 +3138,9 @@ P:FastRedis.Messaging.MessageQueueOptions.QueueType
 P:FastRedis.Messaging.MessageQueueOptions.RedisDb
 P:FastRedis.Messaging.MessageQueueOptions.TopicPrefix
 P:FastRedis.Messaging.StreamConsumer.ConsumerGroup
+P:FastRedis.RedisInfo.IsAvailable
+P:FastRedis.RedisInfo.LastError
+P:FastRedis.RedisInfo.LastSuccessAt
 P:FastRedis.RedisInfo.Redis
 P:FastUntility.Attributes.RemarkAttribute.Remark
 P:FastUntility.Base.BaseExcel+ExcelModel.cell
