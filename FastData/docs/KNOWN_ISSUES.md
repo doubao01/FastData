@@ -1,7 +1,7 @@
 # 已知问题与修复状态
 
 本文档汇总历次代码审计发现的问题及当前处置状态，避免重复分析。
-最后更新：2026-10-28。
+最后更新：2026-10-30。
 
 状态说明：**已修** = 代码已改并有测试或 CI 验证；**不修** = 评估后认为改动收益低于风险，附理由；**开放** = 已建 issue 待处理。
 
@@ -24,6 +24,8 @@
 | 恢复链路三处（MySQL/PG/SQLServer） | 每条语句 `catch { }` 后无条件 `Success = true` |
 | 分页查询 | 异常被 catch 吞掉，返回 `TotalRecord=0` 的空壳，与「无匹配」无法区分 |
 | `GetJson` | 重复绑定 WHERE 参数导致查询失败，异常被吞后返回 null |
+| `DbRestartCommandHandler`（`dbrestart` 指令） | 只调用 `ClosePool` 就回「已重启连接池: X」，池子实际从未重建更未预热；现已区分「重建」与「仅关闭」两条路径 |
+| `FastIM.Configure` | 只注册了 help/status/memory/gc 四个指令，其余 8 个（cpu/disk/process/dbstatus/dbclose/dbrestart/version/time）走 FastIM 入口一律回「未知指令」 |
 
 ### SQL 生成错误
 
@@ -136,3 +138,7 @@ CI 中 `integration-test` job 起 service container 并创建 `perf_users` 表�
 
 本地 `dotnet test` 在部分环境（PRoot/容器）无法启动 testhost，
 需要以 CI 结果为准。
+
+**IM 指令链路**：`FastIMCommandRegistrationTests` 校验 FastIM 门面注册了全部 12 个内置指令，
+并用两个假提供者分别验证 `dbrestart` 的两条路径 —— 实现 `IConnectionPoolReopenProvider`
+时执行真正的关闭+重建+预热，未实现时如实回复「已关闭，按需重建」而不是谎称重启。

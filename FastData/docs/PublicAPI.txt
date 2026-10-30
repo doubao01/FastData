@@ -384,9 +384,11 @@ M:FastData.ConnectionPool.ConnectionPoolFactory.CloseAllPools() -> System.Void
 M:FastData.ConnectionPool.ConnectionPoolFactory.ClosePool(System.String) -> System.Void
 M:FastData.ConnectionPool.ConnectionPoolFactory.Dispose() -> System.Void
 M:FastData.ConnectionPool.ConnectionPoolFactory.GetAllMetrics() -> System.Collections.Generic.Dictionary<System.String,FastData.ConnectionPool.ConnectionPoolMetrics>
+M:FastData.ConnectionPool.ConnectionPoolFactory.GetAllPoolInfo() -> System.Collections.Generic.Dictionary<System.String,FastUntility.Monitor.ConnectionPoolInfo>
 M:FastData.ConnectionPool.ConnectionPoolFactory.GetOrCreatePool(System.String,System.Func<System.Data.Common.DbConnection>,FastData.ConnectionPool.ConnectionPoolConfig) -> FastData.ConnectionPool.SmartConnectionPool
 M:FastData.ConnectionPool.ConnectionPoolFactory.GetPool(System.String) -> FastData.ConnectionPool.SmartConnectionPool
 M:FastData.ConnectionPool.ConnectionPoolFactory.RemovePool(System.String) -> System.Boolean
+M:FastData.ConnectionPool.ConnectionPoolFactory.TryReopenPool(System.String,System.String&) -> System.Boolean
 M:FastData.ConnectionPool.ConnectionPoolMetrics.ctor()
 M:FastData.ConnectionPool.ConnectionPoolMonitor.Dispose() -> System.Void
 M:FastData.ConnectionPool.ConnectionPoolMonitor.GetStatistics(System.TimeSpan) -> FastData.ConnectionPool.ConnectionPoolStatistics
@@ -999,6 +1001,7 @@ M:FastData.FastDataException.ctor(System.String,FastData.FastDataErrorCode,Syste
 M:FastData.FastDb.ConfigureLogging(Microsoft.Extensions.Logging.ILoggerFactory) [static] -> System.Void
 M:FastData.FastDb.Use(System.String) [static] -> System.IDisposable
 M:FastData.FastIM.Configure(FastUntility.Monitor.QQBotConfig,FastUntility.Monitor.ExceptionNotifyConfig,FastUntility.Monitor.IMessageSender) [static] -> FastUntility.Monitor.QQBotConfig
+M:FastData.FastIM.Configure(FastUntility.Monitor.QQBotConfig,FastUntility.Monitor.ExceptionNotifyConfig,FastUntility.Monitor.IMessageSender,FastUntility.Monitor.IConnectionPoolInfoProvider) [static] -> FastUntility.Monitor.QQBotConfig
 M:FastData.FastIM.Load(System.String,FastUntility.Monitor.IMessageSender) [static] -> FastUntility.Monitor.QQBotConfig
 M:FastData.FastIM.NotifyException(FastUntility.Monitor.ExceptionInfo) [static] -> System.Void
 M:FastData.FastIM.NotifyException(System.Exception,FastUntility.Monitor.ExceptionLevel,System.String) [static] -> System.Void
@@ -2088,6 +2091,7 @@ M:FastUntility.Monitor.HelpCommandHandler.Execute(FastUntility.Monitor.RemoteCom
 M:FastUntility.Monitor.HelpCommandHandler.ctor(FastUntility.Monitor.RemoteCommandManager)
 M:FastUntility.Monitor.IConnectionPoolInfoProvider.ClosePool(System.String) -> System.Void
 M:FastUntility.Monitor.IConnectionPoolInfoProvider.GetAllPoolInfo() -> System.Collections.Generic.Dictionary<System.String,FastUntility.Monitor.ConnectionPoolInfo>
+M:FastUntility.Monitor.IConnectionPoolReopenProvider.TryReopenPool(System.String,System.String&) -> System.Boolean
 M:FastUntility.Monitor.IMPlatformConfigParser.ParseFromConfig(System.String) [static] -> System.ValueTuple<FastUntility.Monitor.QQBotConfig,FastUntility.Monitor.ExceptionNotifyConfig>
 M:FastUntility.Monitor.IMessageSender.SendGroupMessage(System.String,System.String) -> System.Void
 M:FastUntility.Monitor.IMessageSender.SendPrivateMessage(System.String,System.String) -> System.Void
@@ -3739,6 +3743,7 @@ T:FastUntility.Monitor.GcCommandHandler
 T:FastUntility.Monitor.GlobalExceptionHandler
 T:FastUntility.Monitor.HelpCommandHandler
 T:FastUntility.Monitor.IConnectionPoolInfoProvider
+T:FastUntility.Monitor.IConnectionPoolReopenProvider
 T:FastUntility.Monitor.IMPlatformConfigParser
 T:FastUntility.Monitor.IMessageSender
 T:FastUntility.Monitor.IRemoteCommandHandler

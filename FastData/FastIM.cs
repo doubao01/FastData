@@ -1,4 +1,5 @@
 using System;
+using FastData.ConnectionPool;
 using FastUntility.Monitor;
 
 namespace FastData
@@ -53,6 +54,24 @@ namespace FastData
         /// <returns>当前 QQ 机器人配置。</returns>
         public static QQBotConfig Configure(QQBotConfig botConfig, ExceptionNotifyConfig notifyConfig = null, IMessageSender sender = null)
         {
+            return Configure(botConfig, notifyConfig, sender, null);
+        }
+
+        /// <summary>
+        /// 使用指定配置初始化 IM 平台，并指定连接池信息源。
+        /// </summary>
+        /// <param name="botConfig">QQ 机器人配置。</param>
+        /// <param name="notifyConfig">异常通知配置。</param>
+        /// <param name="sender">可选自定义发送器，测试或自定义平台适配时使用。</param>
+        /// <param name="poolInfoProvider">
+        /// 连接池信息源，供 dbstatus / dbclose / dbrestart 指令使用。
+        /// 传 null 时自动使用 <see cref="ConnectionPoolFactory.Instance"/>；传入实现
+        /// <see cref="IConnectionPoolReopenProvider"/> 的提供者即可让 dbrestart 真正重建并预热连接池。
+        /// </param>
+        /// <returns>当前 QQ 机器人配置。</returns>
+        public static QQBotConfig Configure(QQBotConfig botConfig, ExceptionNotifyConfig notifyConfig,
+            IMessageSender sender, IConnectionPoolInfoProvider poolInfoProvider)
+        {
             if (botConfig == null)
                 throw new ArgumentNullException(nameof(botConfig));
 
@@ -60,7 +79,8 @@ namespace FastData
             {
                 var currentSender = sender ?? new QQBotMessageSender(botConfig);
                 var currentNotifyConfig = notifyConfig ?? new ExceptionNotifyConfig();
-                var commandManager = new RemoteCommandManager(botConfig, currentSender);
+                var currentPoolInfoProvider = poolInfoProvider ?? ConnectionPoolFactory.Instance;
+                var commandManager = new RemoteCommandManager(botConfig, currentSender, currentPoolInfoProvider);
 
                 RegisterDefaultCommands(commandManager);
                 _state = new FastIMState(
@@ -158,7 +178,15 @@ namespace FastData
             manager.RegisterHandler(new HelpCommandHandler(manager));
             manager.RegisterHandler(new ServerStatusCommandHandler());
             manager.RegisterHandler(new MemoryCommandHandler());
+            manager.RegisterHandler(new CpuCommandHandler());
+            manager.RegisterHandler(new DiskCommandHandler());
+            manager.RegisterHandler(new ProcessCommandHandler());
+            manager.RegisterHandler(new DbStatusCommandHandler(manager));
+            manager.RegisterHandler(new DbCloseCommandHandler(manager));
+            manager.RegisterHandler(new DbRestartCommandHandler(manager));
             manager.RegisterHandler(new GcCommandHandler());
+            manager.RegisterHandler(new VersionCommandHandler());
+            manager.RegisterHandler(new TimeCommandHandler());
         }
 
         private sealed class FastIMState

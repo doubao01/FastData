@@ -12,6 +12,23 @@
   - `RunAsync` 在状态变差时推送 QQ 告警，同等级不重复推；恢复时补发通知
   - 不依赖 ASP.NET Core，暴露方式由宿主决定；兼容 net452，无新增三方依赖
 
+- **连接池远程运维能力（`FastUntility.Monitor`）**
+  - 新增 `IConnectionPoolReopenProvider` 接口，声明「按名称重建并预热连接池」能力
+  - `ConnectionPoolFactory` 实现 `IConnectionPoolInfoProvider` 与 `IConnectionPoolReopenProvider`，可直接作为 `dbstatus` / `dbclose` / `dbrestart` 的数据源
+  - `ConnectionPoolFactory` 记录每个池的构造参数（连接工厂 + 配置），使重建时能按原样恢复
+  - `FastIM.Configure` 新增接收 `IConnectionPoolInfoProvider` 的重载，默认使用 `ConnectionPoolFactory.Instance`
+
+### Fixed
+
+- **`dbrestart` 指令谎报重启（`FastData.Untility/Monitor`）**
+  - 原实现只调用 `ClosePool` 就返回「已重启连接池: X」，池实际未重建也未预热
+  - 现在：提供者实现 `IConnectionPoolReopenProvider` 时执行关闭+重建+预热，预热无连接时返回失败并说明原因；
+    未实现时如实回复「已关闭，将在下次访问时按需重建」，不再把关闭说成重启
+
+- **`FastIM` 门面只注册 4 个内置指令（`FastData/FastIM.cs`）**
+  - 此前仅 help / status / memory / gc 可用，cpu / disk / process / dbstatus / dbclose / dbrestart / version / time 经 FastIM 入口一律回「未知指令」
+  - 现已注册全部 12 个，与 `ExceptionManager` 的注册集合一致
+
 ## [2.8.1] - 2026-10-18
 
 ### Fixed

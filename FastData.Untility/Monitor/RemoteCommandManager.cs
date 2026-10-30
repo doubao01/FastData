@@ -25,6 +25,21 @@ namespace FastUntility.Monitor
     }
 
     /// <summary>
+    /// 连接池重启提供者接口。
+    /// 实现该接口的提供者支持真正的「关闭 + 重建 + 预热」，而不是只关闭连接池。
+    /// </summary>
+    public interface IConnectionPoolReopenProvider
+    {
+        /// <summary>
+        /// 重建指定连接池并预热。
+        /// </summary>
+        /// <param name="poolName">连接池名称</param>
+        /// <param name="message">结果说明</param>
+        /// <returns>是否重启成功</returns>
+        bool TryReopenPool(string poolName, out string message);
+    }
+
+    /// <summary>
     /// 连接池信息
     /// </summary>
     public class ConnectionPoolInfo
@@ -597,15 +612,30 @@ namespace FastUntility.Monitor
                 };
             }
 
+            // 提供者支持重建时，执行真正的「关闭 + 重建 + 预热」
+            var reopenProvider = poolInfoProvider as IConnectionPoolReopenProvider;
+            if (reopenProvider != null)
+            {
+                string message;
+                var ok = reopenProvider.TryReopenPool(poolName, out message);
+
+                return new RemoteCommandResponse
+                {
+                    Success = ok,
+                    Message = message
+                };
+            }
+
+            // 否则只能关闭；如实说明不会预热，避免把「关闭」报告成「重启」
             try
             {
                 poolInfoProvider.ClosePool(poolName);
-                // 注意：实际重新初始化需要根据具体配置进行
 
                 return new RemoteCommandResponse
                 {
                     Success = true,
-                    Message = string.Format("已重启连接池: {0}", poolName)
+                    Message = string.Format(
+                        "已关闭连接池: {0}（提供者不支持预热重建，将在下次访问时按需重建）", poolName)
                 };
             }
             catch (Exception ex)
@@ -613,7 +643,7 @@ namespace FastUntility.Monitor
                 return new RemoteCommandResponse
                 {
                     Success = false,
-                    Message = string.Format("重启连接池失败: {0}", ex.Message)
+                    Message = string.Format("关闭连接池失败: {0}", ex.Message)
                 };
             }
         }
