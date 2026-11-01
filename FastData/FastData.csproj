@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>CS1570;CS1572;CS1573;CS1711;CS1712</NoWarn>
     <!-- NuGet 打包配置 -->
-    <PackageId>Fast.Data</PackageId>
+    <PackageId>FastData.Orm</PackageId>
     <Description>轻量级高性能 ORM 框架，支持多数据库（SQL Server/MySQL/PostgreSQL/Oracle/SQLite/DB2），提供连接池、分片、缓存、消息队列等企业级特性</Description>
     <PackageTags>ORM;Database;SQL;MySQL;PostgreSQL;SQLite;SqlServer;DotNet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

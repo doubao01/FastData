@@ -29,6 +29,20 @@
   - 此前仅 help / status / memory / gc 可用，cpu / disk / process / dbstatus / dbclose / dbrestart / version / time 经 FastIM 入口一律回「未知指令」
   - 现已注册全部 12 个，与 `ExceptionManager` 的注册集合一致
 
+### Changed
+
+- **包标识改为 `FastData.Orm`（`FastData/FastData.csproj`）**
+  - 原 `PackageId` 为 `Fast.Data`，与上游 [weizhonzhen/FastData](https://www.nuget.org/packages/Fast.Data) 发布的包**同名不同物**：
+    执行 `dotnet add package Fast.Data` 装到的是上游 3.2.4，不是本仓库的代码
+  - 新 ID 在 NuGet 上未被占用，且不与已发布的 `Fast.Data`（3.2.4）、`Fast.Data.Core`（4.5.9）构成混淆
+  - 同步更新根 `README.md` 的 NuGet 徽章与 `FastData/README.md` 的安装命令
+  - 注意：包尚未发布，发布仍受上游授权状态阻塞（见 issue #21 / #25）
+
+- **包元数据仓库地址指向不存在的仓库（`Directory.Build.props`）**
+  - `RepositoryUrl` / `PackageProjectUrl` 原为 `https://github.com/FastData/FastData`，该地址返回 404
+  - 改为本仓库实际地址 `https://github.com/doubao01/FastData`
+  - `PublishRepositoryUrl=true` 会把该地址写进 snupkg 的来源信息，因此必须准确
+
 ## [2.8.1] - 2026-10-18
 
 ### Fixed

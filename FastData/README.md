@@ -16,8 +16,11 @@
 ## 安装
 
 ```bash
-dotnet add package Fast.Data
+dotnet add package FastData.Orm
 ```
+
+> ⚠️ 尚未发布到 NuGet（发布的前置条件见 [#21](https://github.com/doubao01/FastData/issues/21)）。
+> 在此之前请克隆仓库后直接引用 `FastData/FastData.csproj`，或使用 CI 产出的 nupkg。
 
 ## 支持的数据库
 

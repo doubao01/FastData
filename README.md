@@ -1,7 +1,7 @@
 # FastData
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![NuGet](https://img.shields.io/badge/NuGet-Fast.Data-blue.svg)](https://www.nuget.org/packages/Fast.Data/)
+[![NuGet](https://img.shields.io/badge/NuGet-FastData.Orm-blue.svg)](https://www.nuget.org/packages/FastData.Orm/)
 [![.NET](https://img.shields.io/badge/.NET-4.5.2%20%7C%208.0%20%7C%2010.0-blueviolet)]()
 
 **FastData** 是一个同时支持 **Lambda 表达式**与 **XML 映射 SQL** 两种查询写法的 .NET ORM，

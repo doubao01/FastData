@@ -23,9 +23,9 @@
   <!-- ===== NuGet 打包统一配置 ===== -->
   <PropertyGroup>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/FastData/FastData</RepositoryUrl>
+    <RepositoryUrl>https://github.com/doubao01/FastData</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageProjectUrl>https://github.com/FastData/FastData</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/doubao01/FastData</PackageProjectUrl>
     <Copyright>Copyright 2026 FastData</Copyright>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
