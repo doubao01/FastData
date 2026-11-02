@@ -35,15 +35,15 @@ dotnet build tools/DocSamples/DocSamples.csproj -c Release -p:TargetFrameworks=n
 
 ### 2. API 名字拼写检查（软验证）
 
-`tools/check-docs-api.py` 扫描全部 13 个文档的代码块，把出现的每个 `Xxx(` 调用名
-拿去源码里找定义，找不到就报出来。覆盖 README + `FastData/docs/*.md`。
+`tools/check-docs-api.py` 扫描 `README.md`、`FastData/README.md` 与 `FastData/docs/*.md`
+（当前 15 个文件）的代码块，把出现的每个 `Xxx(` 调用名拿去源码里找定义，找不到就报出来。
 
 ```bash
 python3 tools/check-docs-api.py
 ```
 
 它**不检查签名**——参数名、重载、必填参数、泛型参数都查不出来。它的价值是在
-其余 12 个无法编译验证的文档里挡住"写了不存在的 API"这种最硬的错。
+其余 13 个无法编译验证的文档里挡住"写了不存在的 API"这种最硬的错。
 
 白名单 `tools/docs-api-allowlist.txt` 放的是文档示例里属于**读者自己的业务代码**
 （`GetUserById`、`UserController` 之类）。库 API 写错名字不要往里加，去改文档。

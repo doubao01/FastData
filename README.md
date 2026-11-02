@@ -126,6 +126,7 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 - [缓存](./FastData/docs/CACHING.md) — 两种模式、键设计、降级
 - [消息队列](./FastData/docs/MESSAGE_QUEUE.md) — 削峰、降级、多方推送
 - [连接池调优](./FastData/docs/POOL_TUNING.md) — 参数行为与误判点
+- [分库分表](./FastData/docs/SHARDING.md) — 分片策略、表名规则与已知限制
 - [ORM 最佳实践](./FastData/docs/ORM_BEST_PRACTICES.md) — 推荐用法、API 迁移
 - [数据库提供程序自动注册](./FastData/docs/AUTO_PROVIDER_REGISTRATION.md)
 - [性能基线](./FastData/docs/PERFORMANCE.md)
