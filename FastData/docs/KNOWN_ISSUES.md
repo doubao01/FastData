@@ -1,7 +1,7 @@
 # 已知问题与修复状态
 
 本文档汇总历次代码审计发现的问题及当前处置状态，避免重复分析。
-最后更新：2026-10-30。
+最后更新：2026-11-02。
 
 状态说明：**已修** = 代码已改并有测试或 CI 验证；**不修** = 评估后认为改动收益低于风险，附理由；**开放** = 已建 issue 待处理。
 
@@ -134,9 +134,19 @@
 
 ## 开放
 
+以下 9 条处于打开状态（`gh issue list --state open` 可核对）。级别与理由以 issue 正文的实测依据为准：
+
 | Issue | 内容 | 为什么留着 |
 |---|---|---|
-| [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | 需新增异步分页执行器（含四方言），属新功能 |
+| [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | 需新增异步分页执行器（含四方言）与 `DataContext.GetPageSql` 的异步版本，属新功能 |
+| [#21](https://github.com/doubao01/FastData/issues/21) | LICENSE 与代码来源不匹配：上游 `weizhonzhen/FastData` 无任何许可声明 | 只能由上游或作者给结论，代码层面无法自行解决；**它同时是 #25 的前置** |
+| [#22](https://github.com/doubao01/FastData/issues/22) | 迁移模块为空壳：迁移重复执行、Rollback 完全无效、`AppliedAt` 恒 null | 需要先定调「修成可用」还是「删掉这个模块」，属产品决策 |
+| [#23](https://github.com/doubao01/FastData/issues/23) | `ISqlDialect` 及 5 个实现从未被调用，真实分页硬编码在 `BaseExecute` | 需先决定删掉方言层、还是把 `BaseExecute` 里的 if/else 接过去 |
+| [#24](https://github.com/doubao01/FastData/issues/24) | README 声称支持 6 个数据库，Oracle / DB2 在集成测试中零引用 | 要么 CI 加 Oracle / DB2 容器（镜像大、启动慢），要么把 README 改成「四种已测、两种待验证」 |
+| [#25](https://github.com/doubao01/FastData/issues/25) | 无法发布为 NuGet 包 | 包名冲突已解决（改为 `FastData.Orm`），剩余阻塞是 #21 的授权结论与首次打 tag |
+| [#26](https://github.com/doubao01/FastData/issues/26) | `AutoCreateTable` 建出的分表固定只有 `Id` 一列，`GenerateCreateTableSql` 是占位实现 | 需定调「按实体生成建表 SQL」还是「把建表移出库职责」，详见 [SHARDING.md](./SHARDING.md) |
+| [#27](https://github.com/doubao01/FastData/issues/27) | `ShardingConfig.SuffixFormat` 与 `DataQuery<T>.WithShardingConfig` 只有写入点、没有读取点 | 要么接线到 `ShardingNameResolver` / `ShardingReadHelper`，要么删除，详见 [SHARDING.md](./SHARDING.md) |
+| [#28](https://github.com/doubao01/FastData/issues/28) | `ShardingManager` 四个分表 CRUD 方法未实现（显式抛 `NotSupportedException`） | 需定调实现、标过时（导向 `FastDataClient.Shard*`）还是移出公开面，详见 [SHARDING.md](./SHARDING.md) |
 
 历史结论（均已关闭，归入上文「不修」一节）：
 [#4](https://github.com/doubao01/FastData/issues/4) 伪异步（已修 `QueryAsync`/`WriteAsync`，剩余部分转为 #20）、
