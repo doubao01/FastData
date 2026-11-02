@@ -13,8 +13,8 @@
 | 写入路由：`ShardAdd` / `ShardAddList` / `ShardUpdate` / `ShardDelete` | 可用 |
 | 读取路由：`ShardQuery` / `ShardQueryPage` | 可用，但读「已知限制」再决定 |
 | 表名计算：`ShardingManager.GetTableName` / `GetTableNames` / `GetAllTableNames` | 可用 |
-| 建分表：`ShardingManager.CreateTable` / `AutoCreateTable` | **占位实现，别用**——只建一列 `Id` |
-| `ShardingManager.QueryFromShard` / `InsertToShard` / `UpdateInShard` / `DeleteFromShard` | **未实现，调用即抛 `NotSupportedException`** |
+| 建分表：`ShardingManager.CreateTable` / `AutoCreateTable` | **占位实现，别用**——只建一列 `Id`（[#26](https://github.com/doubao01/FastData/issues/26)） |
+| `ShardingManager.QueryFromShard` / `InsertToShard` / `UpdateInShard` / `DeleteFromShard` | **未实现，调用即抛 `NotSupportedException`**（[#28](https://github.com/doubao01/FastData/issues/28)） |
 | 地理分片（`ShardingType.Geo`） | 只有枚举值和配置类，没有策略实现 |
 | 查询频率分片 | 路由可用，但频次统计要业务自己喂 |
 
@@ -78,7 +78,7 @@ ShardingManager.Configure<Log>(new ShardingConfig
 | `TimeConfig` / `HashConfig` / `ListConfig` / `CompositeConfig` / `FrequencyConfig` | 各策略自己的字段名、粒度、分片数、值映射 |
 | `GeoConfig` | 同上，但对应策略没实现 |
 | `MaxTableCount` | 默认 100，**只在时间分片的「枚举全部表」里生效** |
-| `AutoCreateTable` | 默认 `true`，由 `ShardingManager.AutoCreateTable` 读取；建表本身是占位实现 |
+| `AutoCreateTable` | 默认 `true`；只在 `ShardingManager.AutoCreateTable` 里被读，而**库内没有调用点**——见[#26](https://github.com/doubao01/FastData/issues/26) |
 | `DatabaseKey` | 该实体的分表在哪个连接配置下 |
 
 ## 五种内置策略与表名规则
@@ -135,16 +135,19 @@ ShardingManager.Configure<Log>(new ShardingConfig
 3. **写入靠 SQL 文本替换。** `ShardingSqlHelper.ReplaceBaseTableName` 只认
    `insert into ` / `update ` / `delete from ` / `delete ` 四种前缀；匹配不上时**原样执行，
    也就是静默写到基础表**。`MERGE`、`INSERT INTO ... SELECT` 之类不要指望被改写。
-4. **内置建表是占位的。** `ShardingManager.GenerateCreateTableSql` 固定返回
+4. **内置建表是占位的**（[#26](https://github.com/doubao01/FastData/issues/26)）。
+   `ShardingManager.GenerateCreateTableSql` 固定返回
    `CREATE TABLE IF NOT EXISTS [表名] (Id INT PRIMARY KEY)`，不看实体字段；`CreateTable`
-   还把异常全吞成 `false`。分表请自己建，并把 `AutoCreateTable` 关掉。
+   还把异常全吞成 `false`。分表请自己建，并且**不要去调 `AutoCreateTable`**：库内没有任何
+   调用点，`AutoCreateTable = true` 这个默认值的唯一作用是让 `AutoCreateTable(entity)`
+   不 early-return —— 一调就会走到上面那个占位实现。
 5. **查询频率统计在进程内。** `QueryFrequencyShardingStrategy` 的统计是静态字典：不持久化、
    多实例不同步，而且**没有任何读取路径会调用 `RecordQuery`**——要自己在业务里喂。
 6. **地理分片没实现。** `ShardingType.Geo` 与 `GeoShardingConfig` 都在，但没有对应策略类，
    `GetStrategy` 会抛 `未注册的分表策略类型: Geo`。
-7. **`SuffixFormat` 配了不生效**（见上表）。
-8. **`WithShardingConfig` 配了不生效。** `ShardingConfigOverride` 只有写入点没有读取点，
-   分片路由实际读的是 `ShardingManager.GetConfig<T>()`。
+7. **`SuffixFormat` 配了不生效**（[#27](https://github.com/doubao01/FastData/issues/27)）：全仓只有声明，0 个读取点。
+8. **`WithShardingConfig` 配了不生效**（[#27](https://github.com/doubao01/FastData/issues/27)）：`ShardingConfigOverride`
+   只有写入点没有读取点，分片路由实际读的是 `ShardingManager.GetConfig<T>()`。
 9. **配置是进程级全局。** `ShardingManager` 是静态类，配置放在静态字典里；测试之间、
    多租户场景要 `ShardingManager.Clear()`。
 10. **表名会被按库改写。** PostgreSQL 下转小写、MySQL 下加反引号（`FormatTableName`），
