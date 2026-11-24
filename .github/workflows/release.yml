@@ -27,6 +27,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check upstream license gate
+        shell: bash
+        run: |
+          if ! grep -q '状态：已授权' FastData/docs/UPSTREAM_LICENSE.md; then
+            echo "::error::上游授权未确认，禁止发布。见 FastData/docs/UPSTREAM_LICENSE.md"
+            exit 1
+          fi
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:

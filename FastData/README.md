@@ -318,3 +318,5 @@ public class User
 ## 许可证
 
 MIT，见 [LICENSE](../LICENSE)。
+
+> 上游授权尚未确认：上游仓库未声明许可证，维护者已确认两个账号不是同一人。当前不对外发布，详见 [UPSTREAM_LICENSE.md](./docs/UPSTREAM_LICENSE.md)。
