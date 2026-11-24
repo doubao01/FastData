@@ -148,12 +148,12 @@ CI 把 `OrmCrudTests` 和 `StressTests.Concurrent` / `StressTests.MixedOperation
 
 ## 当前结果
 
-CI run#90（2026-10-30），12 个 job 全绿：
+CI run#105（2026-11-24），12 个 job 全绿：
 
 | 批次 | 结果 |
 |------|------|
-| 单元测试（无外部库） | 568 passed / 0 failed / 1 skipped |
-| 集成测试（MySQL 8.0 / PostgreSQL 16 / SQL Server 2022） | 205 passed / 0 failed |
+| 单元测试（无外部库） | 619 passed / 0 failed / 1 skipped |
+| 集成测试（MySQL 8.0 / PostgreSQL 16 / SQL Server 2022 / SQLite） | 221 passed / 0 failed |
 
 跳过的那 1 个是环境相关用例，不是被过滤掉的。
 
