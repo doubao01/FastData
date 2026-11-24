@@ -34,8 +34,8 @@ namespace FastData.Tests.Adapter
         [Fact]
         public void Factory_UnknownDbType_FallsBackToSqlServer()
         {
-            AssertAdapter((DataDbType)0, Provider.SqlServer, typeof(SqlServerDialect));
-            AssertAdapter((DataDbType)999, Provider.SqlServer, typeof(SqlServerDialect));
+            AssertUnknownDbTypeFallsBack((DataDbType)0);
+            AssertUnknownDbTypeFallsBack((DataDbType)999);
         }
 
         /// <summary>
@@ -172,6 +172,15 @@ namespace FastData.Tests.Adapter
             Assert.Equal(dbType, adapter.DbType);
             Assert.Equal(expectedProvider, adapter.ProviderName);
             Assert.Equal(expectedDialectType, adapter.Dialect.GetType());
+        }
+
+        private static void AssertUnknownDbTypeFallsBack(DataDbType unknownDbType)
+        {
+            var adapter = DatabaseAdapterFactory.Create(unknownDbType);
+
+            Assert.Equal(DataDbType.SqlServer, adapter.DbType);
+            Assert.Equal(Provider.SqlServer, adapter.ProviderName);
+            Assert.Equal(typeof(SqlServerDialect), adapter.Dialect.GetType());
         }
     }
 }
