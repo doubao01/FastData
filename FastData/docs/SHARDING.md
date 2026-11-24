@@ -13,7 +13,7 @@
 | 写入路由：`ShardAdd` / `ShardAddList` / `ShardUpdate` / `ShardDelete` | 可用 |
 | 读取路由：`ShardQuery` / `ShardQueryPage` | 可用，但读「已知限制」再决定 |
 | 表名计算：`ShardingManager.GetTableName` / `GetTableNames` / `GetAllTableNames` | 可用 |
-| 建分表：`ShardingManager.CreateTable` / `AutoCreateTable` | **占位实现，别用**——只建一列 `Id`（[#26](https://github.com/doubao01/FastData/issues/26)） |
+| 建分表：`ShardingManager.CreateTable` / `AutoCreateTable` | **不提供自动建表**：直接建表入口抛 `NotSupportedException`，自动创建默认关闭；显式启用后调用同样报错（[#26](https://github.com/doubao01/FastData/issues/26)） |
 | `ShardingManager.QueryFromShard` / `InsertToShard` / `UpdateInShard` / `DeleteFromShard` | **未实现，调用即抛 `NotSupportedException`**（[#28](https://github.com/doubao01/FastData/issues/28)） |
 | 地理分片（`ShardingType.Geo`） | 只有枚举值和配置类，没有策略实现 |
 | 查询频率分片 | 路由可用，但频次统计要业务自己喂 |
@@ -65,7 +65,7 @@ ShardingManager.Configure<Log>(new ShardingConfig
         EndTime = null                          // 留空 = 一直算到当前时间
     },
     DatabaseKey = "db1",
-    AutoCreateTable = false             // 建议关掉，内置建表是占位实现
+    AutoCreateTable = false             // 默认关闭，完整分表结构应自行创建
 });
 ```
 
@@ -78,7 +78,7 @@ ShardingManager.Configure<Log>(new ShardingConfig
 | `TimeConfig` / `HashConfig` / `ListConfig` / `CompositeConfig` / `FrequencyConfig` | 各策略自己的字段名、粒度、分片数、值映射 |
 | `GeoConfig` | 同上，但对应策略没实现 |
 | `MaxTableCount` | 默认 100，**只在时间分片的「枚举全部表」里生效** |
-| `AutoCreateTable` | 默认 `true`；只在 `ShardingManager.AutoCreateTable` 里被读，而**库内没有调用点**——见[#26](https://github.com/doubao01/FastData/issues/26) |
+| `AutoCreateTable` | 默认 `false`；关闭或未配置时不执行操作，显式启用后调用会抛 `NotSupportedException`，不连接数据库或生成占位 DDL |
 | `DatabaseKey` | 该实体的分表在哪个连接配置下 |
 
 `SuffixFormat` 只格式化后缀，完整表名仍为 `{BaseTableName}_{后缀}`。`{0}` 分别接收
@@ -144,12 +144,10 @@ ShardingManager.Configure<Log>(new ShardingConfig
 3. **写入靠 SQL 文本替换。** `ShardingSqlHelper.ReplaceBaseTableName` 只认
    `insert into ` / `update ` / `delete from ` / `delete ` 四种前缀；匹配不上时**原样执行，
    也就是静默写到基础表**。`MERGE`、`INSERT INTO ... SELECT` 之类不要指望被改写。
-4. **内置建表是占位的**（[#26](https://github.com/doubao01/FastData/issues/26)）。
-   `ShardingManager.GenerateCreateTableSql` 固定返回
-   `CREATE TABLE IF NOT EXISTS [表名] (Id INT PRIMARY KEY)`，不看实体字段；`CreateTable`
-   还把异常全吞成 `false`。分表请自己建，并且**不要去调 `AutoCreateTable`**：库内没有任何
-   调用点，`AutoCreateTable = true` 这个默认值的唯一作用是让 `AutoCreateTable(entity)`
-   不 early-return —— 一调就会走到上面那个占位实现。
+4. **自动建表不属于当前可用能力**（[#26](https://github.com/doubao01/FastData/issues/26)）。
+   `CreateTable` 和 `GenerateCreateTableSql` 直接抛 `NotSupportedException`；
+   `AutoCreateTable` 默认关闭，显式启用后调用也会立即报错。五种内置策略的建表入口统一
+   转发到这一拒绝路径，不再返回虚假的成功。完整字段和索引须由应用的建表脚本创建。
 5. **查询频率统计在进程内。** `QueryFrequencyShardingStrategy` 的统计是静态字典：不持久化、
    多实例不同步，而且**没有任何读取路径会调用 `RecordQuery`**——要自己在业务里喂。
 6. **地理分片没实现。** `ShardingType.Geo` 与 `GeoShardingConfig` 都在，但没有对应策略类，
@@ -168,15 +166,17 @@ ShardingManager.Configure<Log>(new ShardingConfig
 | `ShardingTests` | 40 | `build-core`，6 个平台/TFM 组合 | 表名计算、策略行为、配置隔离、策略注册——纯逻辑，不连库 |
 | `ShardingCrudIntegrationTests` | 12 | `integration-test` | **名字里有 Integration，但全程不连库**（SQLite 不支持动态建表），只验表名与配置 |
 | `MultiDatabaseShardingCrudTests.ShardedCrud_RoutesToPhysicalTablesAcrossDatabases` | 1 个 Theory × N 个库 | `integration-test`（`FASTDATA_RUN_DB_INTEGRATION=true` + MySQL / PostgreSQL / SQL Server 容器） | 原有连库测试：`ShardAdd` / `ShardQuery` / `ShardUpdate` / `ShardQueryPage` / `ShardDelete` 全链路路由 |
-| `ShardingConfigurationTests` | 10 | `build-core`（新增，待云构建验证） | 默认后缀兼容、自定义格式路由与枚举一致、无效格式显式失败 |
-| `MultiDatabaseShardingCrudTests.QueryConfigurationOverride_RoutesWithoutChangingGlobalConfiguration` | 6 | `integration-test`（新增，待云构建验证） | 三种数据库、存在/不存在全局配置、四个读取入口、自定义后缀真实读写 |
+| `ShardingConfigurationTests` | 10 | `build-core` | 默认后缀兼容、自定义格式路由与枚举一致、无效格式显式失败 |
+| `MultiDatabaseShardingCrudTests.QueryConfigurationOverride_RoutesWithoutChangingGlobalConfiguration` | 6 | `integration-test` | 三种数据库、存在/不存在全局配置、四个读取入口、自定义后缀真实读写 |
+| `ShardingTableCreationTests` | 12 | `build-core` | 默认关闭、关闭时无操作、启用时显式失败、五个策略不再静默成功 |
+| `MultiDatabaseShardingCrudTests.AutomaticTableCreation_FailsWithoutCreatingTablesAndManualCrudRemainsUsable` | 3 | `integration-test` | 三种数据库中拒绝建表且没有新表；手动建完整表后的 CRUD 仍可用 |
 
-没有覆盖：`QueryFromShard` 等四个未实现方法、`AutoCreateTable` 建出来的表结构、
+没有提供：自动按实体字段生成分表 DDL。没有覆盖：`QueryFromShard` 等四个未实现方法、
 多线程并发分片查询、超大候选表集合下的分页表现。
 
 ## 相关文档
 
-- [现代 ORM 特性](./MODERN_ORM_FEATURES.md)——变更跟踪；其「数据库迁移」一节是声明而非实现，见[已知问题](./KNOWN_ISSUES.md)
+- [变更跟踪](../MODERN_ORM_FEATURES.md)——属性快照与变更检测；迁移执行器未实现，调用时明确报错
 - [已知问题](./KNOWN_ISSUES.md)——当前未处理的问题与理由
 - [连接池调优](./POOL_TUNING.md)——分表数量对连接池的影响
 - [配置说明](./CONFIGURATION.md)——`DatabaseKey` 对应的连接配置怎么写

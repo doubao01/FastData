@@ -46,7 +46,7 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 ### 详细文档
 
-- 📖 [现代 ORM 特性详解](./FastData/docs/MODERN_ORM_FEATURES.md)
+- 📖 [变更跟踪详解](./FastData/MODERN_ORM_FEATURES.md)
 - 🐞 [已知问题与修复状态](./FastData/docs/KNOWN_ISSUES.md)
 - 📋 [CHANGELOG](./CHANGELOG.md)
 
@@ -129,7 +129,7 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 ### 核心文档
 - [FastData 核心库](./FastData/README.md)
-- [现代 ORM 特性详解](./FastData/docs/MODERN_ORM_FEATURES.md)
+- [变更跟踪详解](./FastData/MODERN_ORM_FEATURES.md)
 - [CHANGELOG](./CHANGELOG.md)
 
 ### 专题文档

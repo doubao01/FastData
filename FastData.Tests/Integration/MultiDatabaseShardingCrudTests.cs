@@ -32,6 +32,39 @@ namespace FastData.Tests.Integration
         }
 
         [Theory]
+        [InlineData("SqlServer")]
+        [InlineData("MySql")]
+        [InlineData("PostgreSql")]
+        [Trait("Category", "Integration")]
+        public void AutomaticTableCreation_FailsWithoutCreatingTablesAndManualCrudRemainsUsable(string dbName)
+        {
+            if (!ShouldRunDbIntegration()) return;
+
+            var baseTableName = "shard_noauto_" + NewTag();
+            var tableName = baseTableName + "_202601";
+            ConfigureSharding(dbName, baseTableName);
+            ShardingManager.GetConfig<ShardOrder>().AutoCreateTable = true;
+            var order = CreateOrder("noauto_" + NewTag(), new DateTime(2026, 1, 15), "Pending");
+
+            DropTable(dbName, tableName);
+            try
+            {
+                Assert.False(PhysicalTableExists(dbName, tableName));
+                Assert.Throws<NotSupportedException>(() => ShardingManager.AutoCreateTable(order));
+                Assert.Throws<NotSupportedException>(() => ShardingManager.CreateTable<ShardOrder>(tableName));
+                Assert.False(PhysicalTableExists(dbName, tableName));
+
+                CreateTable(dbName, tableName);
+                Assert.True(new FastDataClient(dbName).ShardAdd(order).IsSuccess);
+                Assert.Equal(1, CountPhysicalRows(dbName, tableName, order.OrderNo));
+            }
+            finally
+            {
+                DropTable(dbName, tableName);
+            }
+        }
+
+        [Theory]
         [InlineData("SqlServer", true)]
         [InlineData("MySql", true)]
         [InlineData("PostgreSql", true)]
@@ -242,6 +275,21 @@ namespace FastData.Tests.Integration
                 sql = $"create table {table} (Id int auto_increment primary key, OrderNo varchar(100) not null, CreatedAt datetime not null, Status varchar(50) null, Amount int not null)";
 
             db.ExecuteSql(sql, isAop: false);
+        }
+
+        private static bool PhysicalTableExists(string dbName, string tableName)
+        {
+            using var db = new DataContext(dbName);
+            var sql = "select count(0) Count from information_schema.tables where table_name=" + db.config.Flag + "TableName";
+            var parameter = DbProviderFactories.GetFactory(db.config.ProviderName).CreateParameter();
+            parameter.ParameterName = "TableName";
+            parameter.Value = dbName == "PostgreSql" ? tableName.ToLowerInvariant() : tableName;
+            var result = db.ExecuteSqlList(sql, new[] { parameter }, isAop: false);
+            Assert.NotEmpty(result.DicList);
+            foreach (var value in result.DicList[0].Values)
+                return Convert.ToInt32(value) > 0;
+
+            throw new InvalidOperationException("Table existence query returned no count.");
         }
 
         private static void DropTable(string dbName, string tableName)

@@ -35,7 +35,7 @@ namespace FastData.Sharding
     ///     }
     /// 
     ///     public List&lt;string&gt; GetAllTableNames(ShardingConfig config) =&gt; GetTableNames(config, null);
-    ///     public bool CreateTable(ShardingConfig config, string tableName) =&gt; true;
+    ///     public bool CreateTable(ShardingConfig config, string tableName) =&gt; ShardingManager.CreateTable(config, tableName);
     /// }
     /// 
     /// // 注册自定义策略

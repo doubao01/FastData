@@ -64,9 +64,9 @@ namespace FastData.Sharding
         public int MaxTableCount { get; set; } = 100;
 
         /// <summary>
-        /// 是否自动创建分表
+        /// 是否自动创建分表；默认关闭，启用后调用建表入口会因尚未实现而抛出异常
         /// </summary>
-        public bool AutoCreateTable { get; set; } = true;
+        public bool AutoCreateTable { get; set; } = false;
 
         /// <summary>
         /// 数据库连接 Key

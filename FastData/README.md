@@ -308,7 +308,7 @@ public class User
 | [消息队列](./docs/MESSAGE_QUEUE.md) | 削峰、降级、多方推送、消息模型 |
 | [连接池调优](./docs/POOL_TUNING.md) | 每个参数的实际行为与误判点 |
 | [分库分表](./docs/SHARDING.md) | 五种分片策略、表名规则、什么时候别用 |
-| [现代 ORM 特性](./docs/MODERN_ORM_FEATURES.md) | 变更跟踪、数据库迁移 |
+| [变更跟踪](./MODERN_ORM_FEATURES.md) | 属性快照、变更检测和 SQL 模板；不提供数据库迁移执行 |
 | [ORM 最佳实践](./docs/ORM_BEST_PRACTICES.md) | 推荐用法、过时 API 迁移 |
 | [Provider 自动注册](./docs/AUTO_PROVIDER_REGISTRATION.md) | .NET Core+ 下的驱动扫描 |
 | [性能](./docs/PERFORMANCE.md) | 基准数据与调优方向 |

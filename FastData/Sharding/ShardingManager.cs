@@ -184,16 +184,15 @@ namespace FastData.Sharding
         }
 
         /// <summary>
-        /// 创建分表
+        /// 创建分表（尚未实现，调用时显式报错）
         /// </summary>
         public static bool CreateTable<T>(string tableName) where T : class
         {
-            var config = GetConfig<T>();
-            if (config == null)
-                return false;
-
-            return CreateTable(config, tableName);
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
+
+        private const string ShardingTableCreationHint =
+            "分表自动建表尚未实现。请自行按实体结构创建分表，参阅 docs/SHARDING.md。";
 
         /// <summary>
         /// 创建分表
@@ -203,24 +202,7 @@ namespace FastData.Sharding
         /// <returns>是否成功</returns>
         public static bool CreateTable(ShardingConfig config, string tableName)
         {
-            try
-            {
-                var dbConfig = DataConfig.GetConfig(config.DatabaseKey);
-                if (dbConfig == null)
-                    return false;
-
-                using (var db = new DataContext(config.DatabaseKey))
-                {
-                    var sql = GenerateCreateTableSql(config, tableName);
-                    db.ExecuteSql(sql);
-                }
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
 
         /// <summary>
@@ -231,9 +213,7 @@ namespace FastData.Sharding
         /// <returns>SQL语句</returns>
         public static string GenerateCreateTableSql(ShardingConfig config, string tableName)
         {
-            // 这里需要根据实体类型生成建表 SQL
-            // 实际实现应该从实体的属性映射获取字段定义
-            return string.Format("CREATE TABLE IF NOT EXISTS [{0}] (Id INT PRIMARY KEY)", tableName);
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
 
         /// <summary>
@@ -245,8 +225,7 @@ namespace FastData.Sharding
             if (config == null || !config.AutoCreateTable)
                 return;
 
-            var tableName = GetTableName(entity);
-            CreateTable<T>(tableName);
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
 
         /// <summary>

@@ -196,8 +196,7 @@ namespace FastData.Sharding.Strategies
         /// <returns>是否成功</returns>
         public bool CreateTable(ShardingConfig config, string tableName)
         {
-            // 实际创建表逻辑需要在 DataContext 中实现
-            return true;
+            return ShardingManager.CreateTable(config, tableName);
         }
 
         /// <summary>
