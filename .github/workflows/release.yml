@@ -30,8 +30,9 @@ jobs:
       - name: Check upstream license gate
         shell: bash
         run: |
-          if ! grep -q '状态：已授权' FastData/docs/UPSTREAM_LICENSE.md; then
-            echo "::error::上游授权未确认，禁止发布。见 FastData/docs/UPSTREAM_LICENSE.md"
+          if ! grep -q '状态：已授权' FastData/docs/UPSTREAM_LICENSE.md \
+             && ! grep -q '状态：维护者风险接受' FastData/docs/UPSTREAM_LICENSE.md; then
+            echo "::error::上游授权未确认且无风险接受记录，禁止发布。见 FastData/docs/UPSTREAM_LICENSE.md"
             exit 1
           fi
 

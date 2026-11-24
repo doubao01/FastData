@@ -191,4 +191,4 @@ dotnet build -p:BuildPlatform=windows
 
 MIT License
 
-> 上游授权尚未确认：本仓库源自 `weizhonzhen/FastData`，上游未声明许可证，且维护者确认两个账号不是同一人。当前不对外发布，详见 [FastData/docs/UPSTREAM_LICENSE.md](FastData/docs/UPSTREAM_LICENSE.md)。
+> 上游授权未取得：本仓库源自 `weizhonzhen/FastData`，上游未声明许可证，且维护者确认两个账号不是同一人。维护者说明上游已无人维护，决定以 MIT 继续发布并自行承担相关风险，详见 [FastData/docs/UPSTREAM_LICENSE.md](FastData/docs/UPSTREAM_LICENSE.md)。

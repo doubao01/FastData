@@ -21,6 +21,7 @@ dotnet add package FastData.Orm
 
 > ⚠️ 尚未发布到 NuGet（发布的前置条件见 [#21](https://github.com/doubao01/FastData/issues/21)）。
 > 在此之前请克隆仓库后直接引用 `FastData/FastData.csproj`，或使用 CI 产出的 nupkg。
+> 版本线：独立的 `FastData.Orm` 从 `1.0.0` 开始；上游 `Fast.Data 3.2.4` 是另一个包 ID，不延续其版本号。
 
 ## 支持的数据库
 
@@ -319,4 +320,4 @@ public class User
 
 MIT，见 [LICENSE](../LICENSE)。
 
-> 上游授权尚未确认：上游仓库未声明许可证，维护者已确认两个账号不是同一人。当前不对外发布，详见 [UPSTREAM_LICENSE.md](./docs/UPSTREAM_LICENSE.md)。
+> 上游授权未取得：上游仓库未声明许可证，维护者已确认两个账号不是同一人。维护者说明上游已无人维护，决定以 MIT 继续发布并自行承担相关风险，详见 [UPSTREAM_LICENSE.md](./docs/UPSTREAM_LICENSE.md)。

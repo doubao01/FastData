@@ -139,11 +139,11 @@ Issue 的实时开关状态以 GitHub 为准。本页区分已进入 PR 的修�
 | Issue | 内容 | 当前处置与剩余工作 |
 |---|---|---|
 | [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | PR #29 已改为真异步：新增异步计数/分页读取链路，FastMap 与 FastRepository 直接 await；补 SQL Server/MySQL/PostgreSQL/SQLite 集成测试；Oracle/DB2 未验证 |
-| [#21](https://github.com/doubao01/FastData/issues/21) | LICENSE 与代码来源不匹配：上游 `weizhonzhen/FastData` 无任何许可声明 | 维护者已确认两个账号不是同一人；上游仍无 `LICENSE`。需上游书面授权或独立重写，状态见 `FastData/docs/UPSTREAM_LICENSE.md`；**它同时是 #25 的前置** |
+| [#21](https://github.com/doubao01/FastData/issues/21) | LICENSE 与代码来源不匹配：上游 `weizhonzhen/FastData` 无任何许可声明 | 维护者已确认两个账号不是同一人，上游已无人维护；维护者风险接受，以 MIT 继续发布，该状态不是上游授权。详见 `FastData/docs/UPSTREAM_LICENSE.md` |
 | [#22](https://github.com/doubao01/FastData/issues/22) | 迁移执行器未实现 | PR #29 采用明确拒绝路线：执行、回滚和历史读取均抛异常，不触发 Up/Down；移除迁移能力宣传，保留兼容 API |
 | [#23](https://github.com/doubao01/FastData/issues/23) | `ISqlDialect` 及 5 个实现从未被调用，真实分页硬编码在 `BaseExecute` | PR #29 采用方案 C：明确文档说明未接线、仅扩展点；修复 Oracle ApplyTake 无 WHERE 报错；新增方言契约测试覆盖工厂映射与五种方言行为 |
 | [#24](https://github.com/doubao01/FastData/issues/24) | 数据库支持声明与真实验证范围不一致 | PR #29 已把 Oracle / DB2 标为未验证；SQL Server / MySQL / PostgreSQL / SQLite 为当前 CI 连库范围，修复仍待合并 |
-| [#25](https://github.com/doubao01/FastData/issues/25) | 无法发布为 NuGet 包 | 包名冲突已解决（改为 `FastData.Orm`）；仍被 #21 阻塞，release.yml 已加授权门禁，授权前不发布、不打正式 tag |
+| [#25](https://github.com/doubao01/FastData/issues/25) | 无法发布为 NuGet 包 | 包名已改为 `FastData.Orm`，版本线从 `1.0.0` 开始；release.yml 已加授权/风险接受门禁；配置 `NUGET_API_KEY` 后即可打 tag 发布 |
 | [#26](https://github.com/doubao01/FastData/issues/26) | 自动分表建表未实现，旧路径曾生成固定单列 SQL 并静默失败 | PR #29 默认关闭自动建表，直接建表和启用后的自动建表均显式报错；五个内置策略转发到统一拒绝路径，完整表结构由应用建表脚本处理 |
 | [#27](https://github.com/doubao01/FastData/issues/27) | 分表配置原先只有写入点，没有实际路由读取点 | PR #29 已接通后缀格式及查询级路由覆盖，并补默认兼容、枚举一致和真实连库测试；修复仍待合并 |
 | [#28](https://github.com/doubao01/FastData/issues/28) | 四个旧分表 CRUD 入口未实现 | PR #29 保留签名及显式拒绝，增加过时警告、XML 示例和可用门面/助手引导，并补三库迁移路径验证；不把旧入口宣称为可用，修复仍待合并 |

@@ -6,14 +6,16 @@
 
 - 上游仓库 [`weizhonzhen/FastData`](https://github.com/weizhonzhen/FastData) 根目录没有 `LICENSE`，GitHub 仓库元信息中的 license 为空（2026-11-24 复核）。
 - 维护者已确认 `weizhonzhen` 与 `doubao01` **不是同一人**（2026-11-24）。
+- 维护者说明：上游已无人维护，无法取得书面授权（2026-11-24）。
 - 因此本仓库不能单方面用 MIT 重新许可上游代码。对外分发（包括 NuGet 发布）需要上游作者的书面授权，或替换掉来源于上游的部分。
 
-## 当前约束
+## 当前状态
 
-- 状态：未授权。
-- 在取得书面授权或完成独立重写之前：不发布 NuGet 包、不打正式 release tag。
-- `.github/workflows/release.yml` 的 `Check upstream license gate` 会检查本文件是否包含 `状态：已授权`；没有该标记时 release 直接失败，避免误触发 tag 造成发布。
-- 本文件只是状态记录，不是授权文件。
+- 状态：维护者风险接受（2026-11-24）。
+- 维护者决定：由本仓库继续以 MIT 发布，并自行承担与上游权利相关的风险。
+- 该状态不是上游授权，只是维护者在无法联系上游后的风险决定。
+- `.github/workflows/release.yml` 的 `Check upstream license gate` 接受 `状态：已授权` 或 `状态：维护者风险接受`；两者都不存在时 release 直接失败，避免误触发 tag。
+- 本文件是状态记录，不是授权文件。
 
 ## 解除条件（满足其一）
 
