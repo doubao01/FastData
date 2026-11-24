@@ -62,10 +62,49 @@ jobs:
           dotnet pack FastData/FastData.csproj -c Release --no-build -p:BuildPlatform=windows -p:Version=${{ steps.version.outputs.VERSION }} -o artifacts
           dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -p:BuildPlatform=windows -p:Version=${{ steps.version.outputs.VERSION }} -o artifacts
 
+      - name: Collect DLLs
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $out = "dlls"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          foreach ($tfm in @("net452", "net8.0", "net10.0")) {
+            $dir = Join-Path $out $tfm
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            foreach ($project in @("FastData", "FastData.Untility")) {
+              $base = Join-Path $project "bin\Release\$tfm"
+              foreach ($file in @("FastData.dll", "FastData.xml", "FastData.Untility.dll", "FastData.Untility.xml")) {
+                $src = Join-Path $base $file
+                if (Test-Path $src) { Copy-Item $src $dir -Force }
+              }
+            }
+          }
+          $readmeLines = @(
+            "FastData $version - DLL package",
+            "",
+            "Target frameworks:",
+            "  net452   .NET Framework 4.5.2",
+            "  net8.0   .NET 8",
+            "  net10.0  .NET 10",
+            "",
+            "Each folder contains:",
+            "  FastData.dll",
+            "  FastData.xml",
+            "  FastData.Untility.dll",
+            "  FastData.Untility.xml",
+            "",
+            "These are the same binaries packed into FastData.Orm.$version.nupkg and FastData.Untility.$version.nupkg.",
+            "For manual references, add the NuGet dependencies listed in the corresponding .nuspec files."
+          )
+          Set-Content -Path (Join-Path $out "README.txt") -Value ($readmeLines -join ([char]10)) -Encoding utf8
+          Compress-Archive -Path "$out/*" -DestinationPath "artifacts/FastData.$version-dlls.zip" -Force
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.nupkg
+          files: |
+            artifacts/*.nupkg
+            artifacts/*-dlls.zip
           generate_release_notes: true
           draft: true
 
