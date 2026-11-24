@@ -24,7 +24,7 @@ namespace FastData.Sharding
         public ShardingType ShardingType { get; set; }
 
         /// <summary>
-        /// 分表后缀格式（如 "{0:yyyyMMdd}", "{0:D4}"）
+        /// 时间、哈希、列表、组合键分表的后缀格式（如 "{0:yyyyMMdd}", "{0:D4}"）；为空时保留默认格式
         /// </summary>
         public string SuffixFormat { get; set; }
 

@@ -31,8 +31,11 @@ dotnet add package FastData.Orm
 | MySQL | `MySql.Data.MySqlClient` | |
 | PostgreSQL | `Npgsql` | |
 | SQLite | `Microsoft.Data.Sqlite` / `System.Data.SQLite` | 两者都识别 |
-| Oracle | `Oracle.ManagedDataAccess.Client` | |
-| DB2 | `IBM.Data.DB2.Core` | NuGet 包版；**自动注册器不覆盖 DB2**，需自己 `DbProviderFactories.RegisterFactory`（net452 下由驱动安装写入 machine.config） |
+| Oracle | `Oracle.ManagedDataAccess.Client` | 未验证：无 CI 集成测试覆盖 |
+| DB2 | `IBM.Data.DB2.Core` | 未验证：无 CI 集成测试覆盖。NuGet 包版；**自动注册器不覆盖 DB2**，需自己 `DbProviderFactories.RegisterFactory`（net452 下由驱动安装写入 machine.config） |
+
+CI 的真实连库测试覆盖 SQL Server、MySQL、PostgreSQL、SQLite。Oracle、DB2 的条目仅表示
+存在适配入口，不表示其查询、分页、事务或分表已通过连库验证。
 
 前六项（SqlClient×2、MySql、Npgsql、Sqlite×2、Oracle）在应用启动时按需自动注册，
 驱动 DLL 在依赖图里就能用；不在表里的 Provider 要自己注册后才能通过名字取到工厂。

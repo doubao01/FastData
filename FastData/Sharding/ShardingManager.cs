@@ -146,7 +146,12 @@ namespace FastData.Sharding
         /// </summary>
         public static List<string> GetTableNames<T>(Dictionary<string, object> queryParams) where T : class
         {
-            var config = GetConfig<T>();
+            return GetTableNames<T>(queryParams, null);
+        }
+
+        internal static List<string> GetTableNames<T>(Dictionary<string, object> queryParams, ShardingConfig configOverride) where T : class
+        {
+            var config = configOverride ?? GetConfig<T>();
             if (config == null)
                 return new List<string> { Base.TableNameHelper.GetTableName<T>() };
 

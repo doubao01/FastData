@@ -76,12 +76,21 @@ namespace FastData
             Dictionary<string, object> queryParams,
             string key = null) where T : class, new()
         {
-            if (!ShardingManager.IsShardingEnabled<T>())
+            return Query<T>(predicate, queryParams, key, null);
+        }
+
+        internal static List<T> Query<T>(
+            Expression<Func<T, bool>> predicate,
+            Dictionary<string, object> queryParams,
+            string key,
+            ShardingConfig configOverride) where T : class, new()
+        {
+            if (configOverride == null && !ShardingManager.IsShardingEnabled<T>())
             {
                 throw new InvalidOperationException(string.Format("Entity type {0} is not configured for sharding.", typeof(T).Name));
             }
 
-            var tableNames = ShardingManager.GetTableNames<T>(queryParams);
+            var tableNames = ShardingManager.GetTableNames<T>(queryParams, configOverride);
             var allResults = new List<T>();
 
             foreach (var tableName in tableNames)
@@ -115,12 +124,23 @@ namespace FastData
             int pageSize,
             string key = null) where T : class, new()
         {
-            if (!ShardingManager.IsShardingEnabled<T>())
+            return QueryPage<T>(predicate, queryParams, pageIndex, pageSize, key, null);
+        }
+
+        internal static PageResult<T> QueryPage<T>(
+            Expression<Func<T, bool>> predicate,
+            Dictionary<string, object> queryParams,
+            int pageIndex,
+            int pageSize,
+            string key,
+            ShardingConfig configOverride) where T : class, new()
+        {
+            if (configOverride == null && !ShardingManager.IsShardingEnabled<T>())
             {
                 throw new InvalidOperationException(string.Format("Entity type {0} is not configured for sharding.", typeof(T).Name));
             }
 
-            var tableNames = ShardingManager.GetTableNames<T>(queryParams);
+            var tableNames = ShardingManager.GetTableNames<T>(queryParams, configOverride);
             var allResults = new List<T>();
 
             foreach (var tableName in tableNames)

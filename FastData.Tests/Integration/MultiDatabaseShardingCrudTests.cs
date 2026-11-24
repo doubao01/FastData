@@ -31,6 +31,69 @@ namespace FastData.Tests.Integration
             ShardingManager.Clear();
         }
 
+        [Theory]
+        [InlineData("SqlServer", true)]
+        [InlineData("MySql", true)]
+        [InlineData("PostgreSql", true)]
+        [InlineData("SqlServer", false)]
+        [InlineData("MySql", false)]
+        [InlineData("PostgreSql", false)]
+        [Trait("Category", "Integration")]
+        public void QueryConfigurationOverride_RoutesWithoutChangingGlobalConfiguration(string dbName, bool configureGlobal)
+        {
+            if (!ShouldRunDbIntegration()) return;
+
+            var baseTableName = "shard_override_" + NewTag();
+            var tableName = baseTableName + "_2026_01";
+            var customConfig = new ShardingConfig
+            {
+                DatabaseKey = dbName,
+                BaseTableName = baseTableName,
+                ShardingType = ShardingType.Time,
+                SuffixFormat = "{0:yyyy_MM}",
+                AutoCreateTable = false,
+                TimeConfig = new TimeShardingConfig
+                {
+                    TimeField = "CreatedAt",
+                    Granularity = TimeGranularity.Month,
+                    StartTime = new DateTime(2026, 1, 1),
+                    EndTime = new DateTime(2026, 1, 31)
+                }
+            };
+
+            DropTable(dbName, tableName);
+            CreateTable(dbName, tableName);
+            try
+            {
+                ShardingManager.Configure<ShardOrder>(customConfig);
+                var client = new FastDataClient(dbName);
+                var order = CreateOrder("override_" + NewTag(), new DateTime(2026, 1, 15), "Pending");
+                Assert.True(client.ShardAdd(order).IsSuccess);
+
+                if (configureGlobal)
+                    ConfigureSharding(dbName, "global_" + NewTag());
+                else
+                    ShardingManager.Clear();
+
+                var globalConfig = ShardingManager.GetConfig<ShardOrder>();
+                var query = FastRead.Query<ShardOrder>(row => true, key: dbName)
+                    .UseSharding()
+                    .WithShardingConfig(customConfig);
+
+                Assert.Equal(order.OrderNo, Assert.Single(query.ToList()).OrderNo);
+                Assert.Equal(order.OrderNo, query.ToItem().OrderNo);
+                Assert.Equal(1, query.ToCount());
+                var page = query.ToPagination(1, 10);
+                Assert.Equal(1, page.Total);
+                Assert.Equal(order.OrderNo, Assert.Single(page.Data).OrderNo);
+                Assert.Same(globalConfig, ShardingManager.GetConfig<ShardOrder>());
+            }
+            finally
+            {
+                DropTable(dbName, tableName);
+            }
+        }
+
         public static IEnumerable<object[]> GetDatabases()
         {
             foreach (var db in Databases)

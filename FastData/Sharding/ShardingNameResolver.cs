@@ -83,21 +83,20 @@ namespace FastData.Sharding
             if (config == null)
                 throw new ArgumentNullException(nameof(config));
 
-            var baseName = config.BaseTableName;
             switch (config.TimeConfig?.Granularity ?? TimeGranularity.Month)
             {
                 case TimeGranularity.Day:
-                    return string.Format("{0}_{1:yyyyMMdd}", baseName, time);
+                    return FormatTableName(config, "{0:yyyyMMdd}", time);
                 case TimeGranularity.Week:
-                    return string.Format("{0}_{1:yyyy}W{2:D2}", baseName, time, GetWeekOfYear(time));
+                    return FormatTableName(config, "{0:yyyy}W{1:D2}", time, GetWeekOfYear(time));
                 case TimeGranularity.Month:
-                    return string.Format("{0}_{1:yyyyMM}", baseName, time);
+                    return FormatTableName(config, "{0:yyyyMM}", time);
                 case TimeGranularity.Quarter:
-                    return string.Format("{0}_{1:yyyy}Q{2}", baseName, time, (time.Month - 1) / 3 + 1);
+                    return FormatTableName(config, "{0:yyyy}Q{1}", time, (time.Month - 1) / 3 + 1);
                 case TimeGranularity.Year:
-                    return string.Format("{0}_{1:yyyy}", baseName, time);
+                    return FormatTableName(config, "{0:yyyy}", time);
                 default:
-                    return string.Format("{0}_{1:yyyyMMdd}", baseName, time);
+                    return FormatTableName(config, "{0:yyyyMMdd}", time);
             }
         }
 
@@ -113,7 +112,7 @@ namespace FastData.Sharding
             if (string.IsNullOrEmpty(hashValue))
                 throw new InvalidOperationException(string.Format("字段 {0} 的值不能为空", config.HashConfig.HashField));
 
-            return string.Format("{0}_{1:D4}", config.BaseTableName, ComputeShardIndex(config, hashValue));
+            return FormatTableName(config, "{0:D4}", ComputeShardIndex(config, hashValue));
         }
 
         /// <summary>
@@ -131,10 +130,10 @@ namespace FastData.Sharding
             string suffix;
             if (config.ListConfig.ValueMapping != null && config.ListConfig.ValueMapping.TryGetValue(value, out suffix))
             {
-                return string.Format("{0}_{1}", config.BaseTableName, suffix);
+                return FormatTableName(config, "{0}", suffix);
             }
 
-            return string.Format("{0}_{1}", config.BaseTableName, value);
+            return FormatTableName(config, "{0}", value);
         }
 
         /// <summary>
@@ -155,10 +154,16 @@ namespace FastData.Sharding
             if (config.CompositeConfig.UseHash)
             {
                 var shardCount = config.CompositeConfig.ShardCount <= 0 ? 1 : config.CompositeConfig.ShardCount;
-                return string.Format("{0}_{1:D4}", config.BaseTableName, NonNegativeHash(combinedValue) % shardCount);
+                return FormatTableName(config, "{0:D4}", NonNegativeHash(combinedValue) % shardCount);
             }
 
-            return string.Format("{0}_{1}", config.BaseTableName, combinedValue);
+            return FormatTableName(config, "{0}", combinedValue);
+        }
+
+        internal static string FormatTableName(ShardingConfig config, string defaultSuffixFormat, params object[] values)
+        {
+            var suffixFormat = string.IsNullOrEmpty(config.SuffixFormat) ? defaultSuffixFormat : config.SuffixFormat;
+            return string.Format("{0}_{1}", config.BaseTableName, string.Format(suffixFormat, values));
         }
 
         /// <summary>

@@ -74,12 +74,21 @@ ShardingManager.Configure<Log>(new ShardingConfig
 | `EntityType` | 由 `Configure<T>` 自动写入 |
 | `BaseTableName` | 分表名 = 基础表名 + 后缀 |
 | `ShardingType` | 选哪一种策略 |
-| `SuffixFormat` | **声明了但代码里从未读取**，表名格式在 `ShardingNameResolver` 里写死 |
+| `SuffixFormat` | 时间、哈希、列表、组合键策略的 .NET 后缀格式；为空时沿用原来的表名规则 |
 | `TimeConfig` / `HashConfig` / `ListConfig` / `CompositeConfig` / `FrequencyConfig` | 各策略自己的字段名、粒度、分片数、值映射 |
 | `GeoConfig` | 同上，但对应策略没实现 |
 | `MaxTableCount` | 默认 100，**只在时间分片的「枚举全部表」里生效** |
 | `AutoCreateTable` | 默认 `true`；只在 `ShardingManager.AutoCreateTable` 里被读，而**库内没有调用点**——见[#26](https://github.com/doubao01/FastData/issues/26) |
 | `DatabaseKey` | 该实体的分表在哪个连接配置下 |
+
+`SuffixFormat` 只格式化后缀，完整表名仍为 `{BaseTableName}_{后缀}`。`{0}` 分别接收
+时间值、哈希分片索引、列表映射后缀，或组合键的值/分片索引；时间策略的周、季度格式
+还可用 `{1}` 接收周序号、季度序号。例如 `{0:yyyy_MM}` 生成 `log_2026_01`，
+`shard{0:D2}` 生成 `log_shard00`。单表路由和全表枚举使用同一套格式化逻辑。
+
+`WithShardingConfig(config)` 配合 `UseSharding()` 可临时覆盖当前读取查询的分片路由配置，
+用于 `ToList()` / `ToItem()` / `ToCount()` / `ToPagination()`，即使实体尚未全局注册也可使用。
+覆盖不会修改 `ShardingManager` 的全局配置；连接仍由查询的 `Key` 决定，写入仍使用全局注册配置。
 
 ## 五种内置策略与表名规则
 
@@ -145,14 +154,11 @@ ShardingManager.Configure<Log>(new ShardingConfig
    多实例不同步，而且**没有任何读取路径会调用 `RecordQuery`**——要自己在业务里喂。
 6. **地理分片没实现。** `ShardingType.Geo` 与 `GeoShardingConfig` 都在，但没有对应策略类，
    `GetStrategy` 会抛 `未注册的分表策略类型: Geo`。
-7. **`SuffixFormat` 配了不生效**（[#27](https://github.com/doubao01/FastData/issues/27)）：全仓只有声明，0 个读取点。
-8. **`WithShardingConfig` 配了不生效**（[#27](https://github.com/doubao01/FastData/issues/27)）：`ShardingConfigOverride`
-   只有写入点没有读取点，分片路由实际读的是 `ShardingManager.GetConfig<T>()`。
-9. **配置是进程级全局。** `ShardingManager` 是静态类，配置放在静态字典里；测试之间、
-   多租户场景要 `ShardingManager.Clear()`。
-10. **表名会被按库改写。** PostgreSQL 下转小写、MySQL 下加反引号（`FormatTableName`），
+7. **全局注册配置是进程级。** `ShardingManager` 的配置放在静态字典里；测试之间要
+   `ShardingManager.Clear()`。读取可通过 `WithShardingConfig` 临时覆盖路由，写入不受覆盖影响。
+8. **表名会被按库改写。** PostgreSQL 下转小写、MySQL 下加反引号（`FormatTableName`），
     物理表名要和这个规则一致，否则 PostgreSQL 上会找不到表。
-11. **用之前必须 Configure。** 未配置的实体调 `ShardQuery` / `ShardAdd` 会抛
+9. **门面读写仍须 Configure。** 未配置的实体调 `ShardQuery` / `ShardAdd` 会抛
     `Entity type X is not configured for sharding.`
 
 ## 验证到什么程度
@@ -161,7 +167,9 @@ ShardingManager.Configure<Log>(new ShardingConfig
 |---|---|---|---|
 | `ShardingTests` | 40 | `build-core`，6 个平台/TFM 组合 | 表名计算、策略行为、配置隔离、策略注册——纯逻辑，不连库 |
 | `ShardingCrudIntegrationTests` | 12 | `integration-test` | **名字里有 Integration，但全程不连库**（SQLite 不支持动态建表），只验表名与配置 |
-| `MultiDatabaseShardingCrudTests.ShardedCrud_RoutesToPhysicalTablesAcrossDatabases` | 1 个 Theory × N 个库 | `integration-test`（`FASTDATA_RUN_DB_INTEGRATION=true` + MySQL / PostgreSQL / SQL Server 容器） | 唯一真连库的：`ShardAdd` / `ShardQuery` / `ShardUpdate` / `ShardQueryPage` / `ShardDelete` 全链路路由 |
+| `MultiDatabaseShardingCrudTests.ShardedCrud_RoutesToPhysicalTablesAcrossDatabases` | 1 个 Theory × N 个库 | `integration-test`（`FASTDATA_RUN_DB_INTEGRATION=true` + MySQL / PostgreSQL / SQL Server 容器） | 原有连库测试：`ShardAdd` / `ShardQuery` / `ShardUpdate` / `ShardQueryPage` / `ShardDelete` 全链路路由 |
+| `ShardingConfigurationTests` | 10 | `build-core`（新增，待云构建验证） | 默认后缀兼容、自定义格式路由与枚举一致、无效格式显式失败 |
+| `MultiDatabaseShardingCrudTests.QueryConfigurationOverride_RoutesWithoutChangingGlobalConfiguration` | 6 | `integration-test`（新增，待云构建验证） | 三种数据库、存在/不存在全局配置、四个读取入口、自定义后缀真实读写 |
 
 没有覆盖：`QueryFromShard` 等四个未实现方法、`AutoCreateTable` 建出来的表结构、
 多线程并发分片查询、超大候选表集合下的分页表现。

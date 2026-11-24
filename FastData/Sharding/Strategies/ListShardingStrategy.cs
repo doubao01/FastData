@@ -101,7 +101,7 @@ namespace FastData.Sharding.Strategies
 
             foreach (var mapping in config.ListConfig.ValueMapping)
             {
-                var tableName = string.Format("{0}_{1}", config.BaseTableName, mapping.Value);
+                var tableName = ShardingNameResolver.FormatTableName(config, "{0}", mapping.Value);
                 if (!result.Contains(tableName))
                     result.Add(tableName);
             }
