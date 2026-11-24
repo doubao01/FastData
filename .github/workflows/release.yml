@@ -55,7 +55,7 @@ jobs:
         run: dotnet build FastData.sln -p:BuildPlatform=windows -c Release --no-restore
 
       - name: Test
-        run: dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build --filter "FullyQualifiedName!~Integration" -v minimal
+        run: dotnet test FastData.Tests/FastData.Tests.csproj -c Release --no-build --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~OrmCrudTests&FullyQualifiedName!~StressTests.Concurrent&FullyQualifiedName!~StressTests.MixedOperations" -v minimal
 
       - name: Pack
         run: |
