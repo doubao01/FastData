@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Reflection;
 using FastData.Context;
 using FastData.Property;
 using FastData.Sharding;
@@ -29,6 +30,56 @@ namespace FastData.Tests.Integration
         public void Dispose()
         {
             ShardingManager.Clear();
+        }
+
+        [Theory]
+        [InlineData("SqlServer")]
+        [InlineData("MySql")]
+        [InlineData("PostgreSql")]
+        [Trait("Category", "Integration")]
+        public void LegacyCrud_RejectionDoesNotChangeStoredDataAndFacadeCrudRemainsUsable(string dbName)
+        {
+            if (!ShouldRunDbIntegration()) return;
+
+            var baseTableName = "shard_legacy_" + NewTag();
+            var tableName = baseTableName + "_202601";
+            ConfigureSharding(dbName, baseTableName);
+            var queryParams = new Dictionary<string, object>
+            {
+                { "CreatedAt_Start", new DateTime(2026, 1, 1) },
+                { "CreatedAt_End", new DateTime(2026, 1, 31) }
+            };
+            var original = CreateOrder("legacy_original_" + NewTag(), new DateTime(2026, 1, 15), "Pending");
+            var unexpected = CreateOrder("legacy_unexpected_" + NewTag(), original.CreatedAt, "Pending");
+
+            DropTable(dbName, tableName);
+            CreateTable(dbName, tableName);
+            try
+            {
+                var client = new FastDataClient(dbName);
+                Assert.True(client.ShardAdd(original).IsSuccess);
+
+                AssertLegacyCrudRejected("QueryFromShard", original, tableName);
+                AssertLegacyCrudRejected("InsertToShard", unexpected, tableName);
+                original.Status = "LegacyChanged";
+                AssertLegacyCrudRejected("UpdateInShard", original, tableName);
+                AssertLegacyCrudRejected("DeleteFromShard", original, tableName);
+
+                Assert.Equal(1, CountPhysicalRows(dbName, tableName, original.OrderNo));
+                Assert.Equal(0, CountPhysicalRows(dbName, tableName, unexpected.OrderNo));
+                var stored = Assert.Single(client.ShardQuery<ShardOrder>(row => row.OrderNo == original.OrderNo, queryParams));
+                Assert.Equal("Pending", stored.Status);
+
+                var updated = new ShardOrder { OrderNo = original.OrderNo, CreatedAt = original.CreatedAt, Status = "Updated" };
+                Assert.True(client.ShardUpdate(updated, row => row.OrderNo == original.OrderNo, row => new { row.Status }).IsSuccess);
+                Assert.Equal("Updated", Assert.Single(client.ShardQuery<ShardOrder>(row => row.OrderNo == original.OrderNo, queryParams)).Status);
+                Assert.True(client.ShardDelete<ShardOrder>(row => row.OrderNo == original.OrderNo, queryParams).IsSuccess);
+                Assert.Equal(0, CountPhysicalRows(dbName, tableName, original.OrderNo));
+            }
+            finally
+            {
+                DropTable(dbName, tableName);
+            }
         }
 
         [Theory]
@@ -310,6 +361,18 @@ namespace FastData.Tests.Integration
         private static bool ShouldRunDbIntegration()
         {
             return string.Equals(Environment.GetEnvironmentVariable("FASTDATA_RUN_DB_INTEGRATION"), "true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void AssertLegacyCrudRejected(string methodName, ShardOrder entity, string tableName)
+        {
+            var definition = typeof(ShardingManager).GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+            Assert.NotNull(definition);
+            var method = definition.MakeGenericMethod(typeof(ShardOrder));
+            var arguments = methodName == "QueryFromShard"
+                ? new object[] { tableName, null }
+                : new object[] { entity };
+            var invocation = Assert.Throws<TargetInvocationException>(() => method.Invoke(null, arguments));
+            Assert.IsType<NotSupportedException>(invocation.InnerException);
         }
 
         private static string NewTag()

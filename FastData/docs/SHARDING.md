@@ -14,9 +14,24 @@
 | 读取路由：`ShardQuery` / `ShardQueryPage` | 可用，但读「已知限制」再决定 |
 | 表名计算：`ShardingManager.GetTableName` / `GetTableNames` / `GetAllTableNames` | 可用 |
 | 建分表：`ShardingManager.CreateTable` / `AutoCreateTable` | **不提供自动建表**：直接建表入口抛 `NotSupportedException`，自动创建默认关闭；显式启用后调用同样报错（[#26](https://github.com/doubao01/FastData/issues/26)） |
-| `ShardingManager.QueryFromShard` / `InsertToShard` / `UpdateInShard` / `DeleteFromShard` | **未实现，调用即抛 `NotSupportedException`**（[#28](https://github.com/doubao01/FastData/issues/28)） |
+| `ShardingManager.QueryFromShard` / `InsertToShard` / `UpdateInShard` / `DeleteFromShard` | **过时兼容入口**：编译时警告，调用仍抛 `NotSupportedException`；提示中给出可用替代 API（[#28](https://github.com/doubao01/FastData/issues/28)） |
 | 地理分片（`ShardingType.Geo`） | 只有枚举值和配置类，没有策略实现 |
 | 查询频率分片 | 路由可用，但频次统计要业务自己喂 |
+
+## 旧 CRUD 入口迁移
+
+四个旧方法保留签名和原有拒绝执行行为，统一标为 `Obsolete(message, false)`。
+
+| 旧入口 | 可用入口 |
+|---|---|
+| `QueryFromShard<T>(tableName, query)` | `FastDataClient.ShardQuery(predicate, queryParams)` / `ShardQueryPage`，或 `ShardingReadHelper.Query` / `QueryPage` |
+| `InsertToShard(entity)` | `FastDataClient.ShardAdd(entity)` 或 `ShardingWriteHelper.Add(entity, key)` |
+| `UpdateInShard(entity)` | `FastDataClient.ShardUpdate(entity, predicate, field)` 或 `ShardingWriteHelper.Update` |
+| `DeleteFromShard(entity)` | `FastDataClient.ShardDelete(predicate, queryParams)` 或 `ShardingWriteHelper.Delete` |
+
+查询和删除须提供业务条件及分片查询参数，旧的 `DataQuery` 对象不直接作为新入口参数使用。
+可用入口要求实体满足 `class, new()`；写入返回 `WriteReturn`，应检查 `IsSuccess`，
+而不是沿用旧接口的布尔返回值。物理表仍须自行建好，自动建表的拒绝行为见 [#26](https://github.com/doubao01/FastData/issues/26)。
 
 ## 四个入口
 
@@ -170,9 +185,11 @@ ShardingManager.Configure<Log>(new ShardingConfig
 | `MultiDatabaseShardingCrudTests.QueryConfigurationOverride_RoutesWithoutChangingGlobalConfiguration` | 6 | `integration-test` | 三种数据库、存在/不存在全局配置、四个读取入口、自定义后缀真实读写 |
 | `ShardingTableCreationTests` | 12 | `build-core` | 默认关闭、关闭时无操作、启用时显式失败、五个策略不再静默成功 |
 | `MultiDatabaseShardingCrudTests.AutomaticTableCreation_FailsWithoutCreatingTablesAndManualCrudRemainsUsable` | 3 | `integration-test` | 三种数据库中拒绝建表且没有新表；手动建完整表后的 CRUD 仍可用 |
+| `LegacyShardingCrudTests` | 8 | `build-core` | 四个入口的警告属性、明确替代提示及原有运行时拒绝行为 |
+| `MultiDatabaseShardingCrudTests.LegacyCrud_RejectionDoesNotChangeStoredDataAndFacadeCrudRemainsUsable` | 3 | `integration-test` | 三种数据库中旧调用不插入、修改或删除数据，可用门面的查询、更新、删除仍有效 |
 
-没有提供：自动按实体字段生成分表 DDL。没有覆盖：`QueryFromShard` 等四个未实现方法、
-多线程并发分片查询、超大候选表集合下的分页表现。
+没有提供：自动按实体字段生成分表 DDL，以及四个旧入口的真实 CRUD 执行。
+旧入口的警告和拒绝行为已有覆盖；多线程并发分片查询、超大候选表集合下的分页表现尚未覆盖。
 
 ## 相关文档
 

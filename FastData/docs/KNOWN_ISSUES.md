@@ -146,7 +146,7 @@ Issue 的实时开关状态以 GitHub 为准。本页区分已进入 PR 的修�
 | [#25](https://github.com/doubao01/FastData/issues/25) | 无法发布为 NuGet 包 | 包名冲突已解决（改为 `FastData.Orm`），剩余阻塞是 #21 的授权结论与首次打 tag |
 | [#26](https://github.com/doubao01/FastData/issues/26) | 自动分表建表未实现，旧路径曾生成固定单列 SQL 并静默失败 | PR #29 默认关闭自动建表，直接建表和启用后的自动建表均显式报错；五个内置策略转发到统一拒绝路径，完整表结构由应用建表脚本处理 |
 | [#27](https://github.com/doubao01/FastData/issues/27) | 分表配置原先只有写入点，没有实际路由读取点 | PR #29 已接通后缀格式及查询级路由覆盖，并补默认兼容、枚举一致和真实连库测试；修复仍待合并 |
-| [#28](https://github.com/doubao01/FastData/issues/28) | `ShardingManager` 四个分表 CRUD 方法未实现（显式抛 `NotSupportedException`） | 需定调实现、标过时（导向 `FastDataClient.Shard*`）还是移出公开面，详见 [SHARDING.md](./SHARDING.md) |
+| [#28](https://github.com/doubao01/FastData/issues/28) | 四个旧分表 CRUD 入口未实现 | PR #29 保留签名及显式拒绝，增加过时警告、XML 示例和可用门面/助手引导，并补三库迁移路径验证；不把旧入口宣称为可用，修复仍待合并 |
 
 历史结论（均已关闭，归入上文「不修」一节）：
 [#4](https://github.com/doubao01/FastData/issues/4) 伪异步（已修 `QueryAsync`/`WriteAsync`，剩余部分转为 #20）、
