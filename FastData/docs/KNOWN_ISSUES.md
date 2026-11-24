@@ -107,12 +107,12 @@
 无差别改成抛异常会把库打崩 —— 一个失败的缓存探测不该让查询失败。
 危险的那几处（备份、恢复、分页、ApiClient、日志递归）已单独修复并补了契约测试。
 
-**`FastMap.QueryPageAsync` / `QueryPageAsync<T>` 仍为伪异步**（[#20](https://github.com/doubao01/FastData/issues/20)）
-`QueryPageAsync`(FastMap.cs:651) 与 `QueryPageAsync<T>`(754) 仍是
-`AsyncHelper.RunAsync(() => QueryPage(...))`，即同步分页 + 线程池包装，不提供 I/O 异步。
-底层 `DataContext.GetPageSql` 只有同步版本，真异步化需要新增异步分页执行器
-（并发取 `COUNT(*)` 与当前页，并覆盖 MySQL/PostgreSQL/SQL Server/Oracle 四种方言），
-属于新功能而非缺陷修复。
+**`FastMap.QueryPageAsync` / `QueryPageAsync<T>` 已改为 I/O 异步**（[#20](https://github.com/doubao01/FastData/issues/20)）
+PR #29 新增 `BaseExecute.ToPageCountSqlAsync` / `ToPageDataReaderSqlAsync` 与
+`DataContext.GetPageSqlAsync` / `GetPageSqlAsync<T>`，两个公开方法不再经 `AsyncHelper.RunAsync`。
+异步链路按库方言生成分页 SQL；同时修正原生 SQL 分页偏移一行的旧问题
+（MySQL/PostgreSQL/SQLite/SQL Server）。集成测试覆盖 SQL Server / MySQL / PostgreSQL / SQLite；
+Oracle / DB2 仍无 CI 连库环境，不宣称已验证。
 
 `FastMap.QueryAsync<T>` / `QueryAsync`(字典) / `WriteAsync` **已是真 I/O 异步**，
 走 `FastRead.ExecuteSqlAsync` / `FastWrite.ExecuteSqlAsync`（commit 21b43af1 起）。
@@ -138,7 +138,7 @@ Issue 的实时开关状态以 GitHub 为准。本页区分已进入 PR 的修�
 
 | Issue | 内容 | 当前处置与剩余工作 |
 |---|---|---|
-| [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | 需新增异步分页执行器（含四方言）与 `DataContext.GetPageSql` 的异步版本，属新功能 |
+| [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | PR #29 已改为真异步：新增异步计数/分页读取链路，FastMap 与 FastRepository 直接 await；补 SQL Server/MySQL/PostgreSQL/SQLite 集成测试；Oracle/DB2 未验证 |
 | [#21](https://github.com/doubao01/FastData/issues/21) | LICENSE 与代码来源不匹配：上游 `weizhonzhen/FastData` 无任何许可声明 | 只能由上游或作者给结论，代码层面无法自行解决；**它同时是 #25 的前置** |
 | [#22](https://github.com/doubao01/FastData/issues/22) | 迁移执行器未实现 | PR #29 采用明确拒绝路线：执行、回滚和历史读取均抛异常，不触发 Up/Down；移除迁移能力宣传，保留兼容 API |
 | [#23](https://github.com/doubao01/FastData/issues/23) | `ISqlDialect` 及 5 个实现从未被调用，真实分页硬编码在 `BaseExecute` | PR #29 采用方案 C：明确文档说明未接线、仅扩展点；修复 Oracle ApplyTake 无 WHERE 报错；新增方言契约测试覆盖工厂映射与五种方言行为 |

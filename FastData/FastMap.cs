@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Data.Common;
 using FastUntility.Page;
@@ -600,6 +601,35 @@ namespace FastData
         }
 
         /// <summary>
+        /// 异步执行分页查询（字典格式）
+        /// </summary>
+        private static async Task<PageResult> ExecuteSqlPageAsync(PageModel pModel, string sql, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false, CancellationToken cancellationToken = default)
+        {
+            var result = new DataReturn();
+            var config = DataConfig.GetConfig(key);
+            var stopwatch = new Stopwatch();
+
+            stopwatch.Start();
+
+            if (db == null)
+            {
+                using (var tempDb = new DataContext(key))
+                {
+                    result = await tempDb.GetPageSqlAsync(pModel, sql, param, false, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            else
+                result = await db.GetPageSqlAsync(pModel, sql, param, false, cancellationToken).ConfigureAwait(false);
+
+            stopwatch.Stop();
+
+            config.IsOutSql = config.IsOutSql || isOutSql;
+            DbLog.LogSql(config.IsOutSql, result.Sql, config.DbType, stopwatch.Elapsed.TotalMilliseconds);
+
+            return result.PageResult;
+        }
+
+        /// <summary>
         /// maq 执行分页
         /// </summary>
         public static PageResult QueryPage(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
@@ -648,13 +678,47 @@ namespace FastData
         /// <summary>
         /// 执行分页 asy
         /// </summary>
-        public static Task<PageResult> QueryPageAsync(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
+        public static async Task<PageResult> QueryPageAsync(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
         {
-            // 注意：QueryPage 目前仍是同步实现 —— DataContext.GetPageSql 没有异步版本，
-            // 要真正异步化需要先实现异步分页 SQL 执行器（见 issue #4 的遗留部分）。
-            // 这里保留 AsyncHelper 包装，是为了不改变「返回 Task」的公开契约，
-            // 但它并不提供 I/O 异步，只是把同步调用移出调用线程。
-            return AsyncHelper.RunAsync(() => QueryPage(pModel, name, param, db, key, isOutSql));
+            key = key == null ? MapDb(name) : key;
+            var config = db == null ? DataConfig.GetConfig(key) : db.config;
+            if (config.IsUpdateCache)
+                InstanceMap(config.Key);
+            if (DbCache.Exists(config.CacheType, name.ToLower()))
+            {
+                var sql = MapXml.GetMapSql(name, ref param, db, key);
+                isOutSql = isOutSql || IsMapLog(name);
+
+                AopMapBefore(name, sql, param, config, AopType.Map_Page_Dic);
+
+                var result = await ExecuteSqlPageAsync(pModel, sql, param, db, key, isOutSql).ConfigureAwait(false);
+
+                if (MapXml.MapIsForEach(name, config))
+                {
+                    if (db == null)
+                    {
+                        using (var tempDb = new DataContext(key))
+                        {
+                            for (var i = 1; i <= MapXml.MapForEachCount(name, config); i++)
+                            {
+                                result.list = MapXml.MapForEach(result.list, name, tempDb, key, config, i);
+                            }
+                        }
+                    }
+                    else
+                        result.list = MapXml.MapForEach(result.list, name, db, key, config);
+                }
+
+                AopMapAfter(name, sql, param, config, AopType.Map_Page_Dic, result.list);
+                return result;
+            }
+            else
+            {
+                AopMapBefore(name, "", param, config, AopType.Map_Page_Dic);
+                var data = new PageResult();
+                AopMapAfter(name, "", param, config, AopType.Map_Page_Dic, data.list);
+                return data;
+            }
         }
 
         /// <summary>
@@ -694,6 +758,35 @@ namespace FastData
             }
             else
                 result = db.GetPageSql<T>(pModel, sql, param,false);
+
+            stopwatch.Stop();
+
+            config.IsOutSql = config.IsOutSql || isOutSql;
+            DbLog.LogSql(config.IsOutSql, result.Sql, config.DbType, stopwatch.Elapsed.TotalMilliseconds);
+
+            return result.PageResult;
+        }
+
+        /// <summary>
+        /// 异步执行分页查询（实体格式）
+        /// </summary>
+        private static async Task<PageResult<T>> ExecuteSqlPageAsync<T>(PageModel pModel, string sql, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false, CancellationToken cancellationToken = default) where T : class, new()
+        {
+            var result = new DataReturn<T>();
+            var config = DataConfig.GetConfig(key);
+            var stopwatch = new Stopwatch();
+
+            stopwatch.Start();
+
+            if (db == null)
+            {
+                using (var tempDb = new DataContext(key))
+                {
+                    result = await tempDb.GetPageSqlAsync<T>(pModel, sql, param, false, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            else
+                result = await db.GetPageSqlAsync<T>(pModel, sql, param, false, cancellationToken).ConfigureAwait(false);
 
             stopwatch.Stop();
 
@@ -751,10 +844,47 @@ namespace FastData
         /// <summary>
         /// 执行分页 asy
         /// </summary>
-        public static Task<PageResult<T>> QueryPageAsync<T>(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false) where T : class, new()
+        public static async Task<PageResult<T>> QueryPageAsync<T>(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false) where T : class, new()
         {
-            // 同 QueryPage：底层 GetPageSql<T> 无异步版本，保留包装以维持公开契约。
-            return AsyncHelper.RunAsync(() => QueryPage<T>(pModel, name, param, db, key, isOutSql));
+            key = key == null ? MapDb(name) : key;
+            var config = db == null ? DataConfig.GetConfig(key) : db.config;
+            if (config.IsUpdateCache)
+                InstanceMap(config.Key);
+            if (DbCache.Exists(config.CacheType, name.ToLower()))
+            {
+                var sql = MapXml.GetMapSql(name, ref param, db, key);
+                isOutSql = isOutSql || IsMapLog(name);
+
+                AopMapBefore(name, sql, param, config, AopType.Map_Page_Model);
+
+                var result = await ExecuteSqlPageAsync<T>(pModel, sql, param, db, key, isOutSql).ConfigureAwait(false);
+
+                if (MapXml.MapIsForEach(name, config))
+                {
+                    if (db == null)
+                    {
+                        using (var tempDb = new DataContext(key))
+                        {
+                            for (var i = 1; i <= MapXml.MapForEachCount(name, config); i++)
+                            {
+                                result.list = MapXml.MapForEach<T>(result.list, name, tempDb, config, i);
+                            }
+                        }
+                    }
+                    else
+                        result.list = MapXml.MapForEach<T>(result.list, name, db, config);
+                }
+
+                AopMapAfter(name, sql, param, config, AopType.Map_Page_Model, result.list);
+                return result;
+            }
+            else
+            {
+                AopMapBefore(name, "", param, config, AopType.Map_Page_Model);
+                var data = new PageResult<T>();
+                AopMapAfter(name, "", param, config, AopType.Map_Page_Model, data.list);
+                return data;
+            }
         }
 
         /// <summary>

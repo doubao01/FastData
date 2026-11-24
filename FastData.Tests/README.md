@@ -89,6 +89,7 @@ MySQL / PostgreSQL / SQL Server 的集成测试。
 | `Integration/` | `MultiDatabaseRedisQueueTests.cs` | 2 | 跨库 Redis 队列写入与降级 |
 | `Integration/` | `MultiDatabaseShardingCrudTests.cs` | 1 | 多库分表 CRUD |
 | `Integration/` | `DatabaseIntegrationTests.cs` | 1 | 集成测试共用实体与冒烟 |
+| `Integration/` | `AsyncPaginationTests.cs` | 4 | issue #20：原生 SQL 同步/异步分页一致性（SQL Server/MySQL/PostgreSQL/SQLite） |
 | `Integration/` | `MultiDatabaseTestHelper.cs` | — | 集成测试辅助 |
 | `Monitoring/` | `OperationsPanelTests.cs` | 12 | 运维面板输出契约 |
 | `Security/` | `SensitiveDataTests.cs` | 3 | 敏感信息脱敏与假成功回归 |
