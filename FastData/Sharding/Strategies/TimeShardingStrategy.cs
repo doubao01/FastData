@@ -125,8 +125,7 @@ namespace FastData.Sharding.Strategies
         /// <returns>是否成功</returns>
         public bool CreateTable(ShardingConfig config, string tableName)
         {
-            // 分表创建逻辑由 ShardingManager 统一处理
-            return true;
+            return ShardingManager.CreateTable(config, tableName);
         }
 
         #region 私有方法

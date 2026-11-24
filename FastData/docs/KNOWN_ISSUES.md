@@ -1,7 +1,7 @@
-# 已知问题与修复状态
+﻿# 已知问题与修复状态
 
 本文档汇总历次代码审计发现的问题及当前处置状态，避免重复分析。
-最后更新：2026-11-02。
+最后更新：2026-11-24。
 
 状态说明：**已修** = 代码已改并有测试或 CI 验证；**不修** = 评估后认为改动收益低于风险，附理由；**开放** = 已建 issue 待处理。
 
@@ -107,12 +107,12 @@
 无差别改成抛异常会把库打崩 —— 一个失败的缓存探测不该让查询失败。
 危险的那几处（备份、恢复、分页、ApiClient、日志递归）已单独修复并补了契约测试。
 
-**`FastMap.QueryPageAsync` / `QueryPageAsync<T>` 仍为伪异步**（[#20](https://github.com/doubao01/FastData/issues/20)）
-`QueryPageAsync`(FastMap.cs:651) 与 `QueryPageAsync<T>`(754) 仍是
-`AsyncHelper.RunAsync(() => QueryPage(...))`，即同步分页 + 线程池包装，不提供 I/O 异步。
-底层 `DataContext.GetPageSql` 只有同步版本，真异步化需要新增异步分页执行器
-（并发取 `COUNT(*)` 与当前页，并覆盖 MySQL/PostgreSQL/SQL Server/Oracle 四种方言），
-属于新功能而非缺陷修复。
+**`FastMap.QueryPageAsync` / `QueryPageAsync<T>` 已改为 I/O 异步**（[#20](https://github.com/doubao01/FastData/issues/20)）
+PR #29 新增 `BaseExecute.ToPageCountSqlAsync` / `ToPageDataReaderSqlAsync` 与
+`DataContext.GetPageSqlAsync` / `GetPageSqlAsync<T>`，两个公开方法不再经 `AsyncHelper.RunAsync`。
+异步链路按库方言生成分页 SQL；同时修正原生 SQL 分页偏移一行的旧问题
+（MySQL/PostgreSQL/SQLite/SQL Server）。集成测试覆盖 SQL Server / MySQL / PostgreSQL / SQLite；
+Oracle / DB2 仍无 CI 连库环境，不宣称已验证。
 
 `FastMap.QueryAsync<T>` / `QueryAsync`(字典) / `WriteAsync` **已是真 I/O 异步**，
 走 `FastRead.ExecuteSqlAsync` / `FastWrite.ExecuteSqlAsync`（commit 21b43af1 起）。
@@ -134,19 +134,19 @@
 
 ## 开放
 
-以下 9 条处于打开状态（`gh issue list --state open` 可核对）。级别与理由以 issue 正文的实测依据为准：
+Issue 的实时开关状态以 GitHub 为准。本页区分已进入 PR 的修复与尚未处理的工作；未合并的修复不等于 issue 已关闭。
 
-| Issue | 内容 | 为什么留着 |
+| Issue | 内容 | 当前处置与剩余工作 |
 |---|---|---|
-| [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | 需新增异步分页执行器（含四方言）与 `DataContext.GetPageSql` 的异步版本，属新功能 |
-| [#21](https://github.com/doubao01/FastData/issues/21) | LICENSE 与代码来源不匹配：上游 `weizhonzhen/FastData` 无任何许可声明 | 只能由上游或作者给结论，代码层面无法自行解决；**它同时是 #25 的前置** |
-| [#22](https://github.com/doubao01/FastData/issues/22) | 迁移模块为空壳：迁移重复执行、Rollback 完全无效、`AppliedAt` 恒 null | 需要先定调「修成可用」还是「删掉这个模块」，属产品决策 |
-| [#23](https://github.com/doubao01/FastData/issues/23) | `ISqlDialect` 及 5 个实现从未被调用，真实分页硬编码在 `BaseExecute` | 需先决定删掉方言层、还是把 `BaseExecute` 里的 if/else 接过去 |
-| [#24](https://github.com/doubao01/FastData/issues/24) | README 声称支持 6 个数据库，Oracle / DB2 在集成测试中零引用 | 要么 CI 加 Oracle / DB2 容器（镜像大、启动慢），要么把 README 改成「四种已测、两种待验证」 |
-| [#25](https://github.com/doubao01/FastData/issues/25) | 无法发布为 NuGet 包 | 包名冲突已解决（改为 `FastData.Orm`），剩余阻塞是 #21 的授权结论与首次打 tag |
-| [#26](https://github.com/doubao01/FastData/issues/26) | `AutoCreateTable` 建出的分表固定只有 `Id` 一列，`GenerateCreateTableSql` 是占位实现 | 需定调「按实体生成建表 SQL」还是「把建表移出库职责」，详见 [SHARDING.md](./SHARDING.md) |
-| [#27](https://github.com/doubao01/FastData/issues/27) | `ShardingConfig.SuffixFormat` 与 `DataQuery<T>.WithShardingConfig` 只有写入点、没有读取点 | 要么接线到 `ShardingNameResolver` / `ShardingReadHelper`，要么删除，详见 [SHARDING.md](./SHARDING.md) |
-| [#28](https://github.com/doubao01/FastData/issues/28) | `ShardingManager` 四个分表 CRUD 方法未实现（显式抛 `NotSupportedException`） | 需定调实现、标过时（导向 `FastDataClient.Shard*`）还是移出公开面，详见 [SHARDING.md](./SHARDING.md) |
+| [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | PR #29 已改为真异步：新增异步计数/分页读取链路，FastMap 与 FastRepository 直接 await；补 SQL Server/MySQL/PostgreSQL/SQLite 集成测试；Oracle/DB2 未验证 |
+| [#21](https://github.com/doubao01/FastData/issues/21) | LICENSE 与代码来源不匹配：上游 `weizhonzhen/FastData` 无任何许可声明 | 维护者已确认两个账号不是同一人，上游已无人维护；维护者风险接受，以 MIT 继续发布，该状态不是上游授权。详见 `FastData/docs/UPSTREAM_LICENSE.md` |
+| [#22](https://github.com/doubao01/FastData/issues/22) | 迁移执行器未实现 | PR #29 采用明确拒绝路线：执行、回滚和历史读取均抛异常，不触发 Up/Down；移除迁移能力宣传，保留兼容 API |
+| [#23](https://github.com/doubao01/FastData/issues/23) | `ISqlDialect` 及 5 个实现从未被调用，真实分页硬编码在 `BaseExecute` | PR #29 采用方案 C：明确文档说明未接线、仅扩展点；修复 Oracle ApplyTake 无 WHERE 报错；新增方言契约测试覆盖工厂映射与五种方言行为 |
+| [#24](https://github.com/doubao01/FastData/issues/24) | 数据库支持声明与真实验证范围不一致 | PR #29 已把 Oracle / DB2 标为未验证；SQL Server / MySQL / PostgreSQL / SQLite 为当前 CI 连库范围，修复仍待合并 |
+| [#25](https://github.com/doubao01/FastData/issues/25) | 无法发布为 NuGet 包 | 包名已改为 `FastData.Orm`，版本线从 `1.0.0` 开始；release.yml 已加授权/风险接受门禁；配置 `NUGET_API_KEY` 后即可打 tag 发布 |
+| [#26](https://github.com/doubao01/FastData/issues/26) | 自动分表建表未实现，旧路径曾生成固定单列 SQL 并静默失败 | PR #29 默认关闭自动建表，直接建表和启用后的自动建表均显式报错；五个内置策略转发到统一拒绝路径，完整表结构由应用建表脚本处理 |
+| [#27](https://github.com/doubao01/FastData/issues/27) | 分表配置原先只有写入点，没有实际路由读取点 | PR #29 已接通后缀格式及查询级路由覆盖，并补默认兼容、枚举一致和真实连库测试；修复仍待合并 |
+| [#28](https://github.com/doubao01/FastData/issues/28) | 四个旧分表 CRUD 入口未实现 | PR #29 保留签名及显式拒绝，增加过时警告、XML 示例和可用门面/助手引导，并补三库迁移路径验证；不把旧入口宣称为可用，修复仍待合并 |
 
 历史结论（均已关闭，归入上文「不修」一节）：
 [#4](https://github.com/doubao01/FastData/issues/4) 伪异步（已修 `QueryAsync`/`WriteAsync`，剩余部分转为 #20）、

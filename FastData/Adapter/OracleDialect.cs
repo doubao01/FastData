@@ -1,3 +1,5 @@
+using System;
+
 namespace FastData.Adapter
 {
     /// <summary>
@@ -8,14 +10,27 @@ namespace FastData.Adapter
     internal class OracleDialect : ISqlDialect
     {
         /// <summary>
-        /// 应用 ROWNUM 子句
+        /// 应用 ROWNUM 行数限制
         /// </summary>
         /// <param name="sql">原始 SQL 语句</param>
         /// <param name="take">获取的记录数</param>
         /// <returns>添加了 ROWNUM 限制的 SQL 语句</returns>
         public string ApplyTake(string sql, int take)
         {
-            return take <= 0 ? sql : sql + " and rownum <=" + take;
+            if (take <= 0 || string.IsNullOrWhiteSpace(sql))
+                return sql;
+
+            var query = sql.TrimEnd();
+            if (query.EndsWith(";", StringComparison.Ordinal))
+                query = query.Substring(0, query.Length - 1).TrimEnd();
+
+            var head = query.TrimStart();
+            if (head.Length <= 6
+                || !head.StartsWith("select", StringComparison.OrdinalIgnoreCase)
+                || !char.IsWhiteSpace(head[6]))
+                return sql;
+
+            return "select * from (" + query + ") where rownum <= " + take;
         }
 
         /// <summary>

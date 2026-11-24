@@ -13,10 +13,25 @@
 | 写入路由：`ShardAdd` / `ShardAddList` / `ShardUpdate` / `ShardDelete` | 可用 |
 | 读取路由：`ShardQuery` / `ShardQueryPage` | 可用，但读「已知限制」再决定 |
 | 表名计算：`ShardingManager.GetTableName` / `GetTableNames` / `GetAllTableNames` | 可用 |
-| 建分表：`ShardingManager.CreateTable` / `AutoCreateTable` | **占位实现，别用**——只建一列 `Id`（[#26](https://github.com/doubao01/FastData/issues/26)） |
-| `ShardingManager.QueryFromShard` / `InsertToShard` / `UpdateInShard` / `DeleteFromShard` | **未实现，调用即抛 `NotSupportedException`**（[#28](https://github.com/doubao01/FastData/issues/28)） |
+| 建分表：`ShardingManager.CreateTable` / `AutoCreateTable` | **不提供自动建表**：直接建表入口抛 `NotSupportedException`，自动创建默认关闭；显式启用后调用同样报错（[#26](https://github.com/doubao01/FastData/issues/26)） |
+| `ShardingManager.QueryFromShard` / `InsertToShard` / `UpdateInShard` / `DeleteFromShard` | **过时兼容入口**：编译时警告，调用仍抛 `NotSupportedException`；提示中给出可用替代 API（[#28](https://github.com/doubao01/FastData/issues/28)） |
 | 地理分片（`ShardingType.Geo`） | 只有枚举值和配置类，没有策略实现 |
 | 查询频率分片 | 路由可用，但频次统计要业务自己喂 |
+
+## 旧 CRUD 入口迁移
+
+四个旧方法保留签名和原有拒绝执行行为，统一标为 `Obsolete(message, false)`。
+
+| 旧入口 | 可用入口 |
+|---|---|
+| `QueryFromShard<T>(tableName, query)` | `FastDataClient.ShardQuery(predicate, queryParams)` / `ShardQueryPage`，或 `ShardingReadHelper.Query` / `QueryPage` |
+| `InsertToShard(entity)` | `FastDataClient.ShardAdd(entity)` 或 `ShardingWriteHelper.Add(entity, key)` |
+| `UpdateInShard(entity)` | `FastDataClient.ShardUpdate(entity, predicate, field)` 或 `ShardingWriteHelper.Update` |
+| `DeleteFromShard(entity)` | `FastDataClient.ShardDelete(predicate, queryParams)` 或 `ShardingWriteHelper.Delete` |
+
+查询和删除须提供业务条件及分片查询参数，旧的 `DataQuery` 对象不直接作为新入口参数使用。
+可用入口要求实体满足 `class, new()`；写入返回 `WriteReturn`，应检查 `IsSuccess`，
+而不是沿用旧接口的布尔返回值。物理表仍须自行建好，自动建表的拒绝行为见 [#26](https://github.com/doubao01/FastData/issues/26)。
 
 ## 四个入口
 
@@ -65,7 +80,7 @@ ShardingManager.Configure<Log>(new ShardingConfig
         EndTime = null                          // 留空 = 一直算到当前时间
     },
     DatabaseKey = "db1",
-    AutoCreateTable = false             // 建议关掉，内置建表是占位实现
+    AutoCreateTable = false             // 默认关闭，完整分表结构应自行创建
 });
 ```
 
@@ -74,12 +89,21 @@ ShardingManager.Configure<Log>(new ShardingConfig
 | `EntityType` | 由 `Configure<T>` 自动写入 |
 | `BaseTableName` | 分表名 = 基础表名 + 后缀 |
 | `ShardingType` | 选哪一种策略 |
-| `SuffixFormat` | **声明了但代码里从未读取**，表名格式在 `ShardingNameResolver` 里写死 |
+| `SuffixFormat` | 时间、哈希、列表、组合键策略的 .NET 后缀格式；为空时沿用原来的表名规则 |
 | `TimeConfig` / `HashConfig` / `ListConfig` / `CompositeConfig` / `FrequencyConfig` | 各策略自己的字段名、粒度、分片数、值映射 |
 | `GeoConfig` | 同上，但对应策略没实现 |
 | `MaxTableCount` | 默认 100，**只在时间分片的「枚举全部表」里生效** |
-| `AutoCreateTable` | 默认 `true`；只在 `ShardingManager.AutoCreateTable` 里被读，而**库内没有调用点**——见[#26](https://github.com/doubao01/FastData/issues/26) |
+| `AutoCreateTable` | 默认 `false`；关闭或未配置时不执行操作，显式启用后调用会抛 `NotSupportedException`，不连接数据库或生成占位 DDL |
 | `DatabaseKey` | 该实体的分表在哪个连接配置下 |
+
+`SuffixFormat` 只格式化后缀，完整表名仍为 `{BaseTableName}_{后缀}`。`{0}` 分别接收
+时间值、哈希分片索引、列表映射后缀，或组合键的值/分片索引；时间策略的周、季度格式
+还可用 `{1}` 接收周序号、季度序号。例如 `{0:yyyy_MM}` 生成 `log_2026_01`，
+`shard{0:D2}` 生成 `log_shard00`。单表路由和全表枚举使用同一套格式化逻辑。
+
+`WithShardingConfig(config)` 配合 `UseSharding()` 可临时覆盖当前读取查询的分片路由配置，
+用于 `ToList()` / `ToItem()` / `ToCount()` / `ToPagination()`，即使实体尚未全局注册也可使用。
+覆盖不会修改 `ShardingManager` 的全局配置；连接仍由查询的 `Key` 决定，写入仍使用全局注册配置。
 
 ## 五种内置策略与表名规则
 
@@ -135,24 +159,19 @@ ShardingManager.Configure<Log>(new ShardingConfig
 3. **写入靠 SQL 文本替换。** `ShardingSqlHelper.ReplaceBaseTableName` 只认
    `insert into ` / `update ` / `delete from ` / `delete ` 四种前缀；匹配不上时**原样执行，
    也就是静默写到基础表**。`MERGE`、`INSERT INTO ... SELECT` 之类不要指望被改写。
-4. **内置建表是占位的**（[#26](https://github.com/doubao01/FastData/issues/26)）。
-   `ShardingManager.GenerateCreateTableSql` 固定返回
-   `CREATE TABLE IF NOT EXISTS [表名] (Id INT PRIMARY KEY)`，不看实体字段；`CreateTable`
-   还把异常全吞成 `false`。分表请自己建，并且**不要去调 `AutoCreateTable`**：库内没有任何
-   调用点，`AutoCreateTable = true` 这个默认值的唯一作用是让 `AutoCreateTable(entity)`
-   不 early-return —— 一调就会走到上面那个占位实现。
+4. **自动建表不属于当前可用能力**（[#26](https://github.com/doubao01/FastData/issues/26)）。
+   `CreateTable` 和 `GenerateCreateTableSql` 直接抛 `NotSupportedException`；
+   `AutoCreateTable` 默认关闭，显式启用后调用也会立即报错。五种内置策略的建表入口统一
+   转发到这一拒绝路径，不再返回虚假的成功。完整字段和索引须由应用的建表脚本创建。
 5. **查询频率统计在进程内。** `QueryFrequencyShardingStrategy` 的统计是静态字典：不持久化、
    多实例不同步，而且**没有任何读取路径会调用 `RecordQuery`**——要自己在业务里喂。
 6. **地理分片没实现。** `ShardingType.Geo` 与 `GeoShardingConfig` 都在，但没有对应策略类，
    `GetStrategy` 会抛 `未注册的分表策略类型: Geo`。
-7. **`SuffixFormat` 配了不生效**（[#27](https://github.com/doubao01/FastData/issues/27)）：全仓只有声明，0 个读取点。
-8. **`WithShardingConfig` 配了不生效**（[#27](https://github.com/doubao01/FastData/issues/27)）：`ShardingConfigOverride`
-   只有写入点没有读取点，分片路由实际读的是 `ShardingManager.GetConfig<T>()`。
-9. **配置是进程级全局。** `ShardingManager` 是静态类，配置放在静态字典里；测试之间、
-   多租户场景要 `ShardingManager.Clear()`。
-10. **表名会被按库改写。** PostgreSQL 下转小写、MySQL 下加反引号（`FormatTableName`），
+7. **全局注册配置是进程级。** `ShardingManager` 的配置放在静态字典里；测试之间要
+   `ShardingManager.Clear()`。读取可通过 `WithShardingConfig` 临时覆盖路由，写入不受覆盖影响。
+8. **表名会被按库改写。** PostgreSQL 下转小写、MySQL 下加反引号（`FormatTableName`），
     物理表名要和这个规则一致，否则 PostgreSQL 上会找不到表。
-11. **用之前必须 Configure。** 未配置的实体调 `ShardQuery` / `ShardAdd` 会抛
+9. **门面读写仍须 Configure。** 未配置的实体调 `ShardQuery` / `ShardAdd` 会抛
     `Entity type X is not configured for sharding.`
 
 ## 验证到什么程度
@@ -161,14 +180,20 @@ ShardingManager.Configure<Log>(new ShardingConfig
 |---|---|---|---|
 | `ShardingTests` | 40 | `build-core`，6 个平台/TFM 组合 | 表名计算、策略行为、配置隔离、策略注册——纯逻辑，不连库 |
 | `ShardingCrudIntegrationTests` | 12 | `integration-test` | **名字里有 Integration，但全程不连库**（SQLite 不支持动态建表），只验表名与配置 |
-| `MultiDatabaseShardingCrudTests.ShardedCrud_RoutesToPhysicalTablesAcrossDatabases` | 1 个 Theory × N 个库 | `integration-test`（`FASTDATA_RUN_DB_INTEGRATION=true` + MySQL / PostgreSQL / SQL Server 容器） | 唯一真连库的：`ShardAdd` / `ShardQuery` / `ShardUpdate` / `ShardQueryPage` / `ShardDelete` 全链路路由 |
+| `MultiDatabaseShardingCrudTests.ShardedCrud_RoutesToPhysicalTablesAcrossDatabases` | 1 个 Theory × N 个库 | `integration-test`（`FASTDATA_RUN_DB_INTEGRATION=true` + MySQL / PostgreSQL / SQL Server 容器） | 原有连库测试：`ShardAdd` / `ShardQuery` / `ShardUpdate` / `ShardQueryPage` / `ShardDelete` 全链路路由 |
+| `ShardingConfigurationTests` | 10 | `build-core` | 默认后缀兼容、自定义格式路由与枚举一致、无效格式显式失败 |
+| `MultiDatabaseShardingCrudTests.QueryConfigurationOverride_RoutesWithoutChangingGlobalConfiguration` | 6 | `integration-test` | 三种数据库、存在/不存在全局配置、四个读取入口、自定义后缀真实读写 |
+| `ShardingTableCreationTests` | 12 | `build-core` | 默认关闭、关闭时无操作、启用时显式失败、五个策略不再静默成功 |
+| `MultiDatabaseShardingCrudTests.AutomaticTableCreation_FailsWithoutCreatingTablesAndManualCrudRemainsUsable` | 3 | `integration-test` | 三种数据库中拒绝建表且没有新表；手动建完整表后的 CRUD 仍可用 |
+| `LegacyShardingCrudTests` | 8 | `build-core` | 四个入口的警告属性、明确替代提示及原有运行时拒绝行为 |
+| `MultiDatabaseShardingCrudTests.LegacyCrud_RejectionDoesNotChangeStoredDataAndFacadeCrudRemainsUsable` | 3 | `integration-test` | 三种数据库中旧调用不插入、修改或删除数据，可用门面的查询、更新、删除仍有效 |
 
-没有覆盖：`QueryFromShard` 等四个未实现方法、`AutoCreateTable` 建出来的表结构、
-多线程并发分片查询、超大候选表集合下的分页表现。
+没有提供：自动按实体字段生成分表 DDL，以及四个旧入口的真实 CRUD 执行。
+旧入口的警告和拒绝行为已有覆盖；多线程并发分片查询、超大候选表集合下的分页表现尚未覆盖。
 
 ## 相关文档
 
-- [现代 ORM 特性](./MODERN_ORM_FEATURES.md)——变更跟踪；其「数据库迁移」一节是声明而非实现，见[已知问题](./KNOWN_ISSUES.md)
+- [变更跟踪](../MODERN_ORM_FEATURES.md)——属性快照与变更检测；迁移执行器未实现，调用时明确报错
 - [已知问题](./KNOWN_ISSUES.md)——当前未处理的问题与理由
 - [连接池调优](./POOL_TUNING.md)——分表数量对连接池的影响
 - [配置说明](./CONFIGURATION.md)——`DatabaseKey` 对应的连接配置怎么写

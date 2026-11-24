@@ -5,12 +5,14 @@ using System.Linq;
 namespace FastData.Migrations
 {
     /// <summary>
-    /// 数据库迁移管理器
+    /// 保留兼容入口的迁移管理器；执行、回滚和历史读取尚未实现，调用时显式报错
     /// </summary>
     public class MigrationManager
     {
         private readonly string _connectionString;
         private readonly List<IMigration> _migrations = new List<IMigration>();
+        private const string MigrationNotSupportedHint =
+            "数据库迁移执行、回滚和历史记录尚未实现。当前入口仅为兼容保留，不会执行 Up/Down；参阅 MODERN_ORM_FEATURES.md。";
 
         /// <summary>
         /// Initializes a migration manager.
@@ -37,17 +39,7 @@ namespace FastData.Migrations
         /// </summary>
         public void Migrate()
         {
-            var appliedMigrations = GetAppliedMigrations();
-            var pendingMigrations = _migrations
-                .Where(m => !appliedMigrations.Contains(m.Version))
-                .OrderBy(m => m.Version)
-                .ToList();
-
-            foreach (var migration in pendingMigrations)
-            {
-                ExecuteMigration(migration);
-                RecordMigration(migration);
-            }
+            throw new NotSupportedException(MigrationNotSupportedHint);
         }
 
         /// <summary>
@@ -55,18 +47,7 @@ namespace FastData.Migrations
         /// </summary>
         public void Rollback(string targetVersion)
         {
-            var appliedMigrations = GetAppliedMigrations();
-            var migrationsToRollback = _migrations
-                .Where(m => appliedMigrations.Contains(m.Version) && 
-                           string.Compare(m.Version, targetVersion, StringComparison.Ordinal) > 0)
-                .OrderByDescending(m => m.Version)
-                .ToList();
-
-            foreach (var migration in migrationsToRollback)
-            {
-                migration.Down();
-                RemoveMigrationRecord(migration.Version);
-            }
+            throw new NotSupportedException(MigrationNotSupportedHint);
         }
 
         /// <summary>
@@ -74,49 +55,7 @@ namespace FastData.Migrations
         /// </summary>
         public List<MigrationInfo> GetMigrationHistory()
         {
-            return _migrations
-                .OrderBy(m => m.Version)
-                .Select(m => new MigrationInfo
-                {
-                    Version = m.Version,
-                    Description = m.Description,
-                    AppliedAt = GetMigrationAppliedDate(m.Version)
-                })
-                .ToList();
-        }
-
-        private void ExecuteMigration(IMigration migration)
-        {
-            try
-            {
-                migration.Up();
-            }
-            catch (Exception ex)
-            {
-                throw new MigrationException(string.Format("执行迁移 {0} 失败: {1}", migration.Version, ex.Message), ex);
-            }
-        }
-
-        private List<string> GetAppliedMigrations()
-        {
-            // 实现从数据库读取已应用的迁移版本
-            return new List<string>();
-        }
-
-        private void RecordMigration(IMigration migration)
-        {
-            // 实现将迁移记录写入数据库
-        }
-
-        private void RemoveMigrationRecord(string version)
-        {
-            // 实现从数据库删除迁移记录
-        }
-
-        private DateTime? GetMigrationAppliedDate(string version)
-        {
-            // 实现从数据库读取迁移应用时间
-            return null;
+            throw new NotSupportedException(MigrationNotSupportedHint);
         }
     }
 

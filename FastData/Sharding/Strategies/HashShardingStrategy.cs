@@ -89,7 +89,7 @@ namespace FastData.Sharding.Strategies
 
             for (int i = 0; i < config.HashConfig.ShardCount; i++)
             {
-                result.Add(string.Format("{0}_{1:D4}", config.BaseTableName, i));
+                result.Add(ShardingNameResolver.FormatTableName(config, "{0:D4}", i));
             }
 
             return result;
@@ -103,7 +103,7 @@ namespace FastData.Sharding.Strategies
         /// <returns>是否成功</returns>
         public bool CreateTable(ShardingConfig config, string tableName)
         {
-            return true;
+            return ShardingManager.CreateTable(config, tableName);
         }
 
         #region 私有方法

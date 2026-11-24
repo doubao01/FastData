@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Data;
 using System.Data.Common;
@@ -463,22 +464,22 @@ namespace FastData.Base
                                     , sql, pModel.EndId, pModel.StarId);
 
                 if (config.DbType == DataDbType.SqlServer)
-                    sql = string.Format(@"select top {1} * from (select row_number()over(order by tempcolumn)temprownumber,* 
+                    sql = string.Format(@"select top {1} * from (select row_number()over(order by tempcolumn)temprownumber,*
                                          from(select tempcolumn = 0, * from ({0})t)tt)ttt where temprownumber >= {2}"
-                                    , sql, pModel.PageSize, pModel.StarId - 1);
+                                    , sql, pModel.PageSize, pModel.StarId);
 
                 if (config.DbType == DataDbType.MySql)
-                    sql = string.Format("{0} limit {1},{2}", sql, pModel.StarId, pModel.PageSize);
+                    sql = string.Format("{0} limit {1},{2}", sql, pModel.StarId - 1, pModel.PageSize);
 
                 if (config.DbType == DataDbType.DB2)
                     sql = string.Format("select * from(select field.*,ROWNUM RN from({0}) field where rownum<={1}) where rn>={2}"
                                     , sql, pModel.EndId, pModel.StarId);
 
                 if (config.DbType == DataDbType.PostgreSql)
-                    sql = string.Format("{0} limit {1} offset {2}", sql, pModel.PageSize, pModel.StarId);
+                    sql = string.Format("{0} limit {1} offset {2}", sql, pModel.PageSize, pModel.StarId - 1);
 
                 if (config.DbType == DataDbType.SQLite)
-                    sql = string.Format("{0} limit {1} offset {2}", sql, pModel.PageSize, pModel.StarId);
+                    sql = string.Format("{0} limit {1} offset {2}", sql, pModel.PageSize, pModel.StarId - 1);
 
                 tempSql = ParameterToSql.ObjectParamToSql(param.ToList(), sql, config);
 
@@ -495,6 +496,86 @@ namespace FastData.Base
                     DbLogTable.LogException(config, ex, "ToPageDataReaderSql", "");
                 else
                     DbLog.LogException(config?.IsOutError ?? false, config?.DbType ?? DataDbType.SqlServer, ex, "ToPageDataReaderSql", "");
+                throw;
+            }
+        }
+        #endregion
+
+        #region 异步返回分页条数与 DataReader
+        /// <summary>
+        /// 异步返回分页条数
+        /// </summary>
+        public static async Task<(int count, string sql)> ToPageCountSqlAsync(DbParameter[] param, DbCommand cmd, string sql, ConfigModel config, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var countSql = string.Format("select count(0) from ({0})t", sql);
+                var tempSql = ParameterToSql.ObjectParamToSql(param == null ? new List<DbParameter>() : param.ToList(), countSql, config);
+
+                if (param != null)
+                    cmd.Parameters.AddRange(param.ToArray());
+
+                cmd.CommandText = countSql;
+                var value = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                var count = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+
+                return (count, tempSql);
+            }
+            catch (Exception ex)
+            {
+                if (string.Equals(config?.SqlErrorType, SqlErrorType.Db, StringComparison.OrdinalIgnoreCase))
+                    DbLogTable.LogException(config, ex, "ToPageCountSqlAsync", "");
+                else
+                    DbLog.LogException(config?.IsOutError ?? false, config?.DbType ?? DataDbType.SqlServer, ex, "ToPageCountSqlAsync", "");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 异步返回分页 DataReader
+        /// </summary>
+        public static async Task<(DbDataReader reader, string sql)> ToPageDataReaderSqlAsync(DbParameter[] param, DbCommand cmd, PageModel pModel, string sql, ConfigModel config, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (config.DbType == DataDbType.Oracle)
+                    sql = string.Format("select * from(select field.*,ROWNUM RN from({0}) field where rownum<={1}) where rn>={2}"
+                                    , sql, pModel.EndId, pModel.StarId);
+
+                if (config.DbType == DataDbType.SqlServer)
+                    sql = string.Format(@"select top {1} * from (select row_number()over(order by tempcolumn)temprownumber,*
+                                         from(select tempcolumn = 0, * from ({0})t)tt)ttt where temprownumber >= {2}"
+                                    , sql, pModel.PageSize, pModel.StarId);
+
+                if (config.DbType == DataDbType.MySql)
+                    sql = string.Format("{0} limit {1},{2}", sql, pModel.StarId - 1, pModel.PageSize);
+
+                if (config.DbType == DataDbType.DB2)
+                    sql = string.Format("select * from(select field.*,ROWNUM RN from({0}) field where rownum<={1}) where rn>={2}"
+                                    , sql, pModel.EndId, pModel.StarId);
+
+                if (config.DbType == DataDbType.PostgreSql)
+                    sql = string.Format("{0} limit {1} offset {2}", sql, pModel.PageSize, pModel.StarId - 1);
+
+                if (config.DbType == DataDbType.SQLite)
+                    sql = string.Format("{0} limit {1} offset {2}", sql, pModel.PageSize, pModel.StarId - 1);
+
+                var tempSql = ParameterToSql.ObjectParamToSql(param == null ? new List<DbParameter>() : param.ToList(), sql, config);
+
+                if (param != null)
+                    cmd.Parameters.AddRange(param.ToArray());
+
+                cmd.CommandText = sql;
+                var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+                return (reader, tempSql);
+            }
+            catch (Exception ex)
+            {
+                if (string.Equals(config?.SqlErrorType, SqlErrorType.Db, StringComparison.OrdinalIgnoreCase))
+                    DbLogTable.LogException(config, ex, "ToPageDataReaderSqlAsync", "");
+                else
+                    DbLog.LogException(config?.IsOutError ?? false, config?.DbType ?? DataDbType.SqlServer, ex, "ToPageDataReaderSqlAsync", "");
                 throw;
             }
         }

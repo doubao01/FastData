@@ -89,6 +89,7 @@ MySQL / PostgreSQL / SQL Server 的集成测试。
 | `Integration/` | `MultiDatabaseRedisQueueTests.cs` | 2 | 跨库 Redis 队列写入与降级 |
 | `Integration/` | `MultiDatabaseShardingCrudTests.cs` | 1 | 多库分表 CRUD |
 | `Integration/` | `DatabaseIntegrationTests.cs` | 1 | 集成测试共用实体与冒烟 |
+| `Integration/` | `AsyncPaginationTests.cs` | 4 | issue #20：原生 SQL 同步/异步分页一致性（SQL Server/MySQL/PostgreSQL/SQLite） |
 | `Integration/` | `MultiDatabaseTestHelper.cs` | — | 集成测试辅助 |
 | `Monitoring/` | `OperationsPanelTests.cs` | 12 | 运维面板输出契约 |
 | `Security/` | `SensitiveDataTests.cs` | 3 | 敏感信息脱敏与假成功回归 |
@@ -147,12 +148,12 @@ CI 把 `OrmCrudTests` 和 `StressTests.Concurrent` / `StressTests.MixedOperation
 
 ## 当前结果
 
-CI run#90（2026-10-30），12 个 job 全绿：
+CI run#105（2026-11-24），12 个 job 全绿：
 
 | 批次 | 结果 |
 |------|------|
-| 单元测试（无外部库） | 568 passed / 0 failed / 1 skipped |
-| 集成测试（MySQL 8.0 / PostgreSQL 16 / SQL Server 2022） | 205 passed / 0 failed |
+| 单元测试（无外部库） | 619 passed / 0 failed / 1 skipped |
+| 集成测试（MySQL 8.0 / PostgreSQL 16 / SQL Server 2022 / SQLite） | 221 passed / 0 failed |
 
 跳过的那 1 个是环境相关用例，不是被过滤掉的。
 

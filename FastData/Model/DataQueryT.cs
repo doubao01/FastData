@@ -468,12 +468,13 @@ namespace FastData.Model
         /// </summary>
         public List<T> ToList()
         {
-            if (EnableSharding && ShardingManager.IsShardingEnabled<T>())
+            if (EnableSharding && (ShardingConfigOverride != null || ShardingManager.IsShardingEnabled<T>()))
             {
                 return ShardingReadHelper.Query<T>(
                     BuildPredicate(),
                     ShardingQueryParams,
-                    Key
+                    Key,
+                    ShardingConfigOverride
                 );
             }
             return FastRead.ToList<T>(this);
@@ -484,12 +485,13 @@ namespace FastData.Model
         /// </summary>
         public T ToItem()
         {
-            if (EnableSharding && ShardingManager.IsShardingEnabled<T>())
+            if (EnableSharding && (ShardingConfigOverride != null || ShardingManager.IsShardingEnabled<T>()))
             {
                 var results = ShardingReadHelper.Query<T>(
                     BuildPredicate(),
                     ShardingQueryParams,
-                    Key
+                    Key,
+                    ShardingConfigOverride
                 );
                 return results.FirstOrDefault();
             }
@@ -501,12 +503,13 @@ namespace FastData.Model
         /// </summary>
         public int ToCount()
         {
-            if (EnableSharding && ShardingManager.IsShardingEnabled<T>())
+            if (EnableSharding && (ShardingConfigOverride != null || ShardingManager.IsShardingEnabled<T>()))
             {
                 var results = ShardingReadHelper.Query<T>(
                     BuildPredicate(),
                     ShardingQueryParams,
-                    Key
+                    Key,
+                    ShardingConfigOverride
                 );
                 return results.Count;
             }
@@ -521,14 +524,15 @@ namespace FastData.Model
         /// <returns>分页结果</returns>
         public PaginationResult<T> ToPagination(int page, int pageSize)
         {
-            if (EnableSharding && ShardingManager.IsShardingEnabled<T>())
+            if (EnableSharding && (ShardingConfigOverride != null || ShardingManager.IsShardingEnabled<T>()))
             {
                 var pageResult = ShardingReadHelper.QueryPage<T>(
                     BuildPredicate(),
                     ShardingQueryParams,
                     page,
                     pageSize,
-                    Key
+                    Key,
+                    ShardingConfigOverride
                 );
 
                 return new PaginationResult<T>

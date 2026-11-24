@@ -146,7 +146,12 @@ namespace FastData.Sharding
         /// </summary>
         public static List<string> GetTableNames<T>(Dictionary<string, object> queryParams) where T : class
         {
-            var config = GetConfig<T>();
+            return GetTableNames<T>(queryParams, null);
+        }
+
+        internal static List<string> GetTableNames<T>(Dictionary<string, object> queryParams, ShardingConfig configOverride) where T : class
+        {
+            var config = configOverride ?? GetConfig<T>();
             if (config == null)
                 return new List<string> { Base.TableNameHelper.GetTableName<T>() };
 
@@ -179,16 +184,15 @@ namespace FastData.Sharding
         }
 
         /// <summary>
-        /// 创建分表
+        /// 创建分表（尚未实现，调用时显式报错）
         /// </summary>
         public static bool CreateTable<T>(string tableName) where T : class
         {
-            var config = GetConfig<T>();
-            if (config == null)
-                return false;
-
-            return CreateTable(config, tableName);
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
+
+        private const string ShardingTableCreationHint =
+            "分表自动建表尚未实现。请自行按实体结构创建分表，参阅 docs/SHARDING.md。";
 
         /// <summary>
         /// 创建分表
@@ -198,24 +202,7 @@ namespace FastData.Sharding
         /// <returns>是否成功</returns>
         public static bool CreateTable(ShardingConfig config, string tableName)
         {
-            try
-            {
-                var dbConfig = DataConfig.GetConfig(config.DatabaseKey);
-                if (dbConfig == null)
-                    return false;
-
-                using (var db = new DataContext(config.DatabaseKey))
-                {
-                    var sql = GenerateCreateTableSql(config, tableName);
-                    db.ExecuteSql(sql);
-                }
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
 
         /// <summary>
@@ -226,9 +213,7 @@ namespace FastData.Sharding
         /// <returns>SQL语句</returns>
         public static string GenerateCreateTableSql(ShardingConfig config, string tableName)
         {
-            // 这里需要根据实体类型生成建表 SQL
-            // 实际实现应该从实体的属性映射获取字段定义
-            return string.Format("CREATE TABLE IF NOT EXISTS [{0}] (Id INT PRIMARY KEY)", tableName);
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
 
         /// <summary>
@@ -240,8 +225,7 @@ namespace FastData.Sharding
             if (config == null || !config.AutoCreateTable)
                 return;
 
-            var tableName = GetTableName(entity);
-            CreateTable<T>(tableName);
+            throw new NotSupportedException(ShardingTableCreationHint);
         }
 
         /// <summary>
@@ -259,52 +243,81 @@ namespace FastData.Sharding
         private const string ShardingNotImplementedHint =
             "此前版本会静默返回成功/空集合，导致调用方误认为操作已完成。为避免数据静默丢失，现改为显式抛出异常。";
 
+        private const string QueryFromShardGuidance =
+            "QueryFromShard 尚未实现，请使用 FastDataClient.ShardQuery/ShardQueryPage 或 ShardingReadHelper.Query/QueryPage。";
+        private const string InsertToShardGuidance =
+            "InsertToShard 尚未实现，请使用 FastDataClient.ShardAdd 或 ShardingWriteHelper.Add。";
+        private const string UpdateInShardGuidance =
+            "UpdateInShard 尚未实现，请使用 FastDataClient.ShardUpdate 或 ShardingWriteHelper.Update。";
+        private const string DeleteFromShardGuidance =
+            "DeleteFromShard 尚未实现，请使用 FastDataClient.ShardDelete 或 ShardingWriteHelper.Delete。";
+
         /// <summary>
-        /// 从分表查询数据
+        /// 旧的分表查询兼容入口（未实现）
         /// </summary>
+        /// <remarks>读取请使用 <see cref="FastDataClient"/> 的 ShardQuery/ShardQueryPage 或 <see cref="ShardingReadHelper"/>。</remarks>
+        /// <example>
+        /// <code>
+        /// var client = new FastDataClient(databaseKey);
+        /// var rows = client.ShardQuery(predicate, queryParams);
+        /// </code>
+        /// </example>
         /// <exception cref="NotSupportedException">该方法尚未实现</exception>
+        [Obsolete(QueryFromShardGuidance, false)]
         public static List<T> QueryFromShard<T>(string tableName, DataQuery query) where T : class, new()
         {
-            // 待实现：需要 DataContext 支持动态表名替换
-            throw new NotSupportedException(
-                "QueryFromShard 尚未实现：分表 " + tableName + " 的查询需要 DataContext 支持动态表名替换。" +
-                ShardingNotImplementedHint);
+            throw new NotSupportedException(QueryFromShardGuidance + ShardingNotImplementedHint);
         }
 
         /// <summary>
-        /// 向分表插入数据
+        /// 旧的分表插入兼容入口（未实现）
         /// </summary>
+        /// <remarks>写入请使用 <see cref="FastDataClient"/> 的 ShardAdd 或 <see cref="ShardingWriteHelper"/> 的 Add；实体须有公开无参构造函数。</remarks>
+        /// <example>
+        /// <code>
+        /// var client = new FastDataClient(databaseKey);
+        /// var result = client.ShardAdd(entity);
+        /// </code>
+        /// </example>
         /// <exception cref="NotSupportedException">该方法尚未实现</exception>
+        [Obsolete(InsertToShardGuidance, false)]
         public static bool InsertToShard<T>(T entity) where T : class
         {
-            // 待实现：需要 DataContext 支持动态表名替换
-            throw new NotSupportedException(
-                "InsertToShard 尚未实现：分表插入需要 DataContext 支持动态表名替换。" +
-                ShardingNotImplementedHint);
+            throw new NotSupportedException(InsertToShardGuidance + ShardingNotImplementedHint);
         }
 
         /// <summary>
-        /// 从分表更新数据
+        /// 旧的分表更新兼容入口（未实现）
         /// </summary>
+        /// <remarks>更新请使用 <see cref="FastDataClient"/> 的 ShardUpdate 或 <see cref="ShardingWriteHelper"/> 的 Update；实体须有公开无参构造函数。</remarks>
+        /// <example>
+        /// <code>
+        /// var client = new FastDataClient(databaseKey);
+        /// var result = client.ShardUpdate(entity, predicate, field);
+        /// </code>
+        /// </example>
         /// <exception cref="NotSupportedException">该方法尚未实现</exception>
+        [Obsolete(UpdateInShardGuidance, false)]
         public static bool UpdateInShard<T>(T entity) where T : class
         {
-            // 待实现：需要 DataContext 支持动态表名替换
-            throw new NotSupportedException(
-                "UpdateInShard 尚未实现：分表更新需要 DataContext 支持动态表名替换。" +
-                ShardingNotImplementedHint);
+            throw new NotSupportedException(UpdateInShardGuidance + ShardingNotImplementedHint);
         }
 
         /// <summary>
-        /// 从分表删除数据
+        /// 旧的分表删除兼容入口（未实现）
         /// </summary>
+        /// <remarks>删除请使用 <see cref="FastDataClient"/> 的 ShardDelete 或 <see cref="ShardingWriteHelper"/> 的 Delete，并提供删除条件与分片查询参数。</remarks>
+        /// <example>
+        /// <code>
+        /// var client = new FastDataClient(databaseKey);
+        /// var result = client.ShardDelete(predicate, queryParams);
+        /// </code>
+        /// </example>
         /// <exception cref="NotSupportedException">该方法尚未实现</exception>
+        [Obsolete(DeleteFromShardGuidance, false)]
         public static bool DeleteFromShard<T>(T entity) where T : class
         {
-            // 待实现：需要 DataContext 支持动态表名替换
-            throw new NotSupportedException(
-                "DeleteFromShard 尚未实现：分表删除需要 DataContext 支持动态表名替换。" +
-                ShardingNotImplementedHint);
+            throw new NotSupportedException(DeleteFromShardGuidance + ShardingNotImplementedHint);
         }
 
         /// <summary>

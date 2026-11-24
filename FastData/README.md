@@ -21,6 +21,7 @@ dotnet add package FastData.Orm
 
 > ⚠️ 尚未发布到 NuGet（发布的前置条件见 [#21](https://github.com/doubao01/FastData/issues/21)）。
 > 在此之前请克隆仓库后直接引用 `FastData/FastData.csproj`，或使用 CI 产出的 nupkg。
+> 版本线：独立的 `FastData.Orm` 从 `1.0.0` 开始；上游 `Fast.Data 3.2.4` 是另一个包 ID，不延续其版本号。
 
 ## 支持的数据库
 
@@ -31,8 +32,11 @@ dotnet add package FastData.Orm
 | MySQL | `MySql.Data.MySqlClient` | |
 | PostgreSQL | `Npgsql` | |
 | SQLite | `Microsoft.Data.Sqlite` / `System.Data.SQLite` | 两者都识别 |
-| Oracle | `Oracle.ManagedDataAccess.Client` | |
-| DB2 | `IBM.Data.DB2.Core` | NuGet 包版；**自动注册器不覆盖 DB2**，需自己 `DbProviderFactories.RegisterFactory`（net452 下由驱动安装写入 machine.config） |
+| Oracle | `Oracle.ManagedDataAccess.Client` | 未验证：无 CI 集成测试覆盖 |
+| DB2 | `IBM.Data.DB2.Core` | 未验证：无 CI 集成测试覆盖。NuGet 包版；**自动注册器不覆盖 DB2**，需自己 `DbProviderFactories.RegisterFactory`（net452 下由驱动安装写入 machine.config） |
+
+CI 的真实连库测试覆盖 SQL Server、MySQL、PostgreSQL、SQLite。Oracle、DB2 的条目仅表示
+存在适配入口，不表示其查询、分页、事务或分表已通过连库验证。
 
 前六项（SqlClient×2、MySql、Npgsql、Sqlite×2、Oracle）在应用启动时按需自动注册，
 驱动 DLL 在依赖图里就能用；不在表里的 Provider 要自己注册后才能通过名字取到工厂。
@@ -305,7 +309,7 @@ public class User
 | [消息队列](./docs/MESSAGE_QUEUE.md) | 削峰、降级、多方推送、消息模型 |
 | [连接池调优](./docs/POOL_TUNING.md) | 每个参数的实际行为与误判点 |
 | [分库分表](./docs/SHARDING.md) | 五种分片策略、表名规则、什么时候别用 |
-| [现代 ORM 特性](./docs/MODERN_ORM_FEATURES.md) | 变更跟踪、数据库迁移 |
+| [变更跟踪](./MODERN_ORM_FEATURES.md) | 属性快照、变更检测和 SQL 模板；不提供数据库迁移执行 |
 | [ORM 最佳实践](./docs/ORM_BEST_PRACTICES.md) | 推荐用法、过时 API 迁移 |
 | [Provider 自动注册](./docs/AUTO_PROVIDER_REGISTRATION.md) | .NET Core+ 下的驱动扫描 |
 | [性能](./docs/PERFORMANCE.md) | 基准数据与调优方向 |
@@ -315,3 +319,5 @@ public class User
 ## 许可证
 
 MIT，见 [LICENSE](../LICENSE)。
+
+> 上游授权未取得：上游仓库未声明许可证，维护者已确认两个账号不是同一人。维护者说明上游已无人维护，决定以 MIT 继续发布并自行承担相关风险，详见 [UPSTREAM_LICENSE.md](./docs/UPSTREAM_LICENSE.md)。

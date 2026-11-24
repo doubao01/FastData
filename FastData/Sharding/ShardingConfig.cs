@@ -24,7 +24,7 @@ namespace FastData.Sharding
         public ShardingType ShardingType { get; set; }
 
         /// <summary>
-        /// 分表后缀格式（如 "{0:yyyyMMdd}", "{0:D4}"）
+        /// 时间、哈希、列表、组合键分表的后缀格式（如 "{0:yyyyMMdd}", "{0:D4}"）；为空时保留默认格式
         /// </summary>
         public string SuffixFormat { get; set; }
 
@@ -64,9 +64,9 @@ namespace FastData.Sharding
         public int MaxTableCount { get; set; } = 100;
 
         /// <summary>
-        /// 是否自动创建分表
+        /// 是否自动创建分表；默认关闭，启用后调用建表入口会因尚未实现而抛出异常
         /// </summary>
-        public bool AutoCreateTable { get; set; } = true;
+        public bool AutoCreateTable { get; set; } = false;
 
         /// <summary>
         /// 数据库连接 Key

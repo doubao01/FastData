@@ -187,7 +187,8 @@ namespace FastData.Repository
         /// </summary>
         public Task<PageResult> QueryPageAsync(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false)
         {
-            return AsyncHelper.RunSyncAsAsync(() => QueryPage(pModel, name, param, db, key, isOutSql));
+            key = key == null ? MapDb(name) : key;
+            return FastMap.QueryPageAsync(pModel, name, param, db, key, isOutSql);
         }
 
         /// <summary>
@@ -221,7 +222,8 @@ namespace FastData.Repository
         /// </summary>
         public Task<PageResult<T>> QueryPageAsync<T>(PageModel pModel, string name, DbParameter[] param, DataContext db = null, string key = null, bool isOutSql = false) where T : class, new()
         {
-            return AsyncHelper.RunSyncAsAsync(() => QueryPage<T>(pModel, name, param, db, key, isOutSql));
+            key = key == null ? MapDb(name) : key;
+            return FastMap.QueryPageAsync<T>(pModel, name, param, db, key, isOutSql);
         }
 
         /// <summary>

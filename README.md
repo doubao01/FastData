@@ -11,7 +11,8 @@
 或者需要把 SQL 抽到 XML 里交给 DBA 维护——这是它存在的理由。
 新项目请直接用 EF Core 或 Dapper，它们更成熟。
 
-支持的数据库：SQL Server、MySQL、PostgreSQL、SQLite、Oracle、DB2。
+已通过 CI 连库测试的数据库：SQL Server、MySQL、PostgreSQL、SQLite。
+Oracle、DB2 提供适配入口，但尚无集成测试覆盖，不列为已验证支持。
 
 ---
 
@@ -45,7 +46,7 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 ### 详细文档
 
-- 📖 [现代 ORM 特性详解](./FastData/docs/MODERN_ORM_FEATURES.md)
+- 📖 [变更跟踪详解](./FastData/MODERN_ORM_FEATURES.md)
 - 🐞 [已知问题与修复状态](./FastData/docs/KNOWN_ISSUES.md)
 - 📋 [CHANGELOG](./CHANGELOG.md)
 
@@ -68,7 +69,18 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 ## 核心特性
 
 ### 数据库支持
-- ✅ SQL Server / MySQL / PostgreSQL / Oracle / SQLite / DB2
+
+| 数据库 | 验证状态 |
+|---|---|
+| SQL Server | CI 真实连库覆盖 |
+| MySQL | CI 真实连库覆盖 |
+| PostgreSQL | CI 真实连库覆盖 |
+| SQLite | CI 本地文件数据库覆盖 |
+| Oracle | 未验证：无集成测试覆盖 |
+| DB2 | 未验证：无集成测试覆盖 |
+
+验证范围以 [集成测试数据库清单](FastData.Tests/Integration/MultiDatabaseTestHelper.cs)
+和 [云构建流程](.github/workflows/build.yml) 为准；存在 Provider 适配入口不等于连库验证通过。
 
 ### 核心功能
 - ✅ Lambda 查询表达式
@@ -117,7 +129,7 @@ var users = FastMap.Query<User>("selectUserById", new[] { param });
 
 ### 核心文档
 - [FastData 核心库](./FastData/README.md)
-- [现代 ORM 特性详解](./FastData/docs/MODERN_ORM_FEATURES.md)
+- [变更跟踪详解](./FastData/MODERN_ORM_FEATURES.md)
 - [CHANGELOG](./CHANGELOG.md)
 
 ### 专题文档
@@ -178,3 +190,5 @@ dotnet build -p:BuildPlatform=windows
 ## 许可证
 
 MIT License
+
+> 上游授权未取得：本仓库源自 `weizhonzhen/FastData`，上游未声明许可证，且维护者确认两个账号不是同一人。维护者说明上游已无人维护，决定以 MIT 继续发布并自行承担相关风险，详见 [FastData/docs/UPSTREAM_LICENSE.md](FastData/docs/UPSTREAM_LICENSE.md)。

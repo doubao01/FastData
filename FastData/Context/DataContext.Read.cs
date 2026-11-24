@@ -391,6 +391,146 @@ namespace FastData.Context
         }
         #endregion
 
+        #region 异步获取分页
+        /// <summary>
+        /// 异步获取分页（字典）
+        /// </summary>
+        internal async Task<DataReturn> GetPageSqlAsync(PageModel pModel, string sql, DbParameter[] param, bool isAop = true, CancellationToken cancellationToken = default)
+        {
+            var result = new DataReturn();
+            var countSql = "";
+            var pageSql = "";
+
+            try
+            {
+                pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                pModel.EndId = pModel.PageId * pModel.PageSize;
+                cmd.Parameters.Clear();
+                await EnsureConnectionOpenReadAsync(cancellationToken).ConfigureAwait(false);
+
+                var countResult = await BaseExecute.ToPageCountSqlAsync(param, cmd, sql, config, cancellationToken).ConfigureAwait(false);
+                countSql = countResult.sql;
+                pModel.TotalRecord = countResult.count;
+
+                if (pModel.TotalRecord > 0)
+                {
+                    if ((pModel.TotalRecord % pModel.PageSize) == 0)
+                        pModel.TotalPage = pModel.TotalRecord / pModel.PageSize;
+                    else
+                        pModel.TotalPage = (pModel.TotalRecord / pModel.PageSize) + 1;
+
+                    if (pModel.PageId > pModel.TotalPage)
+                        pModel.PageId = pModel.TotalPage;
+
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
+
+                    if (isAop)
+                        AopBefore(null, sql.ToString(), param?.ToList(), config, true, AopType.Query_Page_Lambda_Dic);
+
+                    cmd.Parameters.Clear();
+                    var pageResult = await BaseExecute.ToPageDataReaderSqlAsync(param, cmd, pModel, sql, config, cancellationToken).ConfigureAwait(false);
+                    pageSql = pageResult.sql;
+                    using (var dr = pageResult.reader)
+                    {
+                        if (dr != null)
+                            result.PageResult.list = BaseJson.DataReaderToDic(dr, config.DbType == DataDbType.Oracle);
+                    }
+
+                    result.Sql = string.Format("count:{0},page:{1}", countSql, pageSql);
+
+                    if (isAop)
+                        AopAfter(null, sql.ToString(), param?.ToList(), config, true, AopType.Query_Page_Lambda_Dic, result.PageResult.list);
+                }
+                else
+                    result.PageResult.list = new List<Dictionary<string, object>>();
+
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
+                result.PageResult.pModel = pModel;
+            }
+            catch (Exception ex)
+            {
+                AopException(ex, "to Page sql async", config, AopType.Query_Page_Lambda_Dic);
+
+                if (string.Equals(config?.SqlErrorType, SqlErrorType.Db, StringComparison.OrdinalIgnoreCase))
+                    DbLogTable.LogException(config, ex, "GetPageSqlAsync", result.Sql);
+                else
+                    DbLog.LogException(config.IsOutError, config.DbType, ex, "GetPageSqlAsync", result.Sql);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 异步获取分页（实体）
+        /// </summary>
+        internal async Task<DataReturn<T>> GetPageSqlAsync<T>(PageModel pModel, string sql, DbParameter[] param, bool isAop = true, CancellationToken cancellationToken = default) where T : class, new()
+        {
+            var result = new DataReturn<T>();
+            var countSql = "";
+            var pageSql = "";
+
+            try
+            {
+                pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                pModel.EndId = pModel.PageId * pModel.PageSize;
+                cmd.Parameters.Clear();
+                await EnsureConnectionOpenReadAsync(cancellationToken).ConfigureAwait(false);
+
+                var countResult = await BaseExecute.ToPageCountSqlAsync(param, cmd, sql, config, cancellationToken).ConfigureAwait(false);
+                countSql = countResult.sql;
+                pModel.TotalRecord = countResult.count;
+
+                if (pModel.TotalRecord > 0)
+                {
+                    if ((pModel.TotalRecord % pModel.PageSize) == 0)
+                        pModel.TotalPage = pModel.TotalRecord / pModel.PageSize;
+                    else
+                        pModel.TotalPage = (pModel.TotalRecord / pModel.PageSize) + 1;
+
+                    if (pModel.PageId > pModel.TotalPage)
+                        pModel.PageId = pModel.TotalPage;
+
+                    pModel.StarId = (pModel.PageId - 1) * pModel.PageSize + 1;
+                    pModel.EndId = pModel.PageId * pModel.PageSize;
+
+                    if (isAop)
+                        AopBefore(null, sql.ToString(), param?.ToList(), config, true, AopType.Query_Page_Lambda_Model);
+
+                    cmd.Parameters.Clear();
+                    var pageResult = await BaseExecute.ToPageDataReaderSqlAsync(param, cmd, pModel, sql, config, cancellationToken).ConfigureAwait(false);
+                    pageSql = pageResult.sql;
+                    using (var dr = pageResult.reader)
+                    {
+                        if (dr != null)
+                            result.PageResult.list = BaseDataReader.ToList<T>(dr, config, null);
+                    }
+
+                    result.Sql = string.Format("count:{0},page:{1}", countSql, pageSql);
+
+                    if (isAop)
+                        AopAfter(null, sql.ToString(), param?.ToList(), config, true, AopType.Query_Page_Lambda_Model, result.PageResult.list);
+                }
+                else
+                    result.PageResult.list = new List<T>();
+
+                result.PageResult.Sql = string.IsNullOrEmpty(result.Sql) ? sql : result.Sql;
+                result.PageResult.pModel = pModel;
+            }
+            catch (Exception ex)
+            {
+                AopException(ex, "to Page tableName:" + typeof(T).Name + " async", config, AopType.Query_Page_Lambda_Model);
+
+                if (string.Equals(config?.SqlErrorType, SqlErrorType.Db, StringComparison.OrdinalIgnoreCase))
+                    DbLogTable.LogException(config, ex, "GetPageSqlAsync", result.Sql);
+                else
+                    DbLog.LogException(config.IsOutError, config.DbType, ex, "GetPageSqlAsync", result.Sql);
+            }
+
+            return result;
+        }
+        #endregion
+
         #region 获取json
         /// <summary>
         /// 获取json多表
