@@ -1,4 +1,4 @@
-# 已知问题与修复状态
+﻿# 已知问题与修复状态
 
 本文档汇总历次代码审计发现的问题及当前处置状态，避免重复分析。
 最后更新：2026-11-02。
@@ -141,7 +141,7 @@ Issue 的实时开关状态以 GitHub 为准。本页区分已进入 PR 的修�
 | [#20](https://github.com/doubao01/FastData/issues/20) | `QueryPageAsync` / `QueryPageAsync<T>` 是同步包装，不提供 I/O 异步 | 需新增异步分页执行器（含四方言）与 `DataContext.GetPageSql` 的异步版本，属新功能 |
 | [#21](https://github.com/doubao01/FastData/issues/21) | LICENSE 与代码来源不匹配：上游 `weizhonzhen/FastData` 无任何许可声明 | 只能由上游或作者给结论，代码层面无法自行解决；**它同时是 #25 的前置** |
 | [#22](https://github.com/doubao01/FastData/issues/22) | 迁移执行器未实现 | PR #29 采用明确拒绝路线：执行、回滚和历史读取均抛异常，不触发 Up/Down；移除迁移能力宣传，保留兼容 API |
-| [#23](https://github.com/doubao01/FastData/issues/23) | `ISqlDialect` 及 5 个实现从未被调用，真实分页硬编码在 `BaseExecute` | 需先决定删掉方言层、还是把 `BaseExecute` 里的 if/else 接过去 |
+| [#23](https://github.com/doubao01/FastData/issues/23) | `ISqlDialect` 及 5 个实现从未被调用，真实分页硬编码在 `BaseExecute` | PR #29 采用方案 C：明确文档说明未接线、仅扩展点；修复 Oracle ApplyTake 无 WHERE 报错；新增方言契约测试覆盖工厂映射与五种方言行为 |
 | [#24](https://github.com/doubao01/FastData/issues/24) | 数据库支持声明与真实验证范围不一致 | PR #29 已把 Oracle / DB2 标为未验证；SQL Server / MySQL / PostgreSQL / SQLite 为当前 CI 连库范围，修复仍待合并 |
 | [#25](https://github.com/doubao01/FastData/issues/25) | 无法发布为 NuGet 包 | 包名冲突已解决（改为 `FastData.Orm`），剩余阻塞是 #21 的授权结论与首次打 tag |
 | [#26](https://github.com/doubao01/FastData/issues/26) | 自动分表建表未实现，旧路径曾生成固定单列 SQL 并静默失败 | PR #29 默认关闭自动建表，直接建表和启用后的自动建表均显式报错；五个内置策略转发到统一拒绝路径，完整表结构由应用建表脚本处理 |
