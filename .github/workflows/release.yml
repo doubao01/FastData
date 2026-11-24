@@ -59,8 +59,8 @@ jobs:
 
       - name: Pack
         run: |
-          dotnet pack FastData/FastData.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.VERSION }}
-          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.VERSION }}
+          dotnet pack FastData/FastData.csproj -c Release --no-build -p:BuildPlatform=windows -p:Version=${{ steps.version.outputs.VERSION }} -o artifacts
+          dotnet pack FastData.Untility/FastData.Untility.csproj -c Release --no-build -p:BuildPlatform=windows -p:Version=${{ steps.version.outputs.VERSION }} -o artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
