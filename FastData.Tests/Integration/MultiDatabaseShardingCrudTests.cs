@@ -76,6 +76,11 @@ namespace FastData.Tests.Integration
                 Assert.True(client.ShardDelete<ShardOrder>(row => row.OrderNo == original.OrderNo, queryParams).IsSuccess);
                 Assert.Equal(0, CountPhysicalRows(dbName, tableName, original.OrderNo));
             }
+            catch (Exception exception)
+            {
+                ReportLegacyCrudFailure(dbName, exception);
+                throw;
+            }
             finally
             {
                 DropTable(dbName, tableName);
@@ -361,6 +366,26 @@ namespace FastData.Tests.Integration
         private static bool ShouldRunDbIntegration()
         {
             return string.Equals(Environment.GetEnvironmentVariable("FASTDATA_RUN_DB_INTEGRATION"), "true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void ReportLegacyCrudFailure(string dbName, Exception exception)
+        {
+            var exceptionType = exception.GetType();
+            var message = exceptionType.Namespace == "Xunit.Sdk" ? exception.Message : "Non-assertion message omitted.";
+            foreach (var sensitiveName in new[] { "password", "pwd", "connectionstring", "connstr", "token", "secret", "cookie", "authorization", "api_key", "apikey" })
+            {
+                if (message.IndexOf(sensitiveName, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    message = "Credential-sensitive assertion message omitted.";
+                    break;
+                }
+            }
+
+            var detail = "Legacy CRUD/" + dbName + "\n" + exceptionType.FullName + "\n" + message + "\n" + exception.StackTrace;
+            if (detail.Length > 6000)
+                detail = detail.Substring(0, 6000);
+            detail = detail.Replace("%", "%25").Replace("\r", "%0D").Replace("\n", "%0A");
+            Console.WriteLine("::error file=FastData.Tests/Integration/MultiDatabaseShardingCrudTests.cs,line=1,title=Legacy CRUD diagnostic::{0}", detail);
         }
 
         private static void AssertLegacyCrudRejected(string methodName, ShardOrder entity, string tableName)
